@@ -665,3 +665,12 @@ label .micon { margin-right: 4px; }
   color: #8a9377; opacity: 1;
 }
 #slotName { padding: 4px 6px; }
+
+/* 更新日志 */
+.log-list { margin-top: 4px; }
+.log-item { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.log-item:last-child { border-bottom: none; }
+.log-head { font-size: 13px; margin-bottom: 2px; }
+.log-head .sub { margin-left: 6px; }
+.log-item ul { margin: 2px 0 0 16px; padding: 0; }
+.log-item li { font-size: 12px; line-height: 1.55; color: var(--dim); }

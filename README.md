@@ -155,7 +155,12 @@ python3 tools/make_dev.py
 建议至少在早期（`hours=0.5`）、中期（`hours=8`）、后期（`hours=40`）各跑一次。
 它还会顺带报光标是否三种都挂上、有没有真的吃到 2 倍图。
 
-另外两个自检：
+它会顺带跑一条 **ACTCHECK**：扫 DOM 里的 `[data-act]`，凡是界面上写了、
+`ACT` 里没实现的按钮都会列出来。这条是必须的 —— 出过一次事故，改动作块时
+误删了 15 个动作（`recipe` / `craft` / `buySeed` / …），语法没错、页面能开、
+当时的自检全绿，只有真去点那个按钮才发现。
+
+还有几个自检：
 
 ```bash
 # 就地合入机制的单元自检（按钮/下拉节点是否会被销毁重造）
@@ -163,7 +168,35 @@ python3 tools/make_dev.py
 
 # 标签页 DOM 重建频率（正常应该接近 0 次/秒）
 --dump-dom "file://$PWD/dev.html#hours=6&tab=market&check=churn"
+
+# 用真实的 pointerdown → pointerup → click 序列点几个真按钮（.click() 绕过了指针事件）
+--dump-dom "file://$PWD/dev.html#hours=3&check=buttons"
+
+# 设置面板：存档槽位存/读/删、导出、二次确认、版本号、更新日志
+--dump-dom "file://$PWD/dev.html#hours=2&check=settings"
 ```
+
+### 界面动作静态检查
+
+```bash
+python3 tools/lint_acts.py
+```
+
+不跑浏览器，直接比对 `ACT` 里注册的动作（对象字面量 + `ACT.xxx =` 两种写法）和
+`ui.js` / `index.html` / `main.js` 里出现的 `data-act`。上面那次事故之后加的。
+`picksell`（下拉框走 `change`）和 `settings`（单独入口）列在白名单里。
+
+### 部署前必做：换资源版本号
+
+```bash
+python3 tools/bump_asset_version.py          # 换 ?v=，并写进 src/data/build.js
+python3 tools/bump_asset_version.py --check  # 只检查
+```
+
+GitHub Pages 对静态文件发的是 `cache-control: max-age=600`。不换版本号的话，
+已经打开过页面的人普通刷新拿到的还是旧文件 —— 出现过一次
+"我明明修好了他怎么还说没好"。同一个 build 号会写进 `src/data/build.js`，
+设置面板里显示的版本就是它，可以拿它确认线上到底跑的是哪一版。
 
 文案打磨全程用 `deepseek-v4-pro` 并行跑，改的只有字符串。如果以后还要再润色一遍，
 记得保留 `data_raw/copy_backup/`（里面是润色前的快照），否则 `check` 子命令没有对照物。

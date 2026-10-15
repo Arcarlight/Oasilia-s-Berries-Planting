@@ -1642,6 +1642,23 @@ window.G = window.G || {};
       </div>
 
       <div class="card">
+        <h4>关于</h4>
+        <div class="sub">菲洛若亚大陆 · 树果物语　版本 <b>${esc((G.BUILD || {}).version || "?")}</b>
+          （build ${esc(String((G.BUILD || {}).build || 0))}　${esc((G.BUILD || {}).date || "")}）</div>
+        <div class="sub" style="margin-top:4px">看到「版本」没变，说明浏览器还在用旧文件——
+          按 Ctrl/Cmd + Shift + R 强制刷新一次就好。</div>
+      </div>
+
+      <div class="card">
+        <h4>更新日志</h4>
+        <div class="log-list">${(G.CHANGELOG || []).map((v) => `<div class="log-item">
+          <div class="log-head"><b>v${esc(v.version)}</b>　${esc(v.title || "")}
+            <span class="sub">${esc(v.date || "")}</span></div>
+          <ul>${(v.items || []).map((it) => `<li>${esc(it)}</li>`).join("")}</ul>
+        </div>`).join("")}</div>
+      </div>
+
+      <div class="card">
         <h4>统计</h4>
         <table class="simple">
           <tr><td>游戏时长</td><td>${G.time(S.playTime)}</td></tr>

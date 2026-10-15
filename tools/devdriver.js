@@ -121,6 +121,71 @@
       return Object.keys(bad);
     }
 
+    // #check=buttons：逐个点几个真按钮，看动作到底有没有跑起来
+    if (p.check === "buttons") {
+      const out = [];
+      function tryClick(sel, label) {
+        const el = document.querySelector(sel);
+        if (!el) { out.push(label + "：找不到按钮 " + sel); return null; }
+        const before = { money: S.money, berries: Object.keys(S.berries).length, recipe: G.UI.state ? "" : "" };
+        try { el.click(); } catch (e) { out.push(label + "：抛错 " + e.message); return null; }
+        return before;
+      }
+      // 市场：生果全部卖出
+      G.UI.tab = "market"; G.UI.forceRender();
+      S.berries = { 1: 50 };
+      const m0 = S.money;
+      tryClick("[data-act='sellAllBerries']", "生果全部卖出");
+      out.push("生果全部卖出：" + (S.money > m0 ? "OK（+" + Math.round(S.money - m0) + "）" : "没反应"));
+      // 商店：买种子
+      G.UI.tab = "shop"; G.UI.forceRender();
+      const seedBtn = document.querySelector("[data-act='buySeed']");
+      if (seedBtn) {
+        const s0 = (S.seeds[1] || 0);
+        seedBtn.click();
+        out.push("买种子：" + ((S.seeds[1] || 0) > s0 ? "OK" : "没反应"));
+      } else out.push("买种子：页面上没有这个按钮");
+      // 加工：选配方
+      G.UI.tab = "kitchen"; G.UI.forceRender();
+      const rb = document.querySelectorAll("[data-act='recipe']");
+      if (rb.length > 1) {
+        const prev = document.querySelector("[data-act='recipe'].gold");
+        const prevTxt = prev ? prev.textContent.trim() : "";
+        rb[1].click();
+        G.UI.forceRender();
+        const now2 = document.querySelector("[data-act='recipe'].gold");
+        out.push("选配方：" + (now2 && now2.textContent.trim() !== prevTxt ? "OK（" + now2.textContent.trim() + "）" : "没反应"));
+      } else out.push("选配方：还没解锁配方");
+      // 天赋 / 常客 / 阿特拉斯 至少确认页面上的按钮能被点到（不校验效果）
+      ["regulars", "atlas", "talents"].forEach((t) => {
+        G.UI.tab = t; G.UI.forceRender();
+        const first = document.querySelector("#tabBody [data-act]:not(.link)");
+        out.push(t + " 页第一个按钮：" + (first ? (first.dataset.act + (first.disabled ? "（disabled）" : "")) : "没有"));
+      });
+      // 用真实的 pointerdown → pointerup → click 序列再点一次，
+      // 光 .click() 绕过了指针事件，测不出"拖拽逻辑把点击吃掉了"这类问题
+      G.UI.tab = "market"; G.UI.forceRender();
+      S.berries = { 1: 50 };
+      const btn2 = document.querySelector("[data-act='sellAllBerries']");
+      const m1 = S.money;
+      if (btn2) {
+        const r = btn2.getBoundingClientRect();
+        const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const mk = (type, extra) => new PointerEvent(type, Object.assign({
+          bubbles: true, cancelable: true, clientX: cx, clientY: cy, pointerId: 1, button: 0, buttons: 1
+        }, extra || {}));
+        btn2.dispatchEvent(mk("pointerdown"));
+        btn2.dispatchEvent(mk("pointerup", { buttons: 0 }));
+        btn2.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, clientX: cx, clientY: cy }));
+        out.push("真实指针序列点击：" + (S.money > m1 ? "OK（+" + Math.round(S.money - m1) + "）" : "没反应"));
+      } else out.push("真实指针序列：找不到按钮");
+
+      const preB = document.createElement("pre");
+      preB.id = "buttoncheck";
+      preB.textContent = "BUTTONCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(preB);
+    }
+
     // #check=settings：开设置面板，点一遍存槽位/读槽位/删槽位，确认存档管理真能用
     if (p.check === "settings") {
       const out = [];
@@ -141,6 +206,11 @@
         // 删掉
         document.querySelector("[data-act='slotDelete']").click();
         if (G.listSlots().length !== 0) out.push("删槽位没生效");
+        // 版本号和更新日志
+        if (!/版本/.test(document.querySelector("#overlay").textContent)) out.push("设置里没显示版本号");
+        const logItems = document.querySelectorAll(".log-item");
+        if (!logItems.length) out.push("更新日志是空的");
+        if (typeof (window.G || {}).BUILD === "undefined" || !G.BUILD.build) out.push("G.BUILD.build 没写进去");
         // 重新开始要两步
         document.querySelector("[data-act='resetArm']").click();
         if (!document.querySelector("[data-act='resetSave']")) out.push("重新开始没有二次确认");
