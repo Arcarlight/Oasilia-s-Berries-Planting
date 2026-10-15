@@ -479,6 +479,41 @@ window.SIM = {};
     Object.keys(st1.finds).forEach((k) => { kinds[k] = true; });
     check("出门能带回素材（120 趟出 6 种以上）", Object.keys(kinds).length >= 6,
       Object.keys(kinds).length + " 种");
+    check("出门回来有一条完整汇总",
+      (function () {
+        const st = fresh();
+        G.engine.startTrip(st, { wood: 2 });
+        st.atlas.trip.until = G.now(st) - 1;
+        const r = G.engine.finishTrip(st);
+        return r && /回来了/.test(r.summary) && r.summary.indexOf("木料×2") >= 0;
+      })(), "看看 finishTrip 的 summary");
+    check("汇总会写进日志",
+      (function () {
+        const st = fresh();
+        G.engine.startTrip(st, { wood: 1 });
+        st.atlas.trip.until = G.now(st) - 1;
+        G.engine.finishTrip(st);
+        return st.log.slice(0, 5).some((e) => e.text.indexOf("回来了") >= 0);
+      })());
+    check("阿特拉斯页能拿到上次带回来的东西",
+      (function () {
+        const st = fresh();
+        st.maxRegion = 9;
+        G.engine.startTrip(st, { wood: 1 });
+        st.atlas.trip.until = G.now(st) - 1;
+        G.engine.finishTrip(st);
+        return st.atlas.report && Array.isArray(st.atlas.report.got) && st.atlas.report.got.length > 0;
+      })());
+    check("report 不会因为下次出门被清掉",
+      (function () {
+        const st = fresh();
+        G.engine.startTrip(st, { wood: 1 });
+        st.atlas.trip.until = G.now(st) - 1;
+        G.engine.finishTrip(st);
+        G.engine.startTrip(st, { wood: 1 });
+        return !!st.atlas.report;
+      })());
+
     check("底料比香料常见很多",
       (function () {
         let st = 0, sp = 0;

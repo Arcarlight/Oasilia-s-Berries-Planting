@@ -54,7 +54,7 @@ window.G = window.G || {};
         harvested: 0, crafted: 0, sold: 0, clicks: 0, trips: 0, researched: 0,
         revenueRegion: 0, revenueTotal: 0, prestige: 0, orders: 0
       },
-      atlas: { trip: null, craft: null, seen: {} },
+      atlas: { trip: null, craft: null, seen: {}, report: null },
       log: [],
       settings: { numberStyle: "short" },
       regionEnteredAt: Date.now()

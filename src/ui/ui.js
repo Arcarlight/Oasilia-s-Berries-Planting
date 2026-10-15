@@ -479,6 +479,19 @@ window.G = window.G || {};
       <div class="bubble" style="margin-top:4px">${esc(line)}</div></div></div></div>`;
 
     // 出行
+    const rep = S.atlas.report;
+    if (rep && rep.finds && rep.finds.length) {
+      h += `<div class="card"><h4>上次出门带回来</h4>`;
+      rep.finds.forEach((f) => {
+        h += `<div class="list-item"><img class="micon" src="assets/find/${f.id}.png" alt="">
+          <span class="grow">${esc(f.name)} <span class="sub">${esc((G.FIND_BY_ID[f.id] || {}).use || "")}</span></span>
+          <span>×${int(f.count)}</span>
+          <button class="small" data-act="tab" data-p='${attr({ t: "store" })}'>去仓库看</button></div>`;
+      });
+      if (rep.eventText) h += `<div class="sub" style="margin-top:4px">${esc(rep.eventText)}</div>`;
+      h += `</div>`;
+    }
+
     const trip = S.atlas.trip;
     h += `<div class="card"><h4>出门采购</h4>`;
     if (trip) {
@@ -1229,8 +1242,19 @@ window.G = window.G || {};
   // 每帧都重建 innerHTML 太浪费，用签名判断"真的变了没有"
   let sigPlots = "", sigSeeds = "", sigLog = "", lastHint = 0;
 
+  // 阿特拉斯回来的时候弹一下提示。
+  // 以前只在右侧日志里留一行，那地方很容易看漏 —— 出门/回来本该是个有存在感的事件。
+  let lastTripReport = 0;
+  function checkTripReport() {
+    const r = S.atlas && S.atlas.report;
+    if (!r || !r.at || r.at === lastTripReport) return;
+    lastTripReport = r.at;
+    UI.toast(r.summary);
+  }
+
   UI.frame = function () {
     const now = G.now(S);
+    checkTripReport();
     const ps = S.plots.map((p) => (p.berry || 0) + ":" + (p.ripe ? "R" : Math.round(p.grown * 25))).join(",")
       + "|" + S.plots.length + "|" + S.money;
     if (ps !== sigPlots) { sigPlots = ps; renderPlots(); }

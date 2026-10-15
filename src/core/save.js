@@ -96,6 +96,7 @@ window.G = window.G || {};
     const merged = Object.assign({}, base, s);
     merged.stats = Object.assign({}, base.stats, s.stats || {});
     merged.atlas = Object.assign({}, base.atlas, s.atlas || {});
+    merged.atlas.report = (s.atlas && s.atlas.report) || null;
     merged.settings = Object.assign({}, base.settings, s.settings || {});
     ["seeds", "berries", "products", "materials", "finds", "items", "recipes",
       "regulars", "talents", "dex", "orders"].forEach((k) => {

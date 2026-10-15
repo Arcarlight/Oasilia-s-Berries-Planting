@@ -121,6 +121,33 @@
       return Object.keys(bad);
     }
 
+    // #check=trip：造一趟完整的出行，验证"他回来了"有没有汇总、有没有提示
+    if (p.check === "trip") {
+      const out = [];
+      G.engine.startTrip(S, { wood: 2 });
+      S.atlas.trip.until = G.now(S) - 1;
+      const r = G.engine.finishTrip(S);
+      out.push("finishTrip 有汇总：" + (r && r.summary ? "有 —— " + r.summary : "没有"));
+      out.push("报告里带了东西：" + (S.atlas.report && S.atlas.report.got.length ? S.atlas.report.got.join("、") : "空手"));
+      // 日志是新条目插在最前（unshift）并且封顶 120 条，直接看最新几条
+      const newest = S.log.slice(0, 4).map((e) => e.text);
+      out.push("最新日志含汇总：" + newest.some((t) => t.indexOf("回来了") >= 0)
+        + "（" + newest.map((t) => t.slice(0, 22)).join(" / ") + "）");
+      // 帧循环会不会弹提示
+      G.UI.forceRender();
+      G.UI.frame();
+      const toast = document.querySelector(".toast");
+      out.push("回来弹提示：" + (toast ? "弹了 —— " + toast.textContent : "没弹"));
+      // 阿特拉斯页要留一条
+      G.UI.tab = "atlas"; G.UI.forceRender();
+      out.push("阿特拉斯页有记录：" + (/上次出门带回来/.test(document.querySelector("#tabBody").textContent) ? "有" : "没有"));
+      G.UI.tab = "market"; G.UI.forceRender();
+      const preT = document.createElement("pre");
+      preT.id = "tripcheck";
+      preT.textContent = "TRIPCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(preT);
+    }
+
     // #check=buttons：逐个点几个真按钮，看动作到底有没有跑起来
     if (p.check === "buttons") {
       const out = [];

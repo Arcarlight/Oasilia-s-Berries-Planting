@@ -271,6 +271,8 @@ window.G = window.G || {};
     });
     const secs = Math.max(45, Math.min(900, value / 120));
     state.atlas.trip = { want: mats, until: G.now(state) + secs * 1000, startedAt: G.now(state) };
+    // 上一趟的结算留着不删：阿特拉斯页要显示"上次带回来"，删了就只剩空白。
+    // 回来提示靠 report.at 的变化触发，不会因为留着而重复弹。
     state.stats.trips++;
     G.addLog(state, "阿特拉斯出门了，走之前把清单咬在嘴里：" +
       Object.keys(mats).map((mid) => {
@@ -343,7 +345,33 @@ window.G = window.G || {};
       }
       state.atlas.seen[ev.id] = (state.atlas.seen[ev.id] || 0) + 1;
     }
-    return { got: got, event: ev, extra: extra, finds: finds };
+
+    // 一条"他回来了"的汇总。
+    // 原来只有「多带回来：X」这种零碎条目，回来了反而没有一条完整的话，
+    // 日志又挤在右侧栏里，很容易看漏。
+    const parts = [];
+    Object.keys(got).forEach((mid) => {
+      const m = (G.MATERIALS || []).filter((x) => x.id === mid)[0];
+      parts.push((m ? m.name : mid) + "×" + got[mid]);
+    });
+    finds.forEach((f) => { parts.push(f.name + "×" + f.count); });
+    if (extra && extra.seed) {
+      const sb = G.BERRY_BY_ID[extra.seed.id];
+      parts.push((sb ? sb.zh : "种子") + "×" + extra.seed.count);
+    }
+    const summary = "阿特拉斯回来了"
+      + (parts.length ? "，带回来：" + parts.join("、") : "，空着手回来的")
+      + "。";
+    G.addLog(state, summary, "good");
+    state.atlas.report = {
+      at: Date.now(),
+      summary: summary,
+      got: parts.slice(),
+      finds: finds.map((f) => ({ id: f.id, name: f.name, count: f.count })),
+      eventText: ev ? ev.text : "",
+      seed: extra && extra.seed ? extra.seed : null
+    };
+    return { got: got, event: ev, extra: extra, finds: finds, summary: summary };
   };
 
   // ---------- 加工 ----------

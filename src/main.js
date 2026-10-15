@@ -29,6 +29,8 @@
         <tr><td>这段时间入账</td><td class="gold">₽${G.fmt(earned)}</td></tr>
         <tr><td>田里成熟的作物</td><td>${ripe} 块</td></tr>
         ${state.atlas.trip ? `<tr><td>阿特拉斯</td><td>还没回来</td></tr>` : ""}
+        ${state.atlas.report && state.atlas.report.got && state.atlas.report.got.length
+          ? `<tr><td>他这趟带回来</td><td>${state.atlas.report.got.map((x) => esc(x)).join("、")}</td></tr>` : ""}
       </table>
       <div class="row2" style="margin-top:10px">
         <button class="gold" data-act="closeOverlay">去收果子</button>
