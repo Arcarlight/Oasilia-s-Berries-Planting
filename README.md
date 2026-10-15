@@ -5,9 +5,15 @@
 道具全部由她的伴侣、铁匠暴飞龙 **阿特拉斯** 出门买材料亲手做。
 每片区域的常客全部解锁后就能移民到下一个区域（转世），拿天赋点，点局外加成。
 
+## 在线玩
+
+**https://arcarlight.github.io/Oasilia-s-Berries-Planting/**
+
+（由 GitHub Pages 托管，仓库：[Arcarlight/Oasilia-s-Berries-Planting](https://github.com/Arcarlight/Oasilia-s-Berries-Planting)）
+
 ## 怎么玩
 
-直接双击 **`index.html`** 就能玩（纯静态，不需要服务器、不需要联网、不需要安装任何东西）。
+也可以直接双击 **`index.html`** 离线玩（纯静态，不需要服务器、不需要联网、不需要安装任何东西）。
 进度存在浏览器的 `localStorage` 里，关掉页面也在跑（离线上限默认 4 小时，天赋和道具能延长）。
 想换设备就打开右上角「设置 → 导出存档」，把字符串拷走。
 
@@ -96,6 +102,17 @@ python3 tools/make_dev.py
 
 `tools/simtest.html` 会跑单元测试（种收卖、加工、存档往返、离线结算、数据一致性）
 再用一个机器人把整局玩一遍，打印每个区域的停留时间。改动数值后请务必重跑。
+
+## 部署
+
+仓库是纯静态站，直接推到 GitHub，Pages 从 `main` 分支根目录发布即可。
+
+**注意 `.nojekyll` 不能删**：`assets/tree/` 里有 `_1.png` / `_2.png`（种子与发芽阶段的共用贴图），
+Jekyll 默认会忽略下划线开头的文件，删了 `.nojekyll` 这两个阶段会变成断图。
+
+```bash
+git add -A && git commit -m "..." && git push
+```
 
 ## 素材与授权
 
