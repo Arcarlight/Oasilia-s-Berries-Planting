@@ -432,3 +432,8 @@ label .micon { margin-right: 4px; }
 .mrow { flex-wrap: nowrap; border: none; padding: 2px 0; cursor: pointer; }
 .mrow .mname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mrow > .sub { flex: 0 0 auto; white-space: nowrap; }
+
+/* 加工页的配方分组：每组一个品类名 + 一行口味按钮 */
+.cat-group { margin-bottom: 6px; }
+.cat-group .cat-name { color: var(--gold); margin-bottom: 2px; }
+.cat-group .row2 { gap: 4px; }

@@ -194,7 +194,7 @@ window.G = window.G || {};
         : G.marketPrice(S, r, b);
       h += `<div class="list-item">
         ${G.productIcon(r, b)}
-        <span class="grow">${esc(r.name)} <span class="sub">（${esc(b.zh)}）</span>
+        <span class="grow" title="${esc(G.productName(r, b))}">${esc(G.productName(r, b))}
           <span class="flavor-${r.flavor}">[${r.flavor}]</span></span>
         <span>×${int(S.products[k])}</span>
         <span class="sub">基础 ₽${G.fmt(v)}</span>
@@ -234,7 +234,7 @@ window.G = window.G || {};
       const left = Math.max(0, (j.until - now) / 1000);
       const pctv = 100 - Math.min(100, (left / j.secs) * 100);
       h += `<div class="list-item">${G.productIcon(r, b)}
-        <span class="grow">${esc(r.name)}（${esc(b.zh)}）</span>
+        <span class="grow">${esc(G.productName(r, b))}</span>
         <span class="sub">${left.toFixed(1)}s</span>
         <div class="bar-outer" style="width:120px"><i style="width:${pctv.toFixed(0)}%"></i></div>
       </div>`;
@@ -248,12 +248,24 @@ window.G = window.G || {};
     }
     if (!pick.recipe || !S.recipes[pick.recipe]) pick.recipe = unlocked[0].id;
 
-    h += `<div class="card"><h4>选择配方</h4><div class="row2" style="flex-wrap:wrap">`;
+    // 按品类分组：配方多了以后（10 类 × 5 味 + 10 招牌）平铺就是一片按钮墙
+    h += `<div class="card"><h4>选择配方</h4>`;
+    const byCat = [];
     unlocked.forEach((r) => {
-      const on = pick.recipe === r.id ? "gold" : "";
-      h += `<button class="${on}" data-act="recipe" data-p='${attr({ r: r.id })}'>${esc(r.name)}</button>`;
+      let g = byCat.filter((x) => x.id === r.cat)[0];
+      if (!g) { g = { id: r.cat, name: r.catName, list: [] }; byCat.push(g); }
+      g.list.push(r);
     });
-    h += `</div></div>`;
+    byCat.forEach((g) => {
+      h += `<div class="cat-group"><div class="sub cat-name">${esc(g.name)}</div><div class="row2" style="flex-wrap:wrap">`;
+      g.list.forEach((r) => {
+        const on = pick.recipe === r.id ? "gold" : "";
+        const label = r.specialty ? r.name : r.name.replace(g.name, "") || r.name;
+        h += `<button class="${on}" data-act="recipe" data-p='${attr({ r: r.id })}' title="${esc(r.name)}">${esc(label)}</button>`;
+      });
+      h += `</div></div>`;
+    });
+    h += `</div>`;
 
     const recipe = G.RECIPE_BY_ID[pick.recipe];
     const elig = G.engine.eligibleBerries(S, recipe);

@@ -11,7 +11,13 @@ window.G = window.G || {};
     { id: "cube", name: "宝可方块", mult: 3.5, time: 18, region: 3, unit: "盒", icon: "cube" },
     { id: "poffin", name: "宝芬", mult: 4.2, time: 26, region: 4, unit: "枚", icon: "poffin" },
     { id: "pie", name: "树果派", mult: 4.8, time: 36, region: 5, unit: "个", icon: "pie" },
-    { id: "wine", name: "陈酿果酒", mult: 6.0, time: 50, region: 6, unit: "坛", icon: "wine" }
+    { id: "wine", name: "陈酿果酒", mult: 6.0, time: 50, region: 6, unit: "坛", icon: "wine" },
+    // 甜品线：接在果酒之后，区域 7-10 逐步解锁。
+    // 门槛排在后段是有意的 —— 不加速前中盘，而是把后期那段最长的等待收窄。
+    { id: "cake", name: "蛋糕", mult: 6.8, time: 62, region: 7, unit: "块", icon: "cake" },
+    { id: "tart", name: "挞", mult: 7.8, time: 76, region: 8, unit: "个", icon: "tart" },
+    { id: "roll", name: "瑞士卷", mult: 9.0, time: 92, region: 9, unit: "条", icon: "roll" },
+    { id: "choco", name: "巧克力", mult: 10.5, time: 110, region: 10, unit: "板", icon: "choco" }
   ];
 
   const recipes = [];
@@ -91,8 +97,12 @@ window.G = window.G || {};
     return Math.floor(berry.basePrice * recipe.needCount * recipe.mult * firm);
   };
 
+  // 商品叫法：树果名放最前，一眼看得出这份东西是用哪种果子做的。
+  //   普通配方 → 「桃桃果甜味瑞士卷」
+  //   区域招牌 → 保留它自己的名字（那些名字本身就是文案的一部分）
   G.productName = function (recipe, berry) {
-    return recipe.specialty ? recipe.name : recipe.name + "（" + berry.zh + "）";
+    if (!berry) return recipe.name;
+    return recipe.specialty ? recipe.name : berry.zh + recipe.name;
   };
 
   // 商品图标：用神奇宝贝百科的原作道具贴图打底，右下角叠一颗投入的树果。
@@ -106,6 +116,10 @@ window.G = window.G || {};
     if (cat === "juice") return "assets/item/juice.png";
     if (cat === "pie") return "assets/item/pie.png";
     if (cat === "wine") return "assets/item/wine.png";
+    if (cat === "cake") return "assets/item/cake.png";
+    if (cat === "tart") return "assets/item/tart.png";
+    if (cat === "roll") return "assets/item/roll.png";
+    if (cat === "choco") return "assets/item/choco.png";
     return "assets/item/jam.png";
   };
 

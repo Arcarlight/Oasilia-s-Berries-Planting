@@ -390,7 +390,7 @@ window.SIM = {};
       JSON.stringify(s10.berries) + JSON.stringify(s10.products));
 
     check("常客数据 60 位", (G.REGULARS || []).length === 60, (G.REGULARS || []).length);
-    check("配方 40 个", G.RECIPES.length === 40, G.RECIPES.length);
+    check("配方 60 个（10 类 × 5 味 + 10 招牌）", G.RECIPES.length === 60, G.RECIPES.length);
     check("树果 65 种", G.BERRIES.length === 65, G.BERRIES.length);
     check("道具 24 件", (G.ITEMS || []).length === 24, (G.ITEMS || []).length);
     check("材料 12 种", (G.MATERIALS || []).length === 12, (G.MATERIALS || []).length);
