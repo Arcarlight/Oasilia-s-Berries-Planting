@@ -202,6 +202,8 @@ window.G = window.G || {};
   A.buyRecipe = function (state, recipeId) {
     const r = G.RECIPE_BY_ID[recipeId];
     if (!r || state.recipes[recipeId]) return false;
+    // 研发专属配方不在商店出售，只能靠研发拿到（它们 cost 是 0，不拦住就能白嫖）
+    if (r.research) return false;
     if ((r.region || 1) > state.maxRegion) return false;
     if (state.money < r.cost) return false;
     state.money -= r.cost;
@@ -287,6 +289,25 @@ window.G = window.G || {};
       got[mid] = trip.want[mid];
       state.materials[mid] = (state.materials[mid] || 0) + trip.want[mid];
     });
+    // 带回来的素材：基础食材每次出门大概率有，特产素材要看运气。
+    // 这两条是独立判定的，所以偶尔会两样都带回来。
+    const finds = [];
+    (function rollFinds() {
+      const pool = (G.FINDS || []).filter((f) => f.region <= state.maxRegion);
+      if (!pool.length) return;
+      const drop = G.FIND_DROP || { stapleChance: 0.55, rareChance: 0.22 };
+      [["staple", drop.stapleChance], ["rare", drop.rareChance]].forEach(([tier, chance]) => {
+        const cand = pool.filter((f) => (f.tier || "staple") === tier);
+        if (!cand.length || Math.random() > chance) return;
+        // 越靠后的区域越倾向掉新的（按 id 顺序排在后面的）素材
+        const f = cand[Math.floor(Math.random() * cand.length)];
+        const n = tier === "staple" ? 1 + Math.floor(Math.random() * 3) : 1;
+        state.finds[f.id] = (state.finds[f.id] || 0) + n;
+        finds.push({ id: f.id, name: f.name, count: n });
+        G.addLog(state, "他带回来：" + f.name + "×" + n + "（" + f.use + "）", "atlas");
+      });
+    })();
+
     // 随机事件
     const events = G.ATLAS_EVENTS || [];
     let ev = null;
@@ -322,7 +343,7 @@ window.G = window.G || {};
       }
       state.atlas.seen[ev.id] = (state.atlas.seen[ev.id] || 0) + 1;
     }
-    return { got: got, event: ev, extra: extra };
+    return { got: got, event: ev, extra: extra, finds: finds };
   };
 
   // ---------- 加工 ----------
@@ -365,7 +386,15 @@ window.G = window.G || {};
     if (recipe.needBerry && recipe.needBerry !== berryId) return { ok: false, why: "这个配方要的是别的树果" };
     if (recipe.needFlavor && berry.flavor !== recipe.needFlavor) return { ok: false, why: "口味不对" };
     if ((state.berries[berryId] || 0) < recipe.needCount) return { ok: false, why: "树果不够" };
+    if (recipe.fromFind && (state.finds[recipe.fromFind] || 0) < (recipe.findCount || 1)) {
+      const f = G.FIND_BY_ID[recipe.fromFind];
+      return { ok: false, why: "缺素材：" + (f ? f.name : recipe.fromFind) };
+    }
     if (state.craftQueue.length >= A.craftSlots(state)) return { ok: false, why: "加工台满了" };
+    if (recipe.fromFind) {
+      state.finds[recipe.fromFind] -= (recipe.findCount || 1);
+      if (state.finds[recipe.fromFind] <= 0) delete state.finds[recipe.fromFind];
+    }
     state.berries[berryId] -= recipe.needCount;
     if (state.berries[berryId] <= 0) delete state.berries[berryId];
     const b = G.bonuses(state);
@@ -462,6 +491,138 @@ window.G = window.G || {};
       A.sellProduct(state, k, Math.min(stock, 5), target ? target.dex : null);
     });
   }
+
+  // ---------- 素材与研发 ----------
+
+  // 卖素材：它是仓库里唯一一样"卖了就没了"的东西
+  A.sellFind = function (state, id, n) {
+    const f = G.FIND_BY_ID[id];
+    const have = Math.floor(state.finds[id] || 0);
+    if (!f || !have) return { ok: false, why: "没有这个素材" };
+    const cnt = Math.max(1, Math.min(Math.floor(n || 1), have));
+    state.finds[id] = have - cnt;
+    if (state.finds[id] <= 0) delete state.finds[id];
+    const earned = f.price * cnt;
+    state.money += earned;
+    state.stats.sold += cnt;
+    state.stats.revenueTotal += earned;
+    state.stats.revenueRegion += earned;
+    G.addLog(state, "把 " + cnt + " 份" + f.name + "卖了，拿到 ₽" + G.fmt(earned) + "。", "sell");
+    A.checkUnlocks(state);
+    return { ok: true, earned: earned, count: cnt };
+  };
+
+  // 丢素材：不换钱，纯粹腾地方
+  A.dropFind = function (state, id, n) {
+    const f = G.FIND_BY_ID[id];
+    const have = Math.floor(state.finds[id] || 0);
+    if (!f || !have) return { ok: false, why: "没有这个素材" };
+    const cnt = Math.max(1, Math.min(Math.floor(n || 1), have));
+    state.finds[id] = have - cnt;
+    if (state.finds[id] <= 0) delete state.finds[id];
+    G.addLog(state, "扔掉了 " + cnt + " 份" + f.name + "。", "atlas");
+    return { ok: true, count: cnt };
+  };
+
+  // 研发：拿几样素材 + 一种树果做实验。
+  // 搭配不对 → 煮出一份「失败品」（素材照样消耗，钱照样花，这就是实验的代价）
+  // 搭配对 → 学会一个新配方；香料和果子味道搭的话，这个配方倍率更高
+  A.research = function (state, findIds, berryId) {
+    const berry = G.BERRY_BY_ID[berryId];
+    if (!berry) return { ok: false, why: "先选一种树果" };
+    const ids = (findIds || []).filter((id) => state.finds[id] > 0);
+    if (!ids.length) return { ok: false, why: "先勾几样素材" };
+    // 勾了但库里没有的，直接拦掉
+    const missing = (findIds || []).filter((id) => !(state.finds[id] > 0));
+    if (missing.length) {
+      const m = G.FIND_BY_ID[missing[0]];
+      return { ok: false, why: "仓库里没有" + (m ? m.name : missing[0]) };
+    }
+
+    const ev = G.evaluateResearch(state, ids, berry.flavor);
+    if (ev.kind === "invalid") return { ok: false, why: ev.why };
+    if (ev.kind === "known") return { ok: false, why: "这个搭配已经研发过了，换个组合吧。" };
+    if (state.money < ev.cost) {
+      return { ok: false, why: "研发要 ₽" + G.fmt(ev.cost) + "，钱不够" };
+    }
+
+    // 花掉素材和钱
+    state.money -= ev.cost;
+    ids.forEach((id) => {
+      state.finds[id] -= 1;
+      if (state.finds[id] <= 0) delete state.finds[id];
+    });
+    state.stats.researched = (state.stats.researched || 0) + 1;
+
+    if (ev.kind === "waste") {
+      state.waste = (state.waste || 0) + 1;
+      G.addLog(state, "研发失败：" + ev.why + "（得到 1 份失败品）", "order");
+      return { ok: true, waste: true, why: ev.why };
+    }
+
+    const recipe = G.makeResearchRecipe(ev.combo.cat, berry.flavor, ev.spice ? ev.spice.id : null, ev.good);
+    if (!recipe) return { ok: false, why: "这个搭配还没做出来过（数据缺失）" };
+    state.recipes[recipe.id] = true;
+    G.addLog(state, "研发出新配方：" + recipe.name + "（吃掉 ₽" + G.fmt(ev.cost) +
+      " 和 " + ids.map((id) => G.FIND_BY_ID[id].name).join("、") + "）", "good");
+    A.checkUnlocks(state);
+    return { ok: true, recipe: recipe, cost: ev.cost, good: ev.good };
+  };
+
+  // 失败品：能卖，但基本不值钱
+  A.sellWaste = function (state, n) {
+    const have = Math.floor(state.waste || 0);
+    if (!have) return { ok: false, why: "没有失败品" };
+    const cnt = Math.max(1, Math.min(Math.floor(n || 1), have));
+    state.waste = have - cnt;
+    const earned = G.WASTE.price * cnt;
+    state.money += earned;
+    state.stats.revenueTotal += earned;
+    state.stats.revenueRegion += earned;
+    G.addLog(state, "把 " + cnt + " 份失败品卖了，拿到 ₽" + G.fmt(earned) + "。", "sell");
+    return { ok: true, earned: earned };
+  };
+
+  A.dropWaste = function (state, n) {
+    const have = Math.floor(state.waste || 0);
+    if (!have) return { ok: false, why: "没有失败品" };
+    const cnt = Math.max(1, Math.min(Math.floor(n || 1), have));
+    state.waste = have - cnt;
+    G.addLog(state, "倒掉了 " + cnt + " 份失败品。", "atlas");
+    return { ok: true };
+  };
+
+  // 材料也能卖（回收价六成）或丢掉
+  A.sellMaterial = function (state, id, n) {
+    const m = G.MATERIAL_BY_ID[id];
+    const have = Math.floor(state.materials[id] || 0);
+    if (!m || !have) return { ok: false, why: "没有这个材料" };
+    const cnt = Math.max(1, Math.min(Math.floor(n || 1), have));
+    state.materials[id] = have - cnt;
+    if (state.materials[id] <= 0) delete state.materials[id];
+    const earned = A.materialSellPrice(state, m) * cnt;
+    state.money += earned;
+    state.stats.sold += cnt;
+    state.stats.revenueTotal += earned;
+    state.stats.revenueRegion += earned;
+    G.addLog(state, "把 " + cnt + " 份" + m.name + "卖了，拿到 ₽" + G.fmt(earned) + "。", "sell");
+    A.checkUnlocks(state);
+    return { ok: true, earned: earned };
+  };
+
+  A.dropMaterial = function (state, id, n) {
+    const m = G.MATERIAL_BY_ID[id];
+    const have = Math.floor(state.materials[id] || 0);
+    if (!m || !have) return { ok: false, why: "没有这个材料" };
+    const cnt = Math.max(1, Math.min(Math.floor(n || 1), have));
+    state.materials[id] = have - cnt;
+    if (state.materials[id] <= 0) delete state.materials[id];
+    G.addLog(state, "扔掉了 " + cnt + " 份" + m.name + "。", "atlas");
+    return { ok: true };
+  };
+
+  // 仓库用：各类东西的回收价
+  A.materialSellPrice = function (state, m) { return Math.round(m.price * 0.6); };
 
   // ---------- 出售 ----------
 

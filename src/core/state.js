@@ -33,6 +33,8 @@ window.G = window.G || {};
       berries: {},
       products: {},
       materials: {},
+      finds: {},          // 素材库存（只能靠阿特拉斯出门带回来）
+      waste: 0,           // 研发失败的产物
       items: {},
       recipes: {},
       regulars: {},
@@ -48,7 +50,7 @@ window.G = window.G || {};
       talentSpent: 0,
       dex: {},
       stats: {
-        harvested: 0, crafted: 0, sold: 0, clicks: 0, trips: 0,
+        harvested: 0, crafted: 0, sold: 0, clicks: 0, trips: 0, researched: 0,
         revenueRegion: 0, revenueTotal: 0, prestige: 0, orders: 0
       },
       atlas: { trip: null, craft: null, seen: {} },

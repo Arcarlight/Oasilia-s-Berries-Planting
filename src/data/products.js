@@ -17,11 +17,19 @@ window.G = window.G || {};
     { id: "cake", name: "蛋糕", mult: 6.8, time: 62, region: 7, unit: "块", icon: "cake" },
     { id: "tart", name: "挞", mult: 7.8, time: 76, region: 8, unit: "个", icon: "tart" },
     { id: "roll", name: "瑞士卷", mult: 9.0, time: 92, region: 9, unit: "条", icon: "roll" },
-    { id: "choco", name: "巧克力", mult: 10.5, time: 110, region: 10, unit: "板", icon: "choco" }
+    { id: "choco", name: "巧克力", mult: 10.5, time: 110, region: 10, unit: "板", icon: "choco" },
+
+    // ── 研发线专属品类：商店里买不到，只能靠在「研发」页搭配出来 ──
+    // 倍率比同期的商店品类高一档，作为"研究了半天"的回报。
+    { id: "pudding", name: "布丁", mult: 7.4, time: 70, region: 7, unit: "盅", icon: "pudding", researchOnly: true },
+    { id: "cookie", name: "曲奇", mult: 8.8, time: 84, region: 8, unit: "袋", icon: "cookie", researchOnly: true },
+    { id: "candy", name: "糖果", mult: 9.8, time: 60, region: 8, unit: "罐", icon: "candy", researchOnly: true },
+    { id: "bread", name: "面包", mult: 11.5, time: 124, region: 10, unit: "个", icon: "bread", researchOnly: true }
   ];
 
   const recipes = [];
   CATS.forEach((cat, ci) => {
+    if (cat.researchOnly) return;        // 研发线专属，商店里不卖
     FLAVORS.forEach((fl, fi) => {
       // 果酱是最基础的加工法：5 种口味在第一个区域就全部开放。
       // 否则初始区域只能做辣味，而当地的常客要酸/涩/甜/苦/辣都有，订单根本交不了。
@@ -120,6 +128,10 @@ window.G = window.G || {};
     if (cat === "tart") return "assets/item/tart.png";
     if (cat === "roll") return "assets/item/roll.png";
     if (cat === "choco") return "assets/item/choco.png";
+    if (cat === "pudding") return "assets/item/pudding.png";
+    if (cat === "cookie") return "assets/item/cookie.png";
+    if (cat === "candy") return "assets/item/candy.png";
+    if (cat === "bread") return "assets/item/bread.png";
     return "assets/item/jam.png";
   };
 

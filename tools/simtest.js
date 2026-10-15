@@ -8,6 +8,13 @@ window.SIM = {};
   function fresh() { return G.newState(); }
 
   // 一个"正常玩家"的近似行为：田不空着，加工台不停，有钱就学配方/做道具
+  function eng2Evaluator(state, picks, flavor) {
+    return G.evaluateResearch(state, picks, flavor);
+  }
+
+  // 给模拟报告用：跑了多少趟、研发了多少配方、煮废多少锅
+  const simStats = { trips: 0, research: 0, waste: 0, spent: 0 };
+
   function bot(state) {
     const eng = G.engine;
     const b = G.bonuses(state);
@@ -16,7 +23,10 @@ window.SIM = {};
     eng.harvestAll(state);
 
     // 2. 加工台尽量塞满（用最值钱的配方配最值钱的树果）
-    const recipes = eng.unlockedRecipes(state).sort((x, y) => y.mult - x.mult);
+    // 按「每秒收益」而不是裸倍率排：有些常客的解锁条件是累计加工次数，
+    // 只挑最高倍率会把加工次数拖垮，反而是慢的。
+    const rate = (r) => r.mult * r.needCount / r.time;
+    const recipes = eng.unlockedRecipes(state).sort((x, y) => rate(y) - rate(x));
     for (let i = 0; i < recipes.length; i++) {
       if (state.craftQueue.length >= eng.craftSlots(state)) break;
       const elig = eng.eligibleBerries(state, recipes[i]);
@@ -60,8 +70,62 @@ window.SIM = {};
     const moveGate = eng.canMigrate(state);
     const saving = moveGate.allDone;
 
+    // 4.41 让阿特拉斯出门：素材只能这么来，也是研发的前提
+    if (!state.atlas.trip && !state.atlas.craft) {
+      const want = {};
+      const mats = (G.MATERIALS || []).filter((m) => m.trip);
+      // 优先补手上最缺的材料，剩下的随便买一点
+      const missing = mats.filter((m) => (state.materials[m.id] || 0) < 6)
+        .sort((a, b) => a.price - b.price);
+      missing.slice(0, 2).forEach((m) => { want[m.id] = 2; });
+      if (!Object.keys(want).length) want[mats[0].id] = 2;
+      if (eng.startTrip(state, want).ok) simStats.trips++;
+    }
+
+    // 4.42 有素材就做实验：按搭配表挑一个能成的组合
+    if (!state.atlas.trip) {
+      const owned = Object.keys(state.finds).filter((k) => state.finds[k] > 0);
+      if (owned.length >= 2) {
+        const flavors = ["辣", "涩", "甜", "苦", "酸"];
+        let done = false;
+        for (let c = 0; c < (G.RESEARCH_COMBOS || []).length && !done; c++) {
+          const combo = G.RESEARCH_COMBOS[c];
+          if ((state.maxRegion || 1) < combo.region) continue;
+          // 这一组底料手上有齐吗
+          const pick = [];
+          for (let r = 0; r < combo.need.length; r++) {
+            const role = combo.need[r];
+            const f = owned.filter((id) => G.FIND_BY_ID[id].role === role && pick.indexOf(id) < 0)[0];
+            if (!f) break;
+            pick.push(f);
+          }
+          if (pick.length < combo.need.length) continue;
+          // 糖果那一条还得配一样香料
+          if (combo.requireSpice) {
+            const sp = owned.filter((id) => G.FIND_BY_ID[id].role === "spice")[0];
+            if (sp) pick.push(sp); else continue;
+          }
+          for (let fi = 0; fi < flavors.length && !done; fi++) {
+            const ev = eng2Evaluator(state, pick, flavors[fi]);
+            if (ev.kind !== "recipe") continue;
+            if (state.money < ev.cost * 1.5) continue;
+            const berryId = Object.keys(state.berries)
+              .filter((id) => G.BERRY_BY_ID[id].flavor === flavors[fi])[0];
+            if (!berryId) continue;
+            const money0 = state.money;
+            const r = eng.research(state, pick, +berryId);
+            if (r.ok) {
+              done = true;
+              simStats.spent += money0 - state.money;
+              if (r.waste) simStats.waste++; else simStats.research++;
+            }
+          }
+        }
+      }
+    }
+
     // 4.5 学配方优先于扩张：配方是收益乘数
-    const locked2 = G.RECIPES.filter((r) => !state.recipes[r.id] && r.region <= state.maxRegion)
+    const locked2 = G.RECIPES.filter((r) => !r.research && !state.recipes[r.id] && r.region <= state.maxRegion)
       .sort((x, y) => x.cost - y.cost);
     if (!saving && locked2.length && state.money > locked2[0].cost * 1.3) eng.buyRecipe(state, locked2[0].id);
 
@@ -213,6 +277,9 @@ window.SIM = {};
     log("  最终：区域 " + state.region + "，累计收入 " + G.fmt(state.stats.revenueTotal) +
       "，收获 " + G.fmt(state.stats.harvested) + "，加工 " + G.fmt(state.stats.crafted) +
       "，天赋点 " + state.talentPoints);
+    log("  出门 " + simStats.trips + " 趟，研发成功 " + simStats.research +
+      " 个、煮废 " + simStats.waste + " 锅，研发花掉 ₽" + G.fmt(simStats.spent) +
+      "，仓库素材 " + Object.keys(state.finds).length + " 种");
     return state;
   }
 
@@ -391,6 +458,110 @@ window.SIM = {};
 
     check("常客数据 60 位", (G.REGULARS || []).length === 60, (G.REGULARS || []).length);
     check("配方 60 个（10 类 × 5 味 + 10 招牌）", G.RECIPES.length === 60, G.RECIPES.length);
+
+    // ── 素材 / 仓库 / 研发 ────────────────────────────────────────────────
+    check("素材表 10 种", G.FINDS.length === 10, G.FINDS.length);
+    check("素材能分成底料和香料", G.FINDS.filter((f) => f.role === "spice").length === 6,
+      G.FINDS.filter((f) => f.role === "spice").length);
+    check("研发专属品类不在商店里",
+      G.RECIPES.filter((r) => r.researchOnly).length === 0 &&
+      G.RECIPE_CATS.filter((c) => c.researchOnly).length === 4);
+
+    // 出门会带素材回来
+    const st1 = fresh();
+    st1.maxRegion = 9;
+    const kinds = {};
+    for (let i = 0; i < 120; i++) {
+      G.engine.startTrip(st1, {});
+      st1.atlas.trip.until = G.now(st1) - 1;
+      G.engine.finishTrip(st1);
+    }
+    Object.keys(st1.finds).forEach((k) => { kinds[k] = true; });
+    check("出门能带回素材（120 趟出 6 种以上）", Object.keys(kinds).length >= 6,
+      Object.keys(kinds).length + " 种");
+    check("底料比香料常见很多",
+      (function () {
+        let st = 0, sp = 0;
+        Object.keys(st1.finds).forEach((k) => {
+          if (G.FIND_BY_ID[k].role === "spice") sp += st1.finds[k]; else st += st1.finds[k];
+        });
+        return st > sp * 2;
+      })(), "底料 " + Object.keys(st1.finds).length);
+
+    // 仓库：卖素材换钱
+    const st2 = fresh();
+    st2.finds = { flour: 5 };
+    const before2 = st2.money;
+    G.engine.sellFind(st2, "flour", 3);
+    check("卖素材进账", st2.money === before2 + G.FIND_BY_ID.flour.price * 3, st2.money - before2);
+    check("卖完还剩两个", st2.finds.flour === 2, st2.finds.flour);
+    G.engine.dropFind(st2, "flour", 99);
+    check("丢素材不换钱且清空", st2.finds.flour === undefined && st2.money === before2 + 1200);
+
+    // 研发：底料组合决定品类
+    const rState = fresh();
+    rState.maxRegion = 10;
+    rState.money = 1e12;
+    rState.finds = { flour: 40, moomoo: 40, butter: 40, sugar: 40, cinderpepper: 20, saltbloom: 20, moonherb: 20 };
+    rState.berries = { 1: 99 };   // 樱子果：辣味
+    const spicyBerry = G.BERRY_BY_ID[1];
+    check("测试用果子是辣味", spicyBerry.flavor === "辣", spicyBerry.flavor);
+
+    const cake = G.evaluateResearch(rState, ["flour", "moomoo"], spicyBerry.flavor);
+    check("面粉+鲜奶 → 蛋糕", cake.kind === "recipe" && cake.combo.cat === "cake", cake.kind + "/" + (cake.combo || {}).cat);
+    const bread = G.evaluateResearch(rState, ["flour", "moomoo", "butter"], "辣");
+    check("面粉+鲜奶+黄油 → 面包", bread.kind === "recipe" && bread.combo.cat === "bread", bread.kind);
+    const cookie = G.evaluateResearch(rState, ["flour", "butter", "sugar"], "辣");
+    check("面粉+黄油+砂糖 → 曲奇", cookie.kind === "recipe" && cookie.combo.cat === "cookie", cookie.kind);
+    const zero = G.evaluateResearch(rState, ["flour"], "辣");
+    check("只放一样底料拦下来", zero.kind === "invalid", zero.kind);
+    const two2 = G.evaluateResearch(rState, ["flour", "butter", "sugar", "moomoo"], "辣");
+    check("底料超过三样拦下来", two2.kind === "invalid", two2.kind);
+    const twoSpice = G.evaluateResearch(rState, ["flour", "moomoo", "cinderpepper", "saltbloom"], "辣");
+    check("两种香料拦下来", twoSpice.kind === "invalid", twoSpice.kind);
+
+    // 香料：配对加分，配错毁锅
+    const candyGood = G.evaluateResearch(rState, ["sugar", "cinderpepper"], "辣");
+    check("砂糖+火口椒+辣味 → 糖果（配对）",
+      candyGood.kind === "recipe" && candyGood.combo.cat === "candy" && candyGood.good === true,
+      candyGood.kind + "/good=" + candyGood.good);
+    const candyBad = G.evaluateResearch(rState, ["sugar", "cinderpepper"], "甜");
+    check("火口椒配甜味会煮废", candyBad.kind === "waste", candyBad.kind);
+    const sourNeutral = G.evaluateResearch(rState, ["sugar", "cinderpepper"], "酸");
+    check("既不算配对也不算毁锅", sourNeutral.kind === "recipe" && sourNeutral.good === false,
+      sourNeutral.kind + "/good=" + sourNeutral.good);
+
+    // 研发动作：成功学到配方，加工时不再消耗素材
+    const ok1 = G.engine.research(rState, ["sugar", "cinderpepper"], 1);
+    check("研发成功", ok1.ok && ok1.recipe, ok1.why || "");
+    check("研发出的配方名字按味道起外号", /火口辣到冒烟/.test(ok1.recipe.name), ok1.recipe.name);
+    check("配方记进了存档", rState.recipes[ok1.recipe.id] === true);
+    check("研发配方进得了加工列表",
+      G.engine.unlockedRecipes(rState).some((r) => r.id === ok1.recipe.id));
+    check("研发配方加工时不再吃素材", !ok1.recipe.fromFind && !ok1.recipe.findCount, ok1.recipe.findCount);
+    check("同一搭配再研发会被拦", G.engine.research(rState, ["sugar", "cinderpepper"], 1).ok === false);
+
+    // 废品
+    const wasteBefore = rState.waste;
+    // 月见草籽的坏味道是「辣」，正好撞上樱子果
+    const ok2 = G.engine.research(rState, ["flour", "moomoo", "moonherb"], 1);
+    check("配错的组合产出失败品", ok2.ok && ok2.waste === true, ok2.why);
+    check("失败品进了仓库", rState.waste === wasteBefore + 1, rState.waste);
+    check("失败品能卖钱", G.engine.sellWaste(rState, 1).ok === true);
+
+    // 素材真的会被消耗
+    const flourBefore = rState.finds.flour;
+    G.engine.research(rState, ["flour", "moomoo"], 1);
+    check("研发消耗素材", rState.finds.flour === flourBefore - 1, rState.finds.flour);
+
+    // 存档往返：研发的配方只存 id，读档要能复原
+    const code2 = G.exportSave(rState);
+    const reloaded = G.importSave(code2);
+    const rid = ok1.recipe.id;
+    check("存档能带走研发的配方", reloaded.recipes[rid] === true);
+    check("读档把配方表复原回来了", !!G.RECIPE_BY_ID[rid] && G.RECIPE_BY_ID[rid].research === true);
+    check("读档后仓库里的素材还在", reloaded.finds.flour === rState.finds.flour, reloaded.finds.flour);
+    check("读档后失败品还在", reloaded.waste === rState.waste, reloaded.waste);
     check("树果 65 种", G.BERRIES.length === 65, G.BERRIES.length);
     check("道具 24 件", (G.ITEMS || []).length === 24, (G.ITEMS || []).length);
     check("材料 12 种", (G.MATERIALS || []).length === 12, (G.MATERIALS || []).length);

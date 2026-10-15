@@ -16,12 +16,14 @@ window.G = window.G || {};
     { id: "regulars", name: "常客" },
     { id: "shop", name: "商店" },
     { id: "atlas", name: "阿特拉斯" },
+    { id: "store", name: "仓库" },
+    { id: "lab", name: "研发" },
     { id: "talents", name: "天赋" },
     { id: "dex", name: "图鉴" },
     { id: "help", name: "说明" }
   ];
 
-  const pick = { seed: null, recipe: null, regularFor: {} };
+  const pick = { seed: null, recipe: null, regularFor: {}, labBerry: null, labFinds: [] };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -313,7 +315,7 @@ window.G = window.G || {};
     }
     h += `</div>`;
 
-    const locked = G.RECIPES.filter((r) => !S.recipes[r.id] && r.region <= S.maxRegion);
+    const locked = G.RECIPES.filter((r) => !r.research && !S.recipes[r.id] && r.region <= S.maxRegion);
     if (locked.length) {
       h += `<div class="card"><h4>可以学的配方</h4>`;
       locked.slice(0, 12).forEach((r) => {
@@ -447,7 +449,7 @@ window.G = window.G || {};
     h += `</div>`;
 
     // 配方
-    const locked = G.RECIPES.filter((r) => !S.recipes[r.id] && r.region <= S.maxRegion);
+    const locked = G.RECIPES.filter((r) => !r.research && !S.recipes[r.id] && r.region <= S.maxRegion);
     h += `<div class="card"><h4>配方（${S.recipes && Object.keys(S.recipes).length || 0} 已学）</h4>`;
     if (!locked.length) h += `<div class="sub">能买的都买了。</div>`;
     locked.forEach((r) => {
@@ -652,10 +654,25 @@ window.G = window.G || {};
         <li><b>常客</b>：每位常客只爱一种口味。把对应口味的商品交给他，售价 +50%，好感还会涨。</li>
         <li><b>道具</b>：材料可以让阿特拉斯去杂货铺代购，也可以让他出远门买（便宜，要等）。材料齐了他会亲手做。</li>
         <li><b>帮手</b>：好感够的常客可以请来帮忙，自动收、自动补种、自动浇水。</li>
+        <li><b>素材</b>：阿特拉斯出门除了买清单上的材料，还会顺手带回一些素材（面粉、鲜奶、香料……），
+          都放进${go("store", "仓库")}。素材只有三条出路：卖钱、丢掉、或者拿去研发。</li>
+        <li><b>研发</b>：在${go("lab", "研发")}页勾几样<b>底料</b>（面粉 / 鲜奶 / 黄油 / 砂糖），
+          再选一种树果决定口味。底料组合决定做出来是什么东西，香料决定味道合不合。
+          搭配不对就是一份失败品——素材和钱照样打水漂，这是实验的代价。</li>
         <li><b>移民</b>：把一片区域的常客全部解锁，付移民费搬走，拿天赋点。天赋永久生效。</li>
       </ol>
       <div class="sub">快捷键：W 全部浇水、H 全部收获、空格 叫卖。进度自动保存在浏览器里，关掉页面也在跑（默认最多结算 4 小时）。</div>
       </div>
+      <div class="card"><h4>研发的搭配表</h4>
+      <div class="sub">底料组合是固定的一张表，得自己试出来（或者看这里）：</div>
+      <table class="simple">
+        ${(G.RESEARCH_COMBOS || []).map((c) => `<tr><td>${esc(c.hint)}</td><td class="sub">区域 ${c.region} 解锁</td></tr>`).join("")}
+      </table>
+      <div class="sub" style="margin-top:6px">香料（月见草籽 / 岩盐花 / 火口椒 / 铁壳果 / 霜苔 / 暮色李）是可选的：
+      配上对的味道会多提一档，配错了整锅就废了。每个香料适合和不适合什么味道，在${go("store", "仓库")}里能看到。</div>
+      <div class="sub" style="margin-top:4px">研发出来的配方会出现在${go("kitchen", "加工")}页，之后照常用树果做，不再消耗素材。</div>
+      </div>
+
       <div class="card"><h4>关于味道</h4>
       <div class="sub">辣 / 涩 / 甜 / 苦 / 酸 五种味道。常客喜欢什么味道，由它的性格决定（来源：神奇宝贝百科《性格》）：
       <br>辣 — 怕寂寞、固执、顽皮、勇敢
@@ -684,10 +701,202 @@ window.G = window.G || {};
 
   // ---------------- 组装 ----------------
 
+  // ---------------- 仓库 ----------------
+  // 手上所有东西一览：树果 / 商品 / 材料 / 素材 / 失败品。
+  // 素材是这里的重点 —— 它只有在仓库里才看得到味道和用途。
+  function findRow(f, n) {
+    return `<div class="list-item">
+      <img class="micon" src="assets/find/${f.id}.png" alt="">
+      <span class="grow">${esc(f.name)}
+        <span class="tag">${esc(G.FIND_ROLE_LABEL[f.role] || "素材")}</span>
+        <span class="tag flavor-tag">${esc(f.flavor)}</span>
+        <span class="sub">${esc(f.use)}</span></span>
+      <span>×${int(n)}</span>
+      <span class="sub">单价 ${money(f.price)}</span>
+      <button class="small" data-act="sellFind" data-p='${attr({ id: f.id, n: 1 })}'>卖1</button>
+      <button class="small" data-act="sellFind" data-p='${attr({ id: f.id, n: 9999 })}'>卖光</button>
+      <button class="small danger" data-act="dropFind" data-p='${attr({ id: f.id })}' title="丢掉，不换钱">丢</button>
+    </div>`;
+  }
+
+  function renderStore() {
+    let h = "";
+    const findIds = Object.keys(S.finds).filter((k) => S.finds[k] >= 1);
+    h += `<div class="card"><h4>素材（${findIds.length} 种）</h4>
+      <div class="sub">都是阿特拉斯出门带回来的。攒够几样就能去${go("lab", "研发")}页搭配新配方——
+      底料决定做出来是什么，香料决定味道合不合。</div>`;
+    if (!findIds.length) {
+      h += `<div class="sub">还没有素材。让阿特拉斯多出门几趟（${go("atlas", "阿特拉斯")}页）。</div>`;
+    } else {
+      findIds.sort((a, b) => G.FIND_BY_ID[a].price - G.FIND_BY_ID[b].price).forEach((id) => {
+        h += findRow(G.FIND_BY_ID[id], S.finds[id]);
+      });
+    }
+    h += `</div>`;
+
+    if (S.waste) {
+      h += `<div class="card"><h4>失败品</h4>
+        <div class="sub">${esc(G.WASTE.desc)}</div>
+        <div class="list-item">
+          <span class="grow">失败品 <span class="sub">${esc(G.WASTE.use)}</span></span>
+          <span>×${int(S.waste)}</span>
+          <span class="sub">单价 ${money(G.WASTE.price)}</span>
+          <button class="small" data-act="sellWaste" data-p='${attr({ n: 1 })}'>卖1</button>
+          <button class="small" data-act="sellWaste" data-p='${attr({ n: 9999 })}'>卖光</button>
+          <button class="small danger" data-act="dropWaste" data-p='${attr({ n: 9999 })}'>丢</button>
+        </div></div>`;
+    }
+
+    const matIds = Object.keys(S.materials).filter((k) => S.materials[k] >= 1);
+    h += `<div class="card"><h4>材料（${matIds.length} 种）</h4>
+      <div class="sub">阿特拉斯做道具用的。除了给他打东西，也可以按六成价卖掉。</div>`;
+    if (!matIds.length) h += `<div class="sub">仓库里没有材料。</div>`;
+    matIds.sort((a, b) => (G.MATERIAL_BY_ID[a] || {}).price - (G.MATERIAL_BY_ID[b] || {}).price)
+      .forEach((id) => {
+        const m = G.MATERIAL_BY_ID[id];
+        if (!m) return;
+        const p = G.engine.materialSellPrice(S, m);
+        h += `<div class="list-item">
+          <img class="micon" src="assets/mat/${m.id}.png" alt="">
+          <span class="grow">${esc(m.name)} <span class="sub">${esc(m.desc)}</span></span>
+          <span>×${int(S.materials[id])}</span>
+          <span class="sub">单价 ${money(p)}</span>
+          <button class="small" data-act="sellMaterial" data-p='${attr({ m: id, n: 1 })}'>卖1</button>
+          <button class="small" data-act="sellMaterial" data-p='${attr({ m: id, n: 9999 })}'>卖光</button>
+          <button class="small danger" data-act="dropMaterial" data-p='${attr({ m: id, n: 9999 })}'>丢</button>
+        </div>`;
+      });
+    h += `</div>`;
+
+    const berryIds = Object.keys(S.berries).filter((k) => S.berries[k] >= 1);
+    h += `<div class="card"><h4>树果（${berryIds.length} 种）</h4>`;
+    if (!berryIds.length) h += `<div class="sub">还没有收获的树果。</div>`;
+    berryIds.sort((a, b) => G.BERRY_BY_ID[b].basePrice - G.BERRY_BY_ID[a].basePrice).forEach((id) => {
+      const b = G.BERRY_BY_ID[id];
+      h += `<div class="list-item">
+        <img src="${b.icon}" alt="">
+        <span class="grow flavor-${b.flavor}">${esc(b.zh)} <span class="tag">${b.flavor}</span></span>
+        <span>×${int(S.berries[id])}</span>
+        <span class="sub">单价 ${money(G.berrySellPrice(S, b))}</span>
+        <button class="small" data-act="sellBerry" data-p='${attr({ id: +id, n: 1 })}'>卖1</button>
+        <button class="small" data-act="sellBerry" data-p='${attr({ id: +id, n: 9999 })}'>卖光</button>
+      </div>`;
+    });
+    h += `</div>`;
+
+    const keys = Object.keys(S.products).filter((k) => S.products[k] >= 1);
+    h += `<div class="card"><h4>商品（${keys.length} 种）</h4>`;
+    if (!keys.length) h += `<div class="sub">还没有加工出来的商品。</div>`;
+    keys.sort().forEach((k) => {
+      const parts = k.split("|");
+      const r = G.RECIPE_BY_ID[parts[0]];
+      const b = G.BERRY_BY_ID[+parts[1]];
+      if (!r || !b) return;
+      h += `<div class="list-item">${G.productIcon(r, b)}
+        <span class="grow">${esc(G.productName(r, b))}</span>
+        <span>×${int(S.products[k])}</span>
+        <span class="sub">市场价 ${money(G.marketPrice(S, r, b))}</span>
+        <button class="small" data-act="sellProduct" data-p='${attr({ k: k, n: 1 })}'>卖1</button>
+        <button class="small" data-act="sellProduct" data-p='${attr({ k: k, n: 9999 })}'>卖光</button>
+      </div>`;
+    });
+    h += `</div>`;
+    return h;
+  }
+
+  // ---------------- 研发 ----------------
+  function renderLab() {
+    let h = "";
+    const owned = Object.keys(S.finds).filter((k) => S.finds[k] >= 1);
+    // 研发配方是按需生成的，所以"学过几个"直接数存档里的 id
+    const learned = Object.keys(S.recipes).filter((id) => G.RESEARCH_ID_RE.test(id)).length;
+
+    h += `<div class="card"><h4>研发台</h4>
+      <div class="sub">勾几样<b>底料</b>（面粉 / 哞哞鲜奶 / 黄油 / 砂糖），再配一种<b>树果</b>决定口味。
+      想让味道更冲就再加<b>一样香料</b>——配得上会多提一档，配错了整锅就废了。</div>
+      <div class="sub" style="margin-top:4px">已经研发出来的配方：<b>${learned}</b> 个${
+        S.waste ? `　失败品：${int(S.waste)} 份` : ""}</div>
+      <div class="sub" style="margin-top:4px">研发出来的配方会在${go("kitchen", "加工")}页出现，之后照常用树果做。</div>
+    </div>`;
+
+    if (!owned.length) {
+      h += `<div class="card"><h4>手上没有素材</h4>
+        <div class="sub">让${go("atlas", "阿特拉斯")}出门跑几趟，回来会带素材。底料常见，香料要碰运气。</div></div>`;
+      return h;
+    }
+
+    // ① 选树果
+    const bIds = Object.keys(S.berries).filter((k) => S.berries[k] >= 1)
+      .sort((a, b) => G.BERRY_BY_ID[a].flavor.localeCompare(G.BERRY_BY_ID[b].flavor)
+        || G.BERRY_BY_ID[b].basePrice - G.BERRY_BY_ID[a].basePrice);
+    if (!pick.labBerry || !S.berries[pick.labBerry]) pick.labBerry = bIds.length ? +bIds[0] : null;
+    h += `<div class="card"><h4>① 选树果（决定口味）</h4>`;
+    if (!bIds.length) {
+      h += `<div class="sub">手上没有树果，先去收一批。</div>`;
+    } else {
+      h += `<div class="row2" style="flex-wrap:wrap">`;
+      bIds.forEach((id) => {
+        const b = G.BERRY_BY_ID[id];
+        const on = pick.labBerry === +id ? "gold" : "";
+        h += `<button class="${on}" data-act="labBerry" data-p='${attr({ b: +id })}' title="×${int(S.berries[id])}">${esc(b.zh)}·${b.flavor}</button>`;
+      });
+      h += `</div>`;
+    }
+    h += `</div>`;
+
+    // ② 勾素材
+    h += `<div class="card"><h4>② 勾素材（底料最多三样，香料最多一样）</h4><div class="row2" style="flex-wrap:wrap">`;
+    G.FINDS.filter((f) => S.finds[f.id] >= 1).forEach((f) => {
+      const on = (pick.labFinds || []).indexOf(f.id) >= 0;
+      h += `<button class="${on ? "gold" : ""}" data-act="labFind" data-p='${attr({ id: f.id })}'
+        title="${esc(f.use)}">${esc(f.name)} ×${int(S.finds[f.id])}</button>`;
+    });
+    h += `</div>`;
+    if ((pick.labFinds || []).length) {
+      h += `<button class="small" data-act="labClear" style="margin-top:6px">清空选择</button>`;
+    }
+    h += `</div>`;
+
+    // ③ 预告
+    const berry = S.berries[pick.labBerry] ? G.BERRY_BY_ID[pick.labBerry] : null;
+    const chosen = (pick.labFinds || []).filter((id) => S.finds[id] >= 1);
+    h += `<div class="card"><h4>③ 会做出什么</h4>`;
+    if (!berry || !chosen.length) {
+      h += `<div class="sub">选好树果和素材，这里会先算给你看。</div></div>`;
+      return h;
+    }
+    const ev = G.evaluateResearch(S, chosen, berry.flavor);
+    const names = chosen.map((id) => G.FIND_BY_ID[id].name).join(" + ");
+    if (ev.kind === "invalid") {
+      h += `<div class="sub" style="color:#9fa286">${esc(names)} + ${esc(berry.zh)}（${berry.flavor}）</div>
+        <div class="sub" style="color:#ffc98a;margin-top:4px">${esc(ev.why)}</div>
+        <div class="sub" style="margin-top:4px">这样不会消耗任何东西，换个搭配吧。</div></div>`;
+      return h;
+    }
+    const cost = ev.cost;
+    h += `<div class="sub">${esc(names)} + ${esc(berry.zh)}（${esc(berry.flavor)}）</div>`;
+    if (ev.kind === "waste") {
+      h += `<div class="sub" style="color:#cf5a41;margin-top:4px">会煮成失败品：${esc(ev.why)}</div>
+        <div class="sub" style="margin-top:4px">成功率没有，素材和钱都会打水漂。要试就试吧。</div>`;
+    } else if (ev.kind === "known") {
+      h += `<div class="sub" style="margin-top:4px">这个搭配已经研发过了。换个组合，或者去${go("kitchen", "加工")}页做它。</div>`;
+    } else {
+      const rc = G.RECIPE_BY_ID[ev.id] || G.makeResearchRecipe(ev.combo.cat, berry.flavor, ev.spice ? ev.spice.id : null, ev.good);
+      h += `<div class="sub" style="margin-top:4px;color:#f0c04a">→ ${esc(rc.name)}
+        （${esc(ev.catName)}　倍率 ×${rc.mult}　要 ${rc.needCount} 颗${esc(berry.flavor)}味树果）</div>
+        <div class="sub" style="margin-top:4px">${esc(ev.why)}</div>`;
+    }
+    h += `<div class="sub" style="margin-top:6px">研发费 ${money(cost)}${
+      S.money < cost ? '<span style="color:#cf5a41">（钱不够）</span>' : ""}</div>`;
+    h += `<button class="gold" data-act="labGo" style="margin-top:6px">开始研发</button>`;
+    h += `</div>`;
+    return h;
+  }
+
   const RENDERERS = {
     market: renderMarket, kitchen: renderKitchen, regulars: renderRegulars,
-    shop: renderShop, atlas: renderAtlas, talents: renderTalents,
-    dex: renderDex, help: renderHelp
+    shop: renderShop, atlas: renderAtlas, store: renderStore, lab: renderLab,
+    talents: renderTalents, dex: renderDex, help: renderHelp
   };
 
   function renderTabs() {
@@ -897,6 +1106,58 @@ window.G = window.G || {};
       UI.toast("+" + money(v));
     },
     sellBerry: (p) => { const v = G.engine.sellBerry(S, p.id, p.n); if (v) UI.toast("+" + money(v)); },
+
+    // ---- 仓库 ----
+    sellFind: (p) => {
+      const r = G.engine.sellFind(S, p.id, p.n);
+      if (r.ok) UI.toast("卖了 " + r.count + " 份，+" + money(r.earned));
+      else UI.toast(r.why);
+    },
+    dropFind: (p) => {
+      const r = G.engine.dropFind(S, p.id, 9999);
+      if (r.ok) UI.toast("扔掉了 " + r.count + " 份");
+      else UI.toast(r.why);
+    },
+    sellWaste: (p) => {
+      const r = G.engine.sellWaste(S, p.n);
+      if (r.ok) UI.toast("+" + money(r.earned));
+      else UI.toast(r.why);
+    },
+    dropWaste: (p) => { const r = G.engine.dropWaste(S, p.n); if (r.ok) UI.toast("倒掉了"); },
+    sellMaterial: (p) => {
+      const r = G.engine.sellMaterial(S, p.m, p.n);
+      if (r.ok) UI.toast("+" + money(r.earned));
+      else UI.toast(r.why);
+    },
+    dropMaterial: (p) => {
+      const r = G.engine.dropMaterial(S, p.m, 9999);
+      if (r.ok) UI.toast("扔掉了 " + r.count + " 份");
+    },
+
+    // ---- 研发 ----
+    labBerry: (p) => { pick.labBerry = p.b; UI.markDirty(); },
+    labFind: (p) => {
+      pick.labFinds = pick.labFinds || [];
+      const i = pick.labFinds.indexOf(p.id);
+      if (i >= 0) pick.labFinds.splice(i, 1);
+      else pick.labFinds.push(p.id);
+      UI.markDirty();
+    },
+    labClear: () => { pick.labFinds = []; UI.markDirty(); },
+    labGo: () => {
+      const ids = (pick.labFinds || []).slice();
+      const r = G.engine.research(S, ids, pick.labBerry);
+      if (!r.ok) { UI.toast(r.why); return; }
+      if (r.waste) {
+        UI.toast("煮废了，得到一份失败品");
+        if (G.ATLAS_LINES && G.ATLAS_LINES.idle) UI.bubble("……这锅我认栽。倒了吧，别留着占地方。");
+      } else {
+        UI.toast("研发出「" + r.recipe.name + "」");
+      }
+      // 用掉的素材从选择里清掉
+      pick.labFinds = ids.filter((id) => S.finds[id] > 0);
+      UI.markDirty();
+    },
     sellAllBerries: () => { const v = G.engine.sellAllBerries(S); UI.toast(v ? "+" + money(v) : "没有生果"); },
     sellAllProducts: () => { const v = G.engine.sellAllProducts(S); UI.toast(v ? "+" + money(v) : "没有商品"); },
     sellProduct: (p) => {

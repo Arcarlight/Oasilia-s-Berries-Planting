@@ -42,7 +42,7 @@ window.G = window.G || {};
     merged.stats = Object.assign({}, base.stats, s.stats || {});
     merged.atlas = Object.assign({}, base.atlas, s.atlas || {});
     merged.settings = Object.assign({}, base.settings, s.settings || {});
-    ["seeds", "berries", "products", "materials", "items", "recipes",
+    ["seeds", "berries", "products", "materials", "finds", "items", "recipes",
       "regulars", "talents", "dex", "orders"].forEach((k) => {
       merged[k] = Object.assign({}, s[k] || {});
     });
@@ -53,6 +53,7 @@ window.G = window.G || {};
     merged.autoTrade = !!s.autoTrade;
     merged.stallOn = s.stallOn !== false;
     merged.stallReserve = (typeof s.stallReserve === "number") ? s.stallReserve : 20;
+    merged.waste = s.waste || 0;
     merged.plots = Array.isArray(s.plots) ? s.plots : [];
     merged.plots = merged.plots.map((p) => ({
       berry: p && p.berry ? p.berry : null,
@@ -63,10 +64,12 @@ window.G = window.G || {};
     merged.log = Array.isArray(s.log) ? s.log.slice(0, 120) : [];
     merged.v = G.VERSION;
     // 旧存档里可能残留小数库存（摊位按小数速率卖东西留下的），载入时抹平
-    const dirty = ["berries", "seeds", "products", "materials"].some((bag) =>
+    const dirty = ["berries", "seeds", "products", "materials", "finds"].some((bag) =>
       Object.keys(merged[bag] || {}).some((k) => merged[bag][k] % 1 !== 0));
     merged.needSanitize = true;
     G.syncPlots(merged);
+    // 研发出来的配方存档里只存了 id，这里按 id 把它们重新造回配方表
+    if (G.hydrateResearch) G.hydrateResearch(merged);
     if (dirty) console.info("存档里有小数库存，已在开局抹平");
     return merged;
   };

@@ -36,7 +36,7 @@
     // #check=tabs：把所有页签逐一渲染一遍，任何一页抛错都记下来。
     // 这类错误会让页面卡在旧内容上，肉眼很难发现，必须靠自检。
     if (p.check === "tabs") {
-      const tabs = ["market", "kitchen", "regulars", "shop", "atlas", "talents", "dex", "help"];
+      const tabs = ["market", "kitchen", "regulars", "shop", "atlas", "store", "lab", "talents", "dex", "help"];
       const bad = [];
       tabs.forEach((t) => {
         G.UI.tab = t;

@@ -26,3 +26,14 @@
 署名不强制、商用可，仅禁止直链引用。本站做法：24×24 原图 **GIF → PNG** 转换。
 
 与 `assets/mat/` 里的材料图标是同一个来源，详见 `assets/mat/CREDITS.md`。
+
+## 研发线品类图（4 个）
+
+| 商品 | 文件 | 来源 |
+|------|------|------|
+| 布丁 | `pudding.png` | 化け猫缶（一个带树果的布丁盅） |
+| 曲奇 | `cookie.png` | 化け猫缶（一块饼干） |
+| 面包 | `bread.png` | 化け猫缶（一个圆面包） |
+| 糖果 | `candy.png` | **Whitecat**（一支棒棒糖，原图 RGB+青绿底，已抠底转 PNG） |
+
+化け猫缶 与 Whitecat 的授权见 `assets/find/CREDITS.md` 与本文档上一节。

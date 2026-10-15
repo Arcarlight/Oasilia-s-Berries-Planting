@@ -437,3 +437,7 @@ label .micon { margin-right: 4px; }
 .cat-group { margin-bottom: 6px; }
 .cat-group .cat-name { color: var(--gold); margin-bottom: 2px; }
 .cat-group .row2 { gap: 4px; }
+
+/* 仓库 / 研发：素材的味道标签 */
+.flavor-tag { color: var(--green); }
+#tabBody .list-item > .tag { flex: 0 0 auto; }
