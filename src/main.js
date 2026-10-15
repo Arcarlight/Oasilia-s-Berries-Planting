@@ -6,9 +6,8 @@
   const SAVE_INTERVAL = 10000;
 
   function modal(html) {
-    const ov = document.getElementById("overlay");
-    ov.className = "";
-    ov.innerHTML = `<div class="modal">${html}</div>`;
+    // 统一走 UI.openOverlay，进场动效才有
+    G.UI.openOverlay(html);
   }
 
   function offlineReport(away, used, earned, state) {

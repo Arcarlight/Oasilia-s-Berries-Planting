@@ -33,6 +33,13 @@
   --red: #cf5a41;
   --blue: #6fa8dc;
   --px: 2px;
+
+  /* 动效：曲线与时长统一在这里，别在别处写魔法数字 */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);      /* 进场/退场 */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);  /* 屏幕上位移 */
+  --dur-press: 80ms;    /* 按下反馈 */
+  --dur-fast: 140ms;    /* 吐司、弹层退场 */
+  --dur-base: 200ms;    /* 弹层进场、标签页切换 */
 }
 
 * { box-sizing: border-box; }
@@ -80,6 +87,8 @@ button, input, select {
 }
 button:hover:not(:disabled) { border-image-source: url("../assets/ui/btn-main.png"); }
 button:active:not(:disabled) { border-image-source: url("../assets/ui/btn-press.png"); }
+button { transition: transform var(--dur-press) var(--ease-out); }
+button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { opacity: .38; cursor: not-allowed; filter: grayscale(.6); }
 button.gold { border-image-source: url("../assets/ui/btn-main.png"); color: #3a2a12; }
 button.gold:hover:not(:disabled) { border-image-source: url("../assets/ui/btn.png"); }
@@ -220,9 +229,9 @@ button, .link, select, input, .plot, .dex-cell, summary, label {
 .plot.empty::after {
   content: "＋"; position: absolute; color: #6d6142; font-size: 24px;
 }
-.plot.ripe { border-color: var(--gold); animation: bob .9s infinite alternate; }
+.plot.ripe { border-color: var(--gold); animation: bob 1.3s ease-in-out infinite alternate; }
 .plot[data-locked] { opacity: .5; }
-@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-2px); } }
 
 .plot .seed { position: absolute; font-size: 12px; }
 .plot .sprout { width: 70%; height: 70%; }
@@ -268,6 +277,9 @@ button, .link, select, input, .plot, .dex-cell, summary, label {
 .seed-picker .row .nm { flex: 1; }
 
 /* ---------- 标签页 ---------- */
+#tabBody.fadein { animation: tabIn var(--dur-base) var(--ease-out); }
+@keyframes tabIn { from { opacity: 0; } to { opacity: 1; } }
+
 #tabs { display: flex; flex-wrap: wrap; background: var(--panel2); border-bottom: 3px solid var(--line); }
 #tabs button {
   border: none; border-right: 2px solid var(--line); background: transparent;
@@ -336,21 +348,31 @@ button, .link, select, input, .plot, .dex-cell, summary, label {
 #overlay {
   position: fixed; inset: 0; background: rgba(6,8,4,.78);
   display: flex; align-items: center; justify-content: center; z-index: 50;
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
 }
+#overlay.open { opacity: 1; }
 #overlay.hidden { display: none; }
 .modal {
   background: var(--panel); border: 3px solid var(--line2);
   max-width: 620px; width: 92%; max-height: 84vh; overflow: auto; padding: 14px;
+  /* 从下方 8px 处淡入放大；不用 scale(0)，物体不会凭空出现。
+     弹层是居中的，不锚定任何触发元素，所以 transform-origin 保持居中。 */
+  opacity: 0; transform: translateY(8px) scale(0.96);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
 }
+#overlay.open .modal { opacity: 1; transform: none; }
 .modal h3 { margin: 0 0 8px; font-size: 24px; line-height: 1.1; color: var(--gold); }
 textarea { width: 100%; height: 110px; background: #12160e; color: var(--ink); border: 2px solid var(--line); padding: 6px; }
 
 #toastWrap { position: fixed; right: 14px; bottom: 70px; z-index: 60; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 .toast {
   background: #1c2416; border: 2px solid var(--line2); padding: 5px 12px;
-  animation: fade 2.6s forwards; font-size: 12px;
+  font-size: 12px;
+  /* 从下方 6px 淡入，退场原路返回（对称路径） */
+  opacity: 0; transform: translateY(6px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-@keyframes fade { 0% { opacity: 0; transform: translateX(20px); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.toast.in { opacity: 1; transform: none; }
 
 /* 阿特拉斯气泡 */
 .bubble {
@@ -371,3 +393,30 @@ textarea { width: 100%; height: 110px; background: #12160e; color: var(--ink); b
 .talent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
 table.simple { width: 100%; border-collapse: collapse; font-size: 12px; }
 table.simple td, table.simple th { padding: 3px 5px; border-bottom: 1px solid #2f3a22; text-align: left; }
+
+/* ---------- 减弱动效 ----------
+   系统开了"减少动态效果"时：去掉所有位移，只留淡化。
+   不是全关 —— 淡入淡出帮助理解状态变化，位移才是会让人不适的那部分。 */
+@media (prefers-reduced-motion: reduce) {
+  .plot.ripe { animation: none; }
+  #tabBody.fadein { animation: none; }
+  .modal { transform: none; transition: opacity 120ms linear; }
+  .toast, .toast.in { transform: none; transition: opacity 120ms linear; }
+  #overlay { transition: opacity 120ms linear; }
+  button { transition: none; }
+  button:active:not(:disabled) { transform: none; }
+  #flash.run { animation: none; }
+}
+
+/* ---------- 转世/搬家的过场 ----------
+   全局最稀有的一件事（一次轮回一回），所以惊喜预算花在这里，别处不做。
+   只用透明度：不位移、不高频、不做刺眼的纯白，最高 0.28。 */
+#flash {
+  position: fixed; inset: 0; z-index: 70; pointer-events: none;
+  background: var(--gold); opacity: 0;
+}
+#flash.run { animation: flashThrough 520ms var(--ease-out); }
+@keyframes flashThrough { 0% { opacity: 0; } 22% { opacity: .28; } 100% { opacity: 0; } }
+
+/* 焦点框：弹层会自动把焦点移进第一个按钮，用主题色而不是系统默认白框 */
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

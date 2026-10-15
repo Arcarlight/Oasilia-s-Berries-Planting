@@ -77,6 +77,60 @@
 
     G.UI.forceRender();
 
+    // #check=motion：确认动效真的挂上了。
+    // CSS 写错属性名会被浏览器静默丢弃，肉眼看不出，所以逐条断言。
+    if (p.check === "motion") {
+      const res = [];
+      const t = (name, ok, extra) => res.push((ok ? "✅ " : "❌ ") + name + (extra ? "  " + extra : ""));
+      const transProp = (el) => getComputedStyle(el).transitionProperty;
+      const animNames = (el) => el.getAnimations().map((a) => a.animationName || a.transitionProperty).join(",");
+
+      // 1) 弹层：opacity + transform 都要在
+      G.UI.openOverlay("<h3>动效自检</h3><button>关闭</button>");
+      const ov = document.getElementById("overlay");
+      const modal = ov.querySelector(".modal");
+      const tp = transProp(modal);
+      t("弹层 transition 含 opacity", tp.indexOf("opacity") >= 0, tp);
+      t("弹层 transition 含 transform", tp.indexOf("transform") >= 0);
+      t("弹层进场时确实有动画在跑", modal.getAnimations().length > 0, animNames(modal));
+      t("弹层不用 scale(0) 进场", getComputedStyle(modal).transform.indexOf("matrix(0, 0, 0, 0") !== 0);
+
+      // 2) 吐出吐司
+      G.UI.toast("动效自检");
+      const toast = document.querySelector("#toastWrap .toast");
+      const ttp = toast ? transProp(toast) : "";
+      t("吐司 transition 含 opacity/transform", ttp.indexOf("opacity") >= 0 && ttp.indexOf("transform") >= 0, ttp);
+      t("吐司进场有动画在跑", toast && toast.getAnimations().length > 0);
+
+      // 3) 标签页切换淡入
+      const body = document.getElementById("tabBody");
+      G.UI.tab = "shop"; G.UI.forceRender();
+      t("切页时 tabBody 带 fadein", body.classList.contains("fadein"));
+      t("切页淡入动画在跑", body.getAnimations().some((a) => a.animationName === "tabIn"),
+        animNames(body));
+
+      // 4) 按钮按下反馈
+      const b0 = body.querySelector("button:not(.link)");
+      t("按钮 transition 含 transform", b0 && transProp(b0).indexOf("transform") >= 0, b0 ? transProp(b0) : "");
+
+      // 样式表级的 never-ship 检查不在这里做：file:// 下浏览器不允许 JS 读本地样式表，
+      // 在页内查会"看起来全过"其实是空跑。那部分搬到 tools/lint_css.py 静态查。
+
+      // 转世过场
+      const fl = document.getElementById("flash");
+      G.UI.flash();
+      t("转世过场挂在 #flash 上", fl && fl.classList.contains("run"));
+      t("过场确实在跑", fl && fl.getAnimations().some((a) => a.animationName === "flashThrough"));
+      t("过场只用透明度（不位移）", getComputedStyle(fl).transform === "none", getComputedStyle(fl).transform);
+
+      G.UI.closeOverlay();
+      res.push("（样式表静态检查见 python3 tools/lint_css.py）");
+      const pre3 = document.createElement("pre");
+      pre3.id = "motioncheck";
+      pre3.textContent = "MOTIONCHECK " + (res.filter((x) => x.startsWith("❌")).length === 0 ? "全部通过" : "有失败") + "\n" + res.join("\n");
+      document.body.appendChild(pre3);
+    }
+
     // #check=morph：直接给"就地合入"机制做单元自检。
     // 它要保证的是：内容更新时按钮/下拉这些节点绝不被销毁重造。
     if (p.check === "morph") {

@@ -6,6 +6,7 @@ window.G = window.G || {};
   let dirty = true;
   let lastTabRender = 0;
   let lastHtml = "";
+  let lastTabId = "";
   // 手机原生下拉打开期间锁住重建：从按下 select 起，到它失焦/选中为止
   let formLock = 0;
 
@@ -48,13 +49,21 @@ window.G = window.G || {};
 
   // 切标签页要作废上一页的 HTML 缓存
   UI.pinForm = function (el) { formLock = performance.now(); };
+  // 吐司用 transition 而不是关键帧：这类元素会被连点，关键帧会从头重播，
+  // transition 则是从当前值继续，连点也不会跳。
   UI.toast = function (text) {
     const wrap = $("toastWrap");
     const d = document.createElement("div");
     d.className = "toast";
     d.textContent = text;
     wrap.appendChild(d);
-    setTimeout(() => d.remove(), 2700);
+    while (wrap.children.length > 4) wrap.removeChild(wrap.firstChild);   // 连点时别堆成一片
+    void d.offsetWidth;                 // 先让浏览器认下初始态，再切到 in
+    d.classList.add("in");
+    setTimeout(() => {
+      d.classList.remove("in");         // 原路退出（从下方来，就从下方走）
+      setTimeout(() => d.remove(), 160);
+    }, 2400);
   };
 
   // ---------------- 田地 ----------------
@@ -764,6 +773,14 @@ window.G = window.G || {};
     // 优先"就地合入"，只有结构对不上才整体替换
     if (!morph(body, html)) UI.replaceCount = (UI.replaceCount || 0) + 1;
     body.scrollTop = scroll;
+    // 换页时才淡入一次：切页会让整块内容瞬间换掉，200ms 的淡入把这一下接住。
+    // 同页内的数据更新不播，否则数字一动就闪。
+    if (UI.tab !== lastTabId) {
+      lastTabId = UI.tab;
+      body.classList.remove("fadein");
+      void body.offsetWidth;
+      body.classList.add("fadein");
+    }
     UI.renderCount = (UI.renderCount || 0) + 1;
   }
 
@@ -943,6 +960,7 @@ window.G = window.G || {};
     migrate: () => {
       const r = G.engine.migrate(S);
       if (r) {
+        UI.flash();
         UI.toast("搬到新区域了。天赋点 +" + r.talentPoints);
         const l = (G.ATLAS_LINES && G.ATLAS_LINES.prestige) || [];
         if (l.length) UI.bubble(l[Math.floor(Math.random() * l.length)]);
@@ -996,12 +1014,42 @@ window.G = window.G || {};
   }, true);
 
   // 设置 / 存档弹层
-  UI.closeOverlay = function () { $("overlay").className = "hidden"; $("overlay").innerHTML = ""; };
+  // 转世过场：整屏淡金一闪。只用透明度，时长 520ms，减弱动效下不播。
+  UI.flash = function () {
+    const el = $("flash");
+    if (!el) return;
+    el.classList.remove("run");
+    void el.offsetWidth;
+    el.classList.add("run");
+  };
+
+  let overlayTimer = 0;
+  // 弹层统一从这里开：先插内容、再加 .open，让 opacity/transform 的transition 从头播。
+  UI.openOverlay = function (inner) {
+    const ov = $("overlay");
+    clearTimeout(overlayTimer);
+    ov.classList.remove("hidden");
+    ov.innerHTML = `<div class="modal">${inner}</div>`;
+    ov.classList.remove("open");
+    void ov.offsetWidth;              // 强制重排，否则连开两次不会重播
+    ov.classList.add("open");
+    const focusable = ov.querySelector("button");
+    if (focusable) focusable.focus();
+  };
+  // 先退场，动效走完再真正移除
+  UI.closeOverlay = function () {
+    const ov = $("overlay");
+    if (ov.classList.contains("hidden")) return;
+    ov.classList.remove("open");
+    clearTimeout(overlayTimer);
+    overlayTimer = setTimeout(() => {
+      ov.classList.add("hidden");
+      ov.innerHTML = "";
+    }, 160);
+  };
 
   UI.openSettings = function () {
-    const ov = $("overlay");
-    ov.className = "";
-    ov.innerHTML = `<div class="modal">
+    UI.openOverlay(`
       <h3>${icon("settings")}设置与存档</h3>
       <div class="sub">存档自动保存在这个浏览器里（localStorage）。换设备就复制下面的字符串。</div>
       <div class="row2" style="margin:8px 0">
@@ -1024,7 +1072,7 @@ window.G = window.G || {};
           <tr><td>阿特拉斯出门</td><td>${S.stats.trips} 次</td></tr>
         </table>
       </div>
-    </div>`;
+    `);
   };
 
   ACT.exportSave = () => {
