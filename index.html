@@ -2,6 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/ui/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/ui/favicon-180.png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>菲洛若亚大陆 · 树果物语</title>
 <meta name="description" content="一个只存在宝可梦的世界。沙漠蜻蜓欧亚西莉亚从繁盛之森开始种树果。">
@@ -24,13 +26,13 @@ window.addEventListener("unhandledrejection", function (e) {
 <div id="app">
   <header id="topbar">
     <div class="brand">菲洛若亚大陆 · 树果物语</div>
-    <div class="stat">宝可元 <b id="uiMoney">₽0</b></div>
-    <div class="stat">自动 <b id="uiRate">₽0</b>/秒</div>
-    <div class="stat">天赋点 <b id="uiTp">0</b></div>
-    <div class="stat" id="uiRegion">繁盛之森</div>
+    <div class="stat"><img class="ico ico-stat" src="assets/ui/stat-money.png" srcset="assets/ui/stat-money-2x.png 2x, assets/ui/stat-money-3x.png 3x" alt="">宝可元 <b id="uiMoney">₽0</b></div>
+    <div class="stat"><img class="ico ico-stat" src="assets/ui/stat-rate.png" srcset="assets/ui/stat-rate-2x.png 2x, assets/ui/stat-rate-3x.png 3x" alt="">自动 <b id="uiRate">₽0</b>/秒</div>
+    <div class="stat"><img class="ico ico-stat" src="assets/ui/stat-tp.png" srcset="assets/ui/stat-tp-2x.png 2x, assets/ui/stat-tp-3x.png 3x" alt="">天赋点 <b id="uiTp">0</b></div>
+    <div class="stat"><img class="ico ico-stat" src="assets/ui/stat-region.png" srcset="assets/ui/stat-region-2x.png 2x, assets/ui/stat-region-3x.png 3x" alt=""><span id="uiRegion">繁盛之森</span></div>
     <div class="spacer"></div>
     <div class="sub" id="uiSaved">—</div>
-    <button id="btnSettings" class="small">设置</button>
+    <button id="btnSettings" class="small"><img class="ico ico-stat" src="assets/ui/settings.png" srcset="assets/ui/settings-2x.png 2x, assets/ui/settings-3x.png 3x" alt="">设置</button>
   </header>
 
   <main id="layout">

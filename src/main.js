@@ -16,7 +16,7 @@
     const capped = away > used + 1;
     const ripe = state.plots.filter((p) => p.ripe).length;
     modal(`
-      <h3><img class="ico" src="assets/ui/hourglass.png" alt="" aria-hidden="true">你离开了 ${G.time(away)}</h3>
+      <h3><img class="ico ico-h" src="assets/ui/hourglass.png" srcset="assets/ui/hourglass-2x.png 2x, assets/ui/hourglass-3x.png 3x" alt="" aria-hidden="true">你离开了 ${G.time(away)}</h3>
       <div class="mon">
         <img class="portrait" src="assets/pmd/0373_portrait.png" alt="" onerror="this.style.visibility='hidden'">
         <div class="grow">

@@ -193,12 +193,16 @@ git add -A && git commit -m "..." && git push
   - 商品图标 = 原作道具贴图打底 + 右下角叠一颗投入的树果：
     果酱=甜甜蜜，果汁=树果汁，宝可方块=各色宝可方块，宝芬=各口味宝芬，树果派=心形甜点，陈酿果酒=果汁牛奶（瓶子当酒器）。
 - 宝可梦立绘与行走图：PMD Sprite Repository（github.com/PMDCollab/SpriteCollab），CC BY-NC-SA 4.0。
-- 界面图标、鼠标光标、按钮/面板框/进度条贴图：**Kenney**（kenney.nl），**CC0 1.0**（可商用，署名非必需）。
-  - 光标与页签图标：Cursor Pixel Pack — https://kenney.nl/assets/cursor-pixel-pack
-    （它其实是一套 16×16 单色字形，正好当图标库用）
+- **界面图标**（页签 / 顶栏）：**化け猫缶 素材屋**（neko.moo.jp/BS），24×24 彩色像素图。
+  授权明确允许「加工后再配布」，署名不强制。另有一个取自 **Whitecat**（moyasi.whitecafe.jp）的
+  「当前区域」小房子图标 —— Whitecat 允许游戏内使用并随游戏分发，需署名。
+  - 早先用的是 Kenney Cursor Pixel Pack 的 16×16 单色字形，后来整体换掉：
+    单色剪影跟树果/商品那些彩色贴图摆一起不搭，而 化け猫缶 那套正好也是彩色像素画。
+  - 彩色图标不能压太低透明度，否则会被深色底吃掉（`.ico-tab` / `.ico-stat` 比 `.ico` 高一档）。
+- 鼠标光标、按钮 / 面板框 / 进度条贴图：**Kenney**（kenney.nl），**CC0 1.0**（可商用，署名非必需）。
+  - 光标：Cursor Pixel Pack — https://kenney.nl/assets/cursor-pixel-pack
   - 按钮 / 面板框 / 进度条：UI Pack - Pixel Adventure — https://kenney.nl/assets/ui-pack-pixel-adventure
     （用 border-image 九宫格拉伸，普通/悬停/按下三态）
-  - 物品图标仍然用神奇宝贝百科的原作贴图；**物品=原作贴图，界面/光标=Kenney**。
   - 鼠标光标用了三个字形（平时 / 可点击 / 浇水），各出 1x·2x·3x 三档，
     用 `image-set` 按屏幕密度选图——否则 Retina 上 16×16 会被平滑放大成糊的。
     `cursor` 属性不支持 `image-rendering: pixelated`，只能靠喂高分辨率解决。

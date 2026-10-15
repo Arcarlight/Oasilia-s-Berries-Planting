@@ -110,9 +110,20 @@ img.px { image-rendering: pixelated; }
   image-rendering: pixelated; vertical-align: -3px; margin-right: 4px;
   opacity: .62;
 }
-#tabs button .ico { margin-right: 3px; vertical-align: -4px; opacity: .5; }
-#tabs button.on .ico { opacity: 1; }
+/* 页签图标是 24x24 的像素图，按 1:1 显示最清楚（缩到 16px 会掉像素），
+   所以单独给它一个尺寸，不用 .ico 的 16px。
+   化け猫缶 的图标是彩色像素画（不像原来那套是白色剪影），压太低透明度会被深色底吃掉，
+   所以这里的不透明度比 .ico 高一档，靠 opacity 区分选中/未选中就够了。 */
+.ico-tab { width: 24px; height: 24px; flex: 0 0 24px; opacity: .92; }
+#tabs button .ico-tab { margin-right: 5px; vertical-align: -7px; opacity: .72; }
+#tabs button.on .ico-tab { opacity: 1; }
+
+/* 顶栏那几个数字前面的小图标，比页签小一档，免得把 header 撑高 */
+.ico-stat { width: 18px; height: 18px; flex: 0 0 18px; margin-right: 3px; vertical-align: -4px; opacity: .95; }
+#btnSettings .ico-stat { width: 16px; height: 16px; flex: 0 0 16px; vertical-align: -3px; }
 .card h4 .ico, .modal h3 .ico, .panel-head .ico { opacity: .85; }
+/* 卡片标题里的图标也是 24x24 的彩色像素画，按 1:1 显示 */
+.ico-h { width: 24px; height: 24px; flex: 0 0 24px; vertical-align: -6px; opacity: .95; }
 
 /* ---------- 像素光标 ----------
    屏幕是 2 倍（Retina）时，16x16 的图被浏览器平滑放大就会发糊，所以每种光标都出

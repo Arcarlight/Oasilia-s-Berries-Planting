@@ -35,8 +35,12 @@ window.G = window.G || {};
   function int(n) { const v = Math.floor(n || 0); return v > 0 ? v : 0; }
 
   // UI 图标（Kenney Cursor Pixel Pack，CC0）。白色 16x16 PNG，用 img 引，靠 opacity 控制强弱。
-  function icon(name) {
-    return `<img class="ico" src="assets/ui/${name}.png" alt="" aria-hidden="true">`;
+  // 像素图标：1x/2x/3x 三档交给浏览器按屏幕密度挑。
+  // 只给 srcset 而不给尺寸，Retina 上会被拿去放大 16px 的图，糊掉。
+  function icon(name, extra) {
+    return `<img class="ico${extra ? " " + extra : ""}" src="assets/ui/${name}.png"`
+      + ` srcset="assets/ui/${name}-2x.png 2x, assets/ui/${name}-3x.png 3x"`
+      + ` alt="" aria-hidden="true">`;
   }
 
   const TAB_NAME = {};
@@ -616,7 +620,7 @@ window.G = window.G || {};
 
   function renderDex() {
     const known = Object.keys(S.dex).length;
-    let h = `<div class="card"><h4>${icon("dex")}树果图鉴 ${known}/${G.BERRIES.length}</h4>
+    let h = `<div class="card"><h4>${icon("tab-dex", "ico-h")}树果图鉴 ${known}/${G.BERRIES.length}</h4>
       <div class="sub">见过就点亮。种过、买过种子、或者阿特拉斯带回来的都算。</div></div>`;
     h += `<div class="dex-grid">`;
     G.BERRIES.forEach((b) => {
@@ -628,7 +632,7 @@ window.G = window.G || {};
     });
     h += `</div>`;
 
-    h += `<div class="card" style="margin-top:8px"><h4>${icon("regulars")}常客图鉴</h4><div class="dex-grid">`;
+    h += `<div class="card" style="margin-top:8px"><h4>${icon("tab-regulars", "ico-h")}常客图鉴</h4><div class="dex-grid">`;
     (G.REGULARS || []).forEach((r) => {
       const st = G.engine.regState(S, r.dex);
       h += `<div class="dex-cell ${st.unlocked ? "" : "unknown"}">
@@ -902,7 +906,7 @@ window.G = window.G || {};
   function renderTabs() {
     // 也用合入：点标签页时会触发重绘，整块替换会让鼠标下的那个标签闪一下
     morph($("tabs"), TABS.map((t) =>
-      `<button data-act="tab" data-p='${attr({ t: t.id })}' class="${UI.tab === t.id ? "on" : ""}" title="${t.name}">${icon("tab-" + t.id)}${t.name}</button>`
+      `<button data-act="tab" data-p='${attr({ t: t.id })}' class="${UI.tab === t.id ? "on" : ""}" title="${t.name}">${icon("tab-" + t.id, "ico-tab")}${t.name}</button>`
     ).join(""));
   }
 
