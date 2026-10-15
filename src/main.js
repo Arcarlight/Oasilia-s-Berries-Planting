@@ -102,9 +102,8 @@
     G.UI.init(state);
     if (fresh) welcome(state);
 
-    document.getElementById("btnSell").addEventListener("click", () => {
-      G.UI.frame();
-    });
+    // 叫卖走 data-act="sell"，由 UI 的点击委托统一处理。
+    // 原来这里绑的是 G.UI.frame() —— 那只是重画一帧，点了当然什么都不发生。
     document.getElementById("btnWaterAll").addEventListener("click", () => {
       const n = G.engine.waterAll(S);
       G.UI.toast(n ? "浇了 " + n + " 块地" : "这会儿没有要浇水的田");

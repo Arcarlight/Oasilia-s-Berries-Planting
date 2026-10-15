@@ -515,7 +515,10 @@ window.G = window.G || {};
         </label>`;
       });
       h += `</div>`;
-      h += `<button data-act="tripGo" class="gold">让他出发</button>
+      const tc = G.engine.tripCost(S, S._tripWant || {});
+      h += `<div class="sub" style="margin-top:4px">这一趟：${money(tc.cost)}（杂货铺代购要 ${money(Math.round(tc.value * 2.6))}）
+        ，来回约 ${G.clock(tc.secs)}${S.money < tc.cost ? '<span style="color:#cf5a41">　钱不够</span>' : ""}</div>`;
+      h += `<button data-act="tripGo" class="gold"${S.money < tc.cost ? " disabled" : ""}>让他出发</button>
         <button data-act="tripClear">清空清单</button>`;
     }
     h += `</div>`;

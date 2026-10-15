@@ -261,6 +261,24 @@ window.G = window.G || {};
   };
 
   // 阿特拉斯出门采购
+  // 出远门买材料的加价：杂货铺代购是 2.6 倍，跑一趟只要 1.4 倍，代价是要等。
+  // 之前这里一分钱都不收 —— 白拿材料，等于把杂货铺整条线架空了。
+  const TRIP_MARKUP = 1.4;
+
+  A.tripCost = function (state, wants) {
+    const mats = wants || {};
+    let value = 0;
+    Object.keys(mats).forEach((mid) => {
+      const m = (G.MATERIALS || []).filter((x) => x.id === mid)[0];
+      if (m) value += m.price * mats[mid];
+    });
+    return { value: value, cost: Math.round(value * TRIP_MARKUP), secs: A.tripSecs(value) };
+  };
+
+  A.tripSecs = function (value) {
+    return Math.max(45, Math.min(900, (value || 0) / 120));
+  };
+
   A.startTrip = function (state, wants) {
     if (state.atlas.trip) return { ok: false, why: "他已经出门了" };
     const mats = wants || {};
@@ -269,8 +287,13 @@ window.G = window.G || {};
       const m = (G.MATERIALS || []).filter((x) => x.id === mid)[0];
       if (m) value += m.price * mats[mid];
     });
-    const secs = Math.max(45, Math.min(900, value / 120));
-    state.atlas.trip = { want: mats, until: G.now(state) + secs * 1000, startedAt: G.now(state) };
+    const cost = Math.round(value * TRIP_MARKUP);
+    if (state.money < cost) {
+      return { ok: false, why: "这一趟要 ₽" + G.fmt(cost) + "，钱不够" };
+    }
+    state.money -= cost;
+    const secs = A.tripSecs(value);
+    state.atlas.trip = { want: mats, until: G.now(state) + secs * 1000, startedAt: G.now(state), cost: cost };
     // 上一趟的结算留着不删：阿特拉斯页要显示"上次带回来"，删了就只剩空白。
     // 回来提示靠 report.at 的变化触发，不会因为留着而重复弹。
     state.stats.trips++;
@@ -279,7 +302,7 @@ window.G = window.G || {};
         const m = (G.MATERIALS || []).filter((x) => x.id === mid)[0];
         return (m ? m.name : mid) + "×" + mats[mid];
       }).join("、") + "。", "atlas");
-    return { ok: true, secs: secs };
+    return { ok: true, secs: secs, cost: cost };
   };
 
   A.finishTrip = function (state) {
@@ -1136,11 +1159,16 @@ window.G = window.G || {};
     // 小数部分先攒着（stallCarry），够一个整的才真的卖掉一个，库存永远不会出现小数点。
     // 上限只是防止长时间没货可卖时数字跑飞；离线结算一步是 5 秒，
     // 上限必须远大于"一步的产量"，否则离线收益会被吃掉。
+    // 每个品种至少留这么多不卖，免得把做果酱的原料一起清了
+    const reserve = Math.max(0, Math.floor(state.stallReserve || 0));
+    // 没货可卖的时候不攒份额。
+    // 原来份额一直在涨（上限 10000），田里一收货就一次性全卖光 —— 这就是
+    // "有时候会瞬间卖完"的原因。摊位的产能卖不掉就是白费，不该攒着等货。
+    const hasStock = Object.keys(state.berries).some((k) => state.berries[k] > reserve);
+    if (!hasStock) { state.stallCarry = 0; return 0; }
     state.stallCarry = Math.min(10000, (state.stallCarry || 0) + perStall(state) * dt);
     let quota = Math.floor(state.stallCarry);
     if (quota <= 0) return 0;
-    // 每个品种至少留这么多不卖，免得把做果酱的原料一起清了
-    const reserve = Math.max(0, Math.floor(state.stallReserve || 0));
     let earned = 0;
     let sold = 0;
     // 从最贵的生果开始卖

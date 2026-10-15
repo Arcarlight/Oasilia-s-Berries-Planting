@@ -79,7 +79,8 @@ window.SIM = {};
         .sort((a, b) => a.price - b.price);
       missing.slice(0, 2).forEach((m) => { want[m.id] = 2; });
       if (!Object.keys(want).length) want[mats[0].id] = 2;
-      if (eng.startTrip(state, want).ok) simStats.trips++;
+      // 出远门是要花钱的，钱不够就先别去（早期尤其明显）
+      if (state.money > eng.tripCost(state, want).cost * 3 && eng.startTrip(state, want).ok) simStats.trips++;
     }
 
     // 4.42 有素材就往锅里丢：挑一个还没做过的搭配，丢够料再搅
@@ -427,6 +428,47 @@ window.SIM = {};
     check("种子库存不出现小数", Object.keys(s9.seeds).every((k) => s9.seeds[k] % 1 === 0),
       JSON.stringify(s9.seeds));
 
+    // 摊位不许"攒份额"：没货的时候不生产，果子一入库不该被一次性清空。
+    // 原来 stallCarry 在空仓时也一直涨（上限 10000），收一波果子就被瞬间卖光。
+    const sBurst = fresh();
+    sBurst.items["vine_cart"] = 5;
+    sBurst.stallReserve = 0;
+    sBurst.plots.forEach((p) => { p.berry = null; p.ripe = false; });
+    sBurst.berries = {};
+    G.advance(sBurst, 600);                        // 空转十分钟攒份额
+    check("空仓时份额不累积", !sBurst.stallCarry, sBurst.stallCarry);
+    sBurst.berries[1] = 200;                       // 收一波
+    G.advance(sBurst, 1);                          // 只过一秒
+    check("果子入库不会被瞬间卖光", (sBurst.berries[1] || 0) > 195, sBurst.berries[1]);
+
+    // 叫卖：点一下要真的进钱
+    const sClick = fresh();
+    sClick.berries[1] = 10;
+    const mBefore = sClick.money;
+    const clicksBefore = sClick.stats.clicks;
+    G.engine /* 走 UI 的 sell 动作同一条路 */;
+    const v = G.clickSellValue(sClick);
+    sClick.money += v; sClick.stats.clicks++;
+    check("叫卖有收益", sClick.money > mBefore && sClick.stats.clicks === clicksBefore + 1, v);
+
+    // 出远门要花钱
+    const sTrip = fresh();
+    sTrip.money = 100000;
+    const tc = G.engine.tripCost(sTrip, { wood: 2, clay: 1 });
+    check("出行有报价", tc.cost > 0 && tc.cost < Math.round(tc.value * 2.6), tc.cost + " vs 杂货铺 " + Math.round(tc.value * 2.6));
+    const mBefore2 = sTrip.money;
+    const tr = G.engine.startTrip(sTrip, { wood: 2, clay: 1 });
+    check("出行真的扣钱", tr.ok && sTrip.money === mBefore2 - tc.cost, mBefore2 - sTrip.money);
+    sTrip.atlas.trip.until = G.now(sTrip) - 1;
+    G.engine.finishTrip(sTrip);
+    // 随机事件可能额外多带材料回来，所以只断言"至少到货"
+    check("钱扣了、材料也到了",
+      (sTrip.materials.wood || 0) >= 2 && (sTrip.materials.clay || 0) >= 1,
+      JSON.stringify(sTrip.materials));
+    const sPoor = fresh();
+    sPoor.money = 1;
+    check("没钱出不了门", G.engine.startTrip(sPoor, { wood: 5 }).ok === false, sPoor.money);
+
     // 摊位保留量：低于保留量的果子不许被自动卖掉
     const s11 = fresh();
     s11.items["vine_cart"] = 5;
@@ -470,6 +512,7 @@ window.SIM = {};
     // 出门会带素材回来
     const st1 = fresh();
     st1.maxRegion = 9;
+    st1.money = 1e6;
     const kinds = {};
     for (let i = 0; i < 120; i++) {
       G.engine.startTrip(st1, {});
@@ -482,6 +525,7 @@ window.SIM = {};
     check("出门回来有一条完整汇总",
       (function () {
         const st = fresh();
+        st.money = 1e6;                       // 出远门要花钱
         G.engine.startTrip(st, { wood: 2 });
         st.atlas.trip.until = G.now(st) - 1;
         const r = G.engine.finishTrip(st);
@@ -490,6 +534,7 @@ window.SIM = {};
     check("汇总会写进日志",
       (function () {
         const st = fresh();
+        st.money = 1e6;
         G.engine.startTrip(st, { wood: 1 });
         st.atlas.trip.until = G.now(st) - 1;
         G.engine.finishTrip(st);
@@ -499,6 +544,7 @@ window.SIM = {};
       (function () {
         const st = fresh();
         st.maxRegion = 9;
+        st.money = 1e6;
         G.engine.startTrip(st, { wood: 1 });
         st.atlas.trip.until = G.now(st) - 1;
         G.engine.finishTrip(st);
@@ -507,6 +553,7 @@ window.SIM = {};
     check("report 不会因为下次出门被清掉",
       (function () {
         const st = fresh();
+        st.money = 1e6;
         G.engine.startTrip(st, { wood: 1 });
         st.atlas.trip.until = G.now(st) - 1;
         G.engine.finishTrip(st);

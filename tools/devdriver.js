@@ -121,6 +121,17 @@
       return Object.keys(bad);
     }
 
+    // #tripwant=wood:2,clay:1：勾上出行清单，用来验证报价
+    if (p.tripwant) {
+      S._tripWant = {};
+      String(p.tripwant).split(",").forEach((kv) => {
+        const parts = kv.split(":");
+        if (parts[0]) S._tripWant[parts[0]] = parseInt(parts[1], 10) || 1;
+      });
+      G.UI.tab = "atlas";
+      G.UI.forceRender();
+    }
+
     // #check=trip：造一趟完整的出行，验证"他回来了"有没有汇总、有没有提示
     if (p.check === "trip") {
       const out = [];
