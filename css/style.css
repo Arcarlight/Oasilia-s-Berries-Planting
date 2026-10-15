@@ -651,3 +651,17 @@ label .micon { margin-right: 4px; }
 
 /* 详情栏里的长名字要能自己折行 */
 .wh-detail h4 { font-size: 13px; line-height: 1.4; }
+
+/* 设置里的存档槽位 */
+.slot-list { margin-top: 4px; }
+.slot-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.slot-row:last-child { border-bottom: none; }
+.slot-row .grow { min-width: 0; }
+.slot-row .sub { display: block; font-size: 11px; }
+#saveBox { width: 100%; height: 76px; margin-top: 6px; }
+
+/* 输入框的占位文字别太暗，不然看不出那里能填东西 */
+#saveBox::placeholder, #slotName::placeholder, input::placeholder, textarea::placeholder {
+  color: #8a9377; opacity: 1;
+}
+#slotName { padding: 4px 6px; }

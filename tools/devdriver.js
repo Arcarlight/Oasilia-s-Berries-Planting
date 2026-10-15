@@ -79,6 +79,22 @@
       G.UI.forceRender();
     }
 
+    // #recipe=3：点第 3 个配方按钮，验证选中态真的换过去（不只是动作存在）
+    if (p.recipe !== undefined) {
+      G.UI.forceRender();
+      const btns = document.querySelectorAll("[data-act='recipe']");
+      const i = parseInt(p.recipe, 10) || 0;
+      const before = document.querySelector(".card h4 + .sub") ? "" : "";
+      if (btns[i]) btns[i].click();
+      G.UI.forceRender();
+      const on = document.querySelector("[data-act='recipe'].gold");
+      const pre2 = document.createElement("pre");
+      pre2.id = "recipecheck";
+      pre2.textContent = "RECIPECHECK " + (on ? "选中=" + on.textContent.trim() : "没有选中任何配方")
+        + "　可选配方 " + btns.length + " 个";
+      document.body.appendChild(pre2);
+    }
+
     // #stir=1：点搅拌，然后快进到出锅，用来抓出锅画面
     if (p.stir) {
       G.UI.forceRender();
@@ -91,15 +107,65 @@
       }
     }
 
+    // 界面上的 data-act 必须在 ACT 里有实现，否则按钮就是死的。
+    // 之前改研发动作块时误删了 15 个动作（recipe/craft/buySeed…），肉眼看不出，
+    // 只有点到那个按钮才发现 —— 这条自检就是为那类事故加的。
+    function checkActs() {
+      const have = {};
+      (G.UI.actNames ? G.UI.actNames() : []).forEach((k) => { have[k] = true; });
+      const bad = {};
+      document.querySelectorAll("[data-act]").forEach((el) => {
+        const a = el.dataset.act;
+        if (a && !have[a]) bad[a] = true;
+      });
+      return Object.keys(bad);
+    }
+
+    // #check=settings：开设置面板，点一遍存槽位/读槽位/删槽位，确认存档管理真能用
+    if (p.check === "settings") {
+      const out = [];
+      try {
+        G.UI.openSettings();
+        const has = (a) => !!document.querySelector("[data-act='" + a + "']");
+        ["exportSave", "downloadSave", "copySave", "importSave", "pickfile", "slotSave", "resetArm"]
+          .forEach((a) => { if (!has(a)) out.push("缺少按钮：" + a); });
+        // 存一个槽位
+        document.getElementById("slotName").value = "自检槽位";
+        document.querySelector("[data-act='slotSave']").click();
+        const rows = document.querySelectorAll(".slot-row");
+        if (!rows.length) out.push("存了槽位但列表里没有");
+        else if (G.listSlots().length !== 1) out.push("槽位数量不对：" + G.listSlots().length);
+        // 导出能不能出东西
+        document.querySelector("[data-act='exportSave']").click();
+        if (!(document.getElementById("saveBox").value || "").length) out.push("导出是空的");
+        // 删掉
+        document.querySelector("[data-act='slotDelete']").click();
+        if (G.listSlots().length !== 0) out.push("删槽位没生效");
+        // 重新开始要两步
+        document.querySelector("[data-act='resetArm']").click();
+        if (!document.querySelector("[data-act='resetSave']")) out.push("重新开始没有二次确认");
+        document.querySelector("[data-act='resetCancel']").click();
+        G.UI.closeOverlay();
+      } catch (e) {
+        out.push("抛错：" + e.message);
+      }
+      const preS = document.createElement("pre");
+      preS.id = "settingscheck";
+      preS.textContent = out.length ? "SETTINGSCHECK FAIL\n  " + out.join("\n  ") : "SETTINGSCHECK OK";
+      document.body.appendChild(preS);
+    }
+
     // #check=tabs：把所有页签逐一渲染一遍，任何一页抛错都记下来。
     // 这类错误会让页面卡在旧内容上，肉眼很难发现，必须靠自检。
     if (p.check === "tabs") {
       const tabs = ["market", "kitchen", "regulars", "shop", "atlas", "store", "lab", "talents", "dex", "help"];
       const bad = [];
+      const deadActs = {};
       tabs.forEach((t) => {
         G.UI.tab = t;
         G.UI.forceRender();
         if (G.UI.lastError) bad.push(G.UI.lastError.tab + ": " + G.UI.lastError.message);
+        checkActs().forEach((a) => { deadActs[a] = t; });
       });
       G.UI.tab = "market"; G.UI.forceRender();
       const probe = [];
@@ -119,7 +185,9 @@
                  && btnCur.indexOf("cursor-point") >= 0
                  && cur.indexOf("2x") >= 0;
       const pick2x = cur.indexOf("2x") >= 0;
+      const dead = Object.keys(deadActs);
       pre.textContent = (bad.length ? "TABCHECK FAIL\n" + bad.join("\n") : "TABCHECK OK")
+        + (dead.length ? "\nACTCHECK FAIL 这几个按钮没实现：\n  " + dead.join("\n  ") : "\nACTCHECK OK")
         + "\nCURSOR " + (curOk ? "OK" : "缺失")
         + " dpr=" + window.devicePixelRatio
         + " 用到2倍图=" + (pick2x ? "是" : "否")

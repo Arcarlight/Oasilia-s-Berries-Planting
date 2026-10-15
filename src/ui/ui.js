@@ -1247,6 +1247,12 @@ window.G = window.G || {};
     renderTabBody(false);
   };
 
+  // 给验收用：列出所有"有实现"的动作名，好检查界面上的 data-act 是不是都有落点。
+  // ACT 之外还有两个走别的监听的（下拉框用 change，设置按钮走 openSettings），一并列上，
+  // 否则自检会把它们误报成死按钮。
+  const ACT_ELSEWHERE = ["picksell", "settings"];
+  UI.actNames = function () { return Object.keys(ACT).concat(ACT_ELSEWHERE); };
+
   UI.forceRender = function () {
     sigPlots = ""; sigSeeds = ""; sigLog = "";
     renderTabs();
@@ -1323,6 +1329,93 @@ window.G = window.G || {};
       const r = G.engine.dropMaterial(S, p.m, 9999);
       if (r.ok) UI.toast("扔掉了 " + r.count + " 份");
     },
+
+    sellAllBerries: () => { const v = G.engine.sellAllBerries(S); UI.toast(v ? "+" + money(v) : "没有生果"); },
+    sellAllProducts: () => { const v = G.engine.sellAllProducts(S); UI.toast(v ? "+" + money(v) : "没有商品"); },
+    sellProduct: (p) => {
+      const v = G.engine.sellProduct(S, p.k, p.n, p.dex || null);
+      if (v) UI.toast("+" + money(v));
+    },
+    recipe: (p) => { pick.recipe = p.r; UI.markDirty(); },
+    autoOn: (p) => {
+      S.autoRecipe = p.r;
+      UI.toast("自动加工已开启：" + G.RECIPE_BY_ID[p.r].name);
+      UI.forceRender();
+    },
+    autoOff: () => { S.autoRecipe = null; UI.toast("自动加工已关闭"); UI.forceRender(); },
+    toggleStall: () => {
+      S.stallOn = S.stallOn === false;
+      UI.toast(S.stallOn ? "摊位开始自动出货" : "摊位已关闭，生果不会自动卖掉");
+      UI.forceRender();
+    },
+    setReserve: (p) => {
+      S.stallReserve = p.n;
+      UI.toast("每个品种保留 " + p.n + " 个不卖");
+      UI.forceRender();
+    },
+    toggleAutoTrade: () => {
+      S.autoTrade = !S.autoTrade;
+      UI.toast(S.autoTrade ? "自动交付已开启" : "自动交付已关闭");
+      UI.forceRender();
+    },
+    craft: (p) => {
+      const r = G.engine.craft(S, p.r, p.b);
+      if (!r.ok) UI.toast(r.why); else UI.toast("开始加工（" + r.secs.toFixed(1) + "s）");
+    },
+    buySeed: (p) => {
+      if (G.engine.buySeed(S, p.b, p.n)) UI.toast("买了 " + p.n + " 个种子");
+      else UI.toast("钱不够");
+    },
+    buyRecipe: (p) => {
+      if (G.engine.buyRecipe(S, p.r)) UI.toast("学会了：" + G.RECIPE_BY_ID[p.r].name);
+      else UI.toast("钱不够");
+    },
+    buyMaterial: (p) => {
+      if (G.engine.buyMaterial(S, p.m, p.n)) UI.toast("买到材料");
+      else UI.toast("钱不够");
+    },
+    craftItem: (p) => {
+      const r = G.engine.orderCraft(S, p.id);
+      if (!r.ok) UI.toast(r.why); else UI.toast("他开始做了");
+    },
+    tripToggle: (p) => {
+      S._tripWant = S._tripWant || {};
+      if (S._tripWant[p.m]) delete S._tripWant[p.m];
+      else S._tripWant[p.m] = 5;
+      UI.markDirty();
+    },
+    tripClear: () => { S._tripWant = {}; UI.markDirty(); },
+    tripGo: () => {
+      const want = S._tripWant || {};
+      if (!Object.keys(want).length) { UI.toast("先勾选要买的东西"); return; }
+      const r = G.engine.startTrip(S, want);
+      if (!r.ok) UI.toast(r.why); else { S._tripWant = {}; UI.toast("他出发了"); }
+    },
+    hire: (p) => {
+      if (G.engine.buyHelper(S, p.dex)) UI.toast("来了个帮手");
+      else UI.toast("钱不够，或者槽位满了");
+    },
+    fire: (p) => { G.engine.fireHelper(S, p.dex); UI.toast("让他回去了"); },
+    deliver: (p) => {
+      if (G.engine.deliverOrder(S, p.dex)) UI.toast("订单完成");
+      else UI.toast("符合口味的商品不够");
+    },
+    buyTalent: (p) => {
+      if (G.engine.buyTalent(S, p.id)) UI.toast("天赋提升了");
+      else UI.toast("天赋点不够");
+    },
+    migrate: () => {
+      const r = G.engine.migrate(S);
+      if (r) {
+        UI.flash();
+        UI.toast("搬到新区域了。天赋点 +" + r.talentPoints);
+        const l = (G.ATLAS_LINES && G.ATLAS_LINES.prestige) || [];
+        if (l.length) UI.bubble(l[Math.floor(Math.random() * l.length)]);
+        UI.forceRender();
+      } else UI.toast("还不能搬");
+    },
+    settings: () => UI.openSettings(),
+    closeOverlay: () => UI.closeOverlay(),
 
     // ---- 研发：大锅 ----
     labAdd: (p) => {
@@ -1495,19 +1588,60 @@ window.G = window.G || {};
     }, 160);
   };
 
+  // 存档区：文本框内容要跨重绘保留，不然一存槽位就把它冲掉了
+  let saveBoxCache = "";
+  let resetArmed = false;
+
+  function slotRows() {
+    const list = G.listSlots ? G.listSlots() : [];
+    if (!list.length) return `<div class="sub">还没有槽位。开新版本之前先存一个，出事了能退回来。</div>`;
+    return list.map((x) => `<div class="slot-row">
+      <span class="grow">${esc(x.name)}<span class="sub">${esc(x.region || "")}　${money(x.money || 0)}　${new Date(x.at).toLocaleString("zh-CN", { hour12: false }).slice(0, 16)}</span></span>
+      <button class="small" data-act="slotLoad" data-p='${attr({ name: x.name })}'>读这个</button>
+      <button class="small danger" data-act="slotDelete" data-p='${attr({ name: x.name })}'>删</button>
+    </div>`).join("");
+  }
+
   UI.openSettings = function () {
     UI.openOverlay(`
       <h3>${icon("settings")}设置与存档</h3>
-      <div class="sub">存档自动保存在这个浏览器里（localStorage）。换设备就复制下面的字符串。</div>
-      <div class="row2" style="margin:8px 0">
-        <button data-act="closeOverlay">关闭</button>
-        <button data-act="exportSave">导出存档</button>
-        <button data-act="importSave">导入存档</button>
-        <button class="danger" data-act="resetSave">重新开始</button>
-      </div>
-      <textarea id="saveBox" placeholder="存档字符串会出现在这里"></textarea>
-      <div class="sub" id="saveMsg" style="margin-top:6px"></div>
+      <div class="sub">存档自动存在这个浏览器里（localStorage）。换设备、或者新版本想开新档，用下面的备份和槽位。</div>
+
       <div class="card" style="margin-top:10px">
+        <h4>备份与恢复</h4>
+        <div class="row2" style="flex-wrap:wrap;margin:6px 0">
+          <button class="small" data-act="exportSave">导出到文本框</button>
+          <button class="small" data-act="downloadSave">下载成文件</button>
+          <button class="small" data-act="copySave">复制</button>
+          <button class="small" data-act="importSave">从文本框导入</button>
+          <button class="small" data-act="pickfile">选文件导入</button>
+        </div>
+        <textarea id="saveBox" placeholder="点「导出到文本框」会在这里生成一串存档；要恢复的话，把之前存的那串粘进来再点「从文本框导入」。">${esc(saveBoxCache)}</textarea>
+        <input type="file" id="saveFile" accept=".json,.txt,application/json" style="display:none">
+        <div class="sub" id="saveMsg" style="margin-top:6px"></div>
+      </div>
+
+      <div class="card">
+        <h4>存档槽位（最多 ${G.SLOT_MAX || 4} 个）</h4>
+        <div class="sub">存在浏览器里，和主存档分开。开新版本前先存一个，随时能读回来。</div>
+        <div class="row2" style="margin:6px 0;flex-wrap:wrap">
+          <input id="slotName" placeholder="给这个存档起个名字" style="flex:1;min-width:150px">
+          <button class="small" data-act="slotSave">存入槽位</button>
+        </div>
+        <div class="slot-list">${slotRows()}</div>
+      </div>
+
+      <div class="card">
+        <h4>重新开始</h4>
+        <div class="sub">清空这个浏览器里的存档，从区域 1 重新来。删之前建议先存一个槽位。</div>
+        <div class="row2" style="margin-top:6px">
+          ${resetArmed
+            ? '<button class="danger" data-act="resetSave">真的删掉，点这里确认</button><button class="small" data-act="resetCancel">算了</button>'
+            : '<button class="danger" data-act="resetArm">重新开始</button>'}
+        </div>
+      </div>
+
+      <div class="card">
         <h4>统计</h4>
         <table class="simple">
           <tr><td>游戏时长</td><td>${G.time(S.playTime)}</td></tr>
@@ -1517,35 +1651,124 @@ window.G = window.G || {};
           <tr><td>累计收入</td><td>${money(S.stats.revenueTotal)}</td></tr>
           <tr><td>移民次数</td><td>${S.stats.prestige}</td></tr>
           <tr><td>阿特拉斯出门</td><td>${S.stats.trips} 次</td></tr>
+          <tr><td>研发成功</td><td>${G.fmt(S.stats.researched || 0)} 个</td></tr>
         </table>
+      </div>
+
+      <div class="row2" style="margin-top:10px">
+        <button data-act="closeOverlay">关闭</button>
       </div>
     `);
   };
 
+  function saveMessage(text) {
+    const el = $("saveMsg");
+    if (el) el.textContent = text;
+  }
+  function refreshSettings() {
+    const box = $("saveBox");
+    if (box) saveBoxCache = box.value;
+    UI.openSettings();       // 重画一遍，槽位列表要跟着变
+  }
+
   ACT.exportSave = () => {
     const box = $("saveBox");
-    box.value = G.exportSave(S);
+    saveBoxCache = G.exportSave(S);
+    box.value = saveBoxCache;
     box.select();
-    $("saveMsg").textContent = "已导出。复制走这段字符串。";
+    saveMessage("已导出到上面的文本框。复制走，或者直接「下载成文件」。");
+  };
+  ACT.copySave = () => {
+    const box = $("saveBox");
+    const text = box && box.value ? box.value : G.exportSave(S);
+    if (box) { box.value = text; saveBoxCache = text; }
+    const done = () => saveMessage("已复制到剪贴板。");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, () => { if (box) { box.select(); } saveMessage("复制没成功，手动选中复制吧。"); });
+    } else if (box) {
+      box.select();
+      saveMessage("浏览器不给自动复制，已经帮你选中了，按 Ctrl/Cmd+C。");
+    }
+  };
+  ACT.downloadSave = () => {
+    saveBoxCache = G.exportSave(S);
+    const blob = new Blob([saveBoxCache], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const region = G.regionOf(S).name;
+    a.href = url;
+    a.download = "菲洛若亚存档_" + region + "_" +
+      new Date().toLocaleString("zh-CN", { hour12: false }).replace(/[\/\s:]/g, "") + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saveMessage("文件已开始下载。");
   };
   ACT.importSave = () => {
     const box = $("saveBox");
+    const text = box ? box.value.trim() : "";
+    if (!text) { saveMessage("文本框是空的。先把存档字符串粘进来，或者用「选文件导入」。"); return; }
     try {
-      const s = G.importSave(box.value);
+      const s = G.importSave(text);
       UI.replaceState(s);
-      $("saveMsg").textContent = "导入成功。";
+      saveMessage("导入成功。");
       UI.closeOverlay();
       UI.forceRender();
     } catch (err) {
-      $("saveMsg").textContent = "导入失败：" + err.message;
+      saveMessage("导入失败：" + err.message);
     }
   };
+  ACT.pickfile = () => {
+    const input = $("saveFile");
+    if (!input) return;
+    input.onchange = () => {
+      const f = input.files && input.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const box = $("saveBox");
+        if (box) box.value = String(reader.result || "");
+        saveMessage("读进来了，点「从文本框导入」确认。");
+      };
+      reader.onerror = () => saveMessage("这个文件读不出来。");
+      reader.readAsText(f);
+    };
+    input.click();
+  };
+
+  ACT.slotSave = () => {
+    const nameEl = $("slotName");
+    const name = nameEl && nameEl.value.trim() ? nameEl.value.trim() : null;
+    const r = G.saveSlot(S, name);
+    if (!r.ok) { saveMessage(r.why); return; }
+    refreshSettings();
+    saveMessage("已存进槽位「" + r.entry.name + "」。");
+  };
+  ACT.slotLoad = (p) => {
+    const s = G.loadSlot(p.name);
+    if (!s) { saveMessage("这个槽位读不出来了。"); return; }
+    $("overlay").classList.add("hidden");
+    UI.replaceState(s);
+    UI.closeOverlay();
+    UI.forceRender();
+    UI.toast("读回了「" + p.name + "」");
+  };
+  ACT.slotDelete = (p) => {
+    G.deleteSlot(p.name);
+    refreshSettings();
+    saveMessage("删掉了槽位「" + p.name + "」。");
+  };
+
+  ACT.resetArm = () => { resetArmed = true; refreshSettings(); saveMessage("想清楚了再点下面那个红的。"); };
+  ACT.resetCancel = () => { resetArmed = false; refreshSettings(); };
   ACT.resetSave = () => {
-    if (!confirm("确定重新开始？当前进度会消失。")) return;
+    resetArmed = false;
     G.clearSave();
     UI.replaceState(G.newState());
     UI.closeOverlay();
     UI.forceRender();
+    UI.toast("删掉了，从头开始。");
   };
 
   UI.replaceState = function (s) { S = s; UI.state = s; };

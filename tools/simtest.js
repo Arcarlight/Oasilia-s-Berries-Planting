@@ -639,6 +639,24 @@ window.SIM = {};
     const legacy = G.migrate(JSON.parse(JSON.stringify(Object.assign({}, potS, { pot: undefined }))));
     check("老存档能补出锅", !!legacy.pot && legacy.pot.level === 1 && Array.isArray(legacy.pot.inPot),
       JSON.stringify(legacy.pot));
+    // 存档槽位：开新版本前能存一个，随时读回来
+    if (G.saveSlot) {
+      const slotS = G.newState();
+      slotS.money = 777; slotS.region = 5;
+      G.listSlots().forEach((x) => G.deleteSlot(x.name));
+      check("存槽位成功", G.saveSlot(slotS, "自检").ok === true, JSON.stringify(G.listSlots()));
+      check("槽位里存了名字和进度",
+        G.listSlots()[0].name === "自检" && G.listSlots()[0].money === 777, JSON.stringify(G.listSlots()[0]));
+      const back2 = G.loadSlot("自检");
+      check("槽位能读回来", back2 && back2.money === 777 && back2.region === 5, back2 && back2.money);
+      check("读不存在的槽位返回空", G.loadSlot("没有这个") === null);
+      G.deleteSlot("自检");
+      check("槽位能删掉", G.listSlots().length === 0, G.listSlots().length);
+      for (let i = 0; i < 6; i++) G.saveSlot(G.newState(), "槽" + i);
+      check("槽位有上限", G.listSlots().length === (G.SLOT_MAX || 4), G.listSlots().length);
+      G.listSlots().forEach((x) => G.deleteSlot(x.name));
+    }
+
     check("树果 65 种", G.BERRIES.length === 65, G.BERRIES.length);
     check("道具 24 件", (G.ITEMS || []).length === 24, (G.ITEMS || []).length);
     check("材料 12 种", (G.MATERIALS || []).length === 12, (G.MATERIALS || []).length);

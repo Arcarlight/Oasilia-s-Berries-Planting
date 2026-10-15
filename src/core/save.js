@@ -31,6 +31,61 @@ window.G = window.G || {};
     try { return !!localStorage.getItem(KEY); } catch (e) { return false; }
   };
 
+  // ── 本地存档槽位 ────────────────────────────────────────────────────────
+  // 放在另一个 key 里，和主存档互不影响。用途：新版本想开新档时先存一个，
+  // 玩崩了或者想回去看看旧进度，随时读回来。最多 4 个槽。
+  const SLOT_KEY = "philoroa.slots.v1";
+  const SLOT_MAX = 4;
+
+  G.listSlots = function () {
+    let raw = null;
+    try { raw = localStorage.getItem(SLOT_KEY); } catch (e) { raw = null; }
+    if (!raw) return [];
+    try {
+      const list = JSON.parse(raw);
+      return Array.isArray(list) ? list : [];
+    } catch (e) { return []; }
+  };
+
+  function writeSlots(list) {
+    try { localStorage.setItem(SLOT_KEY, JSON.stringify(list.slice(0, SLOT_MAX))); return true; }
+    catch (e) { return false; }
+  }
+
+  // 存一个快照。name 不填就用「区域 + 日期」当名字。
+  G.saveSlot = function (state, name) {
+    const list = G.listSlots();
+    if (list.length >= SLOT_MAX && !list.some((x) => x.name === name)) {
+      return { ok: false, why: "槽位满了（最多 " + SLOT_MAX + " 个），先删掉一个。" };
+    }
+    const region = G.regionOf ? G.regionOf(state).name : "";
+    const entry = {
+      name: name || (region + " " + new Date().toLocaleString("zh-CN", { hour12: false }).slice(0, 16)),
+      at: Date.now(),
+      region: region,
+      money: state.money,
+      region2: state.region,
+      code: G.exportSave(state)
+    };
+    const at = list.findIndex((x) => x.name === entry.name);
+    if (at >= 0) list[at] = entry; else list.push(entry);
+    if (!writeSlots(list)) return { ok: false, why: "写不进去（浏览器存储满了或者被禁用了）" };
+    return { ok: true, entry: entry };
+  };
+
+  G.loadSlot = function (name) {
+    const e = G.listSlots().filter((x) => x.name === name)[0];
+    if (!e) return null;
+    return G.importSave(e.code);
+  };
+
+  G.deleteSlot = function (name) {
+    const list = G.listSlots().filter((x) => x.name !== name);
+    return writeSlots(list);
+  };
+
+  G.SLOT_MAX = SLOT_MAX;
+
   G.clearSave = function () {
     try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
   };
