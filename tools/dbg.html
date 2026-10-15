@@ -1,0 +1,45 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>DBG</title>
+<script>
+window.addEventListener("error", function (e) {
+  document.body.textContent = "ERR: " + e.message + " @" + (e.filename||"") + ":" + (e.lineno||0);
+});
+</script>
+<script src="../src/core/format.js"></script>
+<script src="../src/data/berries.js"></script>
+<script src="../src/data/regions.js"></script>
+<script src="../src/data/products.js"></script>
+<script src="../src/data/talents.js"></script>
+<script src="../src/data/regulars.js"></script>
+<script src="../src/data/atlas.js"></script>
+<script src="../src/core/state.js"></script>
+<script src="../src/core/save.js"></script>
+<script src="../src/core/econ.js"></script>
+<script src="../src/core/engine.js"></script>
+</head><body><pre id="out">…</pre>
+<script src="simtest.js"></script>
+<script>
+const L=[];
+let plantCalls=0, plantOk=0, harvestCalls=0, sellCalls=0;
+{ const om=G.engine.migrate; G.engine.migrate=function(a){ const r=om(a);
+    L.push(">> migrate! 区="+a.region+" 地="+a.plots.length+" seeds="+JSON.stringify(a.seeds)+" 空位="+a.plots.filter(p=>!p.berry).length);
+    return r; };
+  const op=G.engine.plant; G.engine.plant=function(a,b,c){plantCalls++; const r=op(a,b,c); if(r)plantOk++; return r;};
+  const oh=G.engine.harvestPlot; G.engine.harvestPlot=function(a,b){harvestCalls++; return oh(a,b);}; }
+const st = window.SIM.freshState();
+function dump(tag){
+  L.push(tag+" 区"+st.region+" 钱="+G.fmt(st.money)+" 种="+JSON.stringify(st.seeds)
+    +" 果="+JSON.stringify(st.berries)+" 地="+st.plots.map(p=>p.berry||0).join("")
+    +" 熟="+st.plots.filter(p=>p.ripe).length+" 累计="+G.fmt(st.stats.revenueTotal)
+    +" 收获="+st.stats.harvested+" 加工="+st.stats.crafted+" 队列="+st.craftQueue.length);
+}
+// 跑区域 1 到移民
+for (let t=0;t<3600*1.5;t+=5){ window.SIM.bot(st); G.advance(st,5);
+  if (st.region===2 && st.plots.some(p=>!p.berry) && !window.__loggedOnce){ window.__loggedOnce=1;
+    L.push(">> 移民后第一次 bot 之前: seeds="+JSON.stringify(st.seeds)+" 空位="+st.plots.filter(p=>!p.berry).length); } }
+dump("移民后 "); L.push("  plant 调用="+plantCalls+" 成功="+plantOk+" harvest="+harvestCalls);
+for (let m=1;m<=6;m++){
+  for (let t=0;t<300;t+=5){ window.SIM.bot(st); G.advance(st,5); }
+  dump(m+"分钟后"); L.push("  plant 调用="+plantCalls+" 成功="+plantOk+" harvest="+harvestCalls+" seeds="+JSON.stringify(st.seeds));
+}
+document.getElementById("out").textContent = L.join("\n");
+</script></body></html>

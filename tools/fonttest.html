@@ -1,0 +1,33 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>FONT</title>
+<style>
+@font-face{font-family:"FusionPixel";src:url("../assets/fonts/fusion-pixel-12px-proportional-latin.otf.woff2") format("woff2");font-weight:400;font-display:block;
+unicode-range:U+0000-00FF,U+0100-017F,U+2000-206F,U+20A0-20BF,U+2100-214F,U+2190-21FF,U+2200-22FF,U+25A0-25FF,U+2600-26FF;}
+@font-face{font-family:"FusionPixel";src:url("../assets/fonts/fusion-pixel-12px-proportional-zh_hans.otf.woff2") format("woff2");font-weight:400;font-display:block;
+unicode-range:U+1100-11FF,U+2E80-2EFF,U+3000-303F,U+3040-30FF,U+3100-312F,U+31C0-31EF,U+3200-32FF,U+3400-4DBF,U+4E00-9FFF,U+F900-FAFF,U+FE10-FE1F,U+FE30-FE4F,U+FF00-FFEF;}
+#a{font-family:"FusionPixel";font-size:12px}
+#b{font-family:monospace;font-size:12px}
+</style></head><body>
+<pre id="out">…</pre><div id="a">ABCabc123 ₽ 樱子果，。！？「」·—…</div><div id="b">ABCabc123 ₽ 樱子果，。！？「」·—…</div>
+<script>
+(async () => {
+  const lines = [];
+  try {
+    await document.fonts.ready;
+    await document.fonts.load('12px FusionPixel', 'ABC樱子果');
+    const tests = ['A', '0', '₽', '樱', '果', '，', '。', '「', '·', '—', '…', '？', '：', '％'];
+    for (const t of tests) {
+      const latin = document.fonts.check('12px FusionPixel', t);
+      lines.push(t + ' → ' + (latin ? 'FusionPixel' : '缺字(会回退)'));
+    }
+    const cv = document.createElement('canvas').getContext('2d');
+    const w = (f, s) => { cv.font = f; return cv.measureText(s).width.toFixed(2); };
+    lines.push('---');
+    lines.push('像素字体 ABCabc123 宽: ' + w('12px FusionPixel', 'ABCabc123'));
+    lines.push('等宽回退    ABCabc123 宽: ' + w('12px monospace', 'ABCabc123'));
+    lines.push('像素字体 樱子果 宽: ' + w('12px FusionPixel', '樱子果'));
+    lines.push('等宽回退   樱子果 宽: ' + w('12px monospace', '樱子果'));
+    lines.push('family 列表: ' + Array.from(document.fonts).map(f => f.family + '/' + f.status).join(', '));
+  } catch (e) { lines.push('ERR ' + e.message); }
+  document.getElementById('out').textContent = lines.join('\n');
+})();
+</script></body></html>

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>SIM</title>
+<script>
+window.addEventListener("error", function (e) {
+  document.title = "ERR: " + e.message;
+  var d = document.getElementById("out") || document.body;
+  d.textContent = "SCRIPT ERROR: " + e.message + " @" + e.filename + ":" + e.lineno;
+  window.__err = true;
+});
+</script>
+<script src="../src/core/format.js"></script>
+<script src="../src/data/berries.js"></script>
+<script src="../src/data/regions.js"></script>
+<script src="../src/data/products.js"></script>
+<script src="../src/data/talents.js"></script>
+<script src="../src/data/regulars.js"></script>
+<script src="../src/data/atlas.js"></script>
+<script src="../src/core/state.js"></script>
+<script src="../src/core/save.js"></script>
+<script src="../src/core/econ.js"></script>
+<script src="../src/core/engine.js"></script>
+</head>
+<body>
+<pre id="out">running…</pre>
+<script src="simtest.js"></script>
+<script>
+try {
+  document.getElementById("out").textContent = window.SIM.run();
+} catch (e) {
+  document.getElementById("out").textContent = "RUN ERROR: " + e.message + "\n" + e.stack;
+  document.title = "ERR: " + e.message;
+}
+</script>
+</body>
+</html>

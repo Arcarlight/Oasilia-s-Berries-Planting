@@ -1,0 +1,13 @@
+# 系统垃圾
+.DS_Store
+*~
+
+# 开发用页面（由 tools/make_dev.py 生成）
+dev.html
+
+# 抓取时的临时文件
+data_raw/_tmp.bin
+*.part
+
+# 图片编辑产生的中间文件
+*.psd

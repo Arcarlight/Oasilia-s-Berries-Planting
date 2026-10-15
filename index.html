@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>菲洛若亚大陆 · 树果物语</title>
+<meta name="description" content="一个只存在宝可梦的世界。沙漠蜻蜓欧亚西莉亚从繁盛之森开始种树果。">
+<link rel="stylesheet" href="css/style.css">
+<script>
+// 便于排查：页面上出了任何脚本错误，都塞进 __errors 并写进标题
+window.__errors = [];
+window.addEventListener("error", function (e) {
+  window.__errors.push(String(e.message) + " @" + (e.filename || "") + ":" + (e.lineno || 0));
+  document.title = "ERR: " + e.message;
+});
+window.addEventListener("unhandledrejection", function (e) {
+  window.__errors.push("promise: " + String(e.reason));
+  document.title = "ERR: " + e.reason;
+});
+</script>
+
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">菲洛若亚大陆 · 树果物语</div>
+    <div class="stat">宝可元 <b id="uiMoney">₽0</b></div>
+    <div class="stat">自动 <b id="uiRate">₽0</b>/秒</div>
+    <div class="stat">天赋点 <b id="uiTp">0</b></div>
+    <div class="stat" id="uiRegion">繁盛之森</div>
+    <div class="spacer"></div>
+    <div class="sub" id="uiSaved">—</div>
+    <button id="btnSettings" class="small">设置</button>
+  </header>
+
+  <main id="layout">
+    <section class="panel" id="farmPanel">
+      <div class="panel-head">田地 <span class="sub" id="uiPlotInfo"></span></div>
+      <div class="plots" id="uiPlots"></div>
+      <div class="seed-picker" id="uiSeedPicker"></div>
+    </section>
+
+    <section class="panel">
+      <nav id="tabs"></nav>
+      <div id="tabBody"></div>
+    </section>
+
+    <section class="panel" id="sidePanel">
+      <div class="panel-head">阿特拉斯 &amp; 日志</div>
+      <div class="log" id="uiLog"></div>
+    </section>
+  </main>
+
+  <footer id="bottombar">
+    <button id="btnSell" class="big gold" title="叫卖一次：早期约等于最贵的树果的 1.5 倍价钱，中期开始约等于 1/4 秒的自动收入。受「掌力」天赋和商铺道具加成。">叫卖 <span id="uiSellVal">₽0</span></button>
+    <button id="btnWaterAll">浇水（全部田）</button>
+    <button id="btnHarvestAll">收获全部</button>
+    <div class="hint" id="uiHint"></div>
+  </footer>
+</div>
+
+<div id="overlay" class="hidden"></div>
+<div id="toastWrap"></div>
+
+<script src="src/core/format.js"></script>
+<script src="src/data/berries.js"></script>
+<script src="src/data/regions.js"></script>
+<script src="src/data/products.js"></script>
+<script src="src/data/talents.js"></script>
+<script src="src/data/regulars.js"></script>
+<script src="src/data/atlas.js"></script>
+<script src="src/core/state.js"></script>
+<script src="src/core/save.js"></script>
+<script src="src/core/econ.js"></script>
+<script src="src/core/engine.js"></script>
+<script src="src/ui/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
