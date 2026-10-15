@@ -204,6 +204,13 @@ git add -A && git commit -m "..." && git push
   - 图标是白色 PNG，前端用 `<img>` + `opacity` 控制强弱。
     （试过用 `mask-image` + `currentColor` 上色更优雅，但 `mask-image` 在 `file://` 下不生效，
     本地双击打开会变成实心方块，所以放弃。）
+- 材料图标：**两套混用**（按风格分工）
+  - **化け猫缶 素材屋**（http://neko.moo.jp/BS/）—— 9 个：原木/土块/绳圈/金属锭/布囊/沙堆/灰堆/盐晶/碎晶。
+    该站明确允许「加工后的素材再配布」，署名不强制。
+  - **Whitecat**（http://moyasi.whitecafe.jp/，站点已失效，取自 Internet Archive）—— 3 个：
+    松脂/月光水晶/天穹石。条款明确「随游戏一起分发是可以的」，改色自由，需标注「Whitecat」。
+    原图是 RGB + 青绿底，已自行抠底。
+  - 详见 `assets/mat/CREDITS.md`
 - 字体：**融合像素字体 / Fusion Pixel Font**（github.com/TakWolf/fusion-pixel-font），SIL OFL 1.1。
   取的是 12px 比例版，只用拉丁 + 简体中文两个子集（约 1.3 MB，本地自托管，不联网）。
   这款字是按 12px 点阵设计的，**只有在 12 的整数倍字号下才是整像素**，所以全站字号统一为 12 / 24，

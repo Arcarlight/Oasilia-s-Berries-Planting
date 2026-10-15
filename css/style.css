@@ -420,3 +420,15 @@ table.simple td, table.simple th { padding: 3px 5px; border-bottom: 1px solid #2
 
 /* 焦点框：弹层会自动把焦点移进第一个按钮，用主题色而不是系统默认白框 */
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* 材料图标（24x24） */
+.micon {
+  width: 24px; height: 24px; flex: 0 0 24px; margin-right: 6px;
+  image-rendering: pixelated; vertical-align: middle;
+}
+label .micon { margin-right: 4px; }
+
+/* 阿特拉斯出行清单：一列装下"勾选框 + 图标 + 名称 + 库存/价格"，不要换行 */
+.mrow { flex-wrap: nowrap; border: none; padding: 2px 0; cursor: pointer; }
+.mrow .mname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow > .sub { flex: 0 0 auto; white-space: nowrap; }

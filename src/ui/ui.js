@@ -424,7 +424,8 @@ window.G = window.G || {};
       <div class="sub">直接买能立刻拿到，但比让阿特拉斯出门贵得多。他出门还会带点别的东西回来。</div>`;
     (G.MATERIALS || []).forEach((m) => {
       const price = Math.round(m.price * 2.6);
-      h += `<div class="list-item"><span class="grow">${esc(m.name)} <span class="sub">${esc(m.desc || "")}</span></span>
+      h += `<div class="list-item"><img class="micon" src="assets/mat/${m.id}.png" alt="" title="${esc(m.name)}">
+        <span class="grow">${esc(m.name)} <span class="sub">${esc(m.desc || "")}</span></span>
         <span class="sub">库存 ${int(S.materials[m.id])}</span>
         <span>${money(price)}</span>
         <button class="small" data-act="buyMaterial" data-p='${attr({ m: m.id, n: 1 })}' ${S.money < price ? "disabled" : ""}>买1</button>
@@ -472,12 +473,13 @@ window.G = window.G || {};
       <div class="sub">还有 ${G.clock(left)} 回来。</div>`;
     } else {
       h += `<div class="sub">他在家。勾选要买的东西，让他跑一趟（比自己去杂货铺便宜，但要等）。</div>`;
-      h += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 10px;margin-top:4px">`;
+      h += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:2px 10px;margin-top:4px">`;
       (G.MATERIALS || []).forEach((m) => {
         const staged = S._tripWant && S._tripWant[m.id];
-        h += `<label class="list-item" style="border:none;padding:2px 0;cursor:pointer" title="${esc(m.desc || "")}">
+        h += `<label class="list-item mrow" title="${esc(m.desc || "")}">
           <input type="checkbox" data-act="tripToggle" data-p='${attr({ m: m.id })}' ${staged ? "checked" : ""}>
-          <span class="grow">${esc(m.name)}</span>
+          <img class="micon" src="assets/mat/${m.id}.png" alt="">
+          <span class="grow mname">${esc(m.name)}</span>
           <span class="sub">库存 ${int(S.materials[m.id])}　${money(m.price)}</span>
         </label>`;
       });
