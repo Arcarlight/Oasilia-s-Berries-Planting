@@ -127,8 +127,15 @@ def merge():
         parts.append(prefix + "  " + dedent2(e).replace("\n", "\n  "))
     # 注意：注释必须和条目拼成同一个元素，否则 join(",") 会在注释后多出一个逗号，数组里就会出现空位
     body = ",\n".join(parts)
-    tail = text[text.rindex("];") + 2:]
-    open(SRC, "w", encoding="utf-8").write(head + "\n" + body + "\n" + "]" + tail)
+    # 数组结束符后面可能什么都没有，也可能跟上其他内容。
+    # 注意：上一次合并写出来的是"]"（没有分号），所以这里不能再写死 rindex("];")。
+    i = text.rindex("]")
+    j = i + 1
+    while j < len(text) and text[j] in " \t\r\n;":
+        j += 1
+    tail = text[j:]
+    open(SRC, "w", encoding="utf-8").write(head + "\n" + body + "\n" + "];" +
+                                         (("\n" + tail) if tail else "\n"))
     print("合并完成：60 条，骨架全部一致")
 
 
