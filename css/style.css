@@ -53,6 +53,16 @@ html, body {
 
 b { color: var(--gold); }
 
+/* 文案里提到别的页面时用的内联跳转，看起来像链接而不是按钮 */
+.link {
+  display: inline; padding: 0 1px; border: none; background: transparent;
+  box-shadow: none; color: var(--gold); text-decoration: underline;
+  font-size: inherit; font-family: inherit; line-height: inherit;
+  cursor: pointer; vertical-align: baseline; white-space: nowrap;
+}
+.link:hover { background: transparent; color: #ffe9a8; }
+.link:active { box-shadow: none; }
+
 button, input, select {
   font-family: inherit; font-size: 12px; color: var(--ink);
   white-space: nowrap;

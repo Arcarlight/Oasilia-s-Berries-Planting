@@ -89,6 +89,21 @@ python3 tools/copy_chunks.py check     # 与 data_raw/copy_backup/ 对拍结构
 python3 tools/make_dev.py
 ```
 
+### 页面自检（改完 UI 一定要跑）
+
+某个页签的渲染函数抛异常时，界面会**卡在上一个页签的内容上**，看起来像"点不动"，
+但控制台之外很难发现。所以有一个逐页签渲染自检：
+
+```bash
+python3 tools/make_dev.py
+"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
+  --headless=new --disable-gpu --virtual-time-budget=40000 \
+  --dump-dom "file://$PWD/dev.html#hours=8&check=tabs" | grep -o "TABCHECK.*"
+```
+
+输出 `TABCHECK OK` 才算过；任何一页报错会列出页签名与错误信息。
+建议至少在早期（`hours=0.5`）、中期（`hours=8`）、后期（`hours=40`）各跑一次。
+
 文案打磨全程用 `deepseek-v4-pro` 并行跑，改的只有字符串。如果以后还要再润色一遍，
 记得保留 `data_raw/copy_backup/`（里面是润色前的快照），否则 `check` 子命令没有对照物。
 

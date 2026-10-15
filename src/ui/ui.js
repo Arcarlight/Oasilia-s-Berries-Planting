@@ -27,6 +27,13 @@ window.G = window.G || {};
   function attr(obj) { return esc(JSON.stringify(obj)); }
   // 库存一律按整数显示：果子/种子/商品/材料都是离散的
   function int(n) { const v = Math.floor(n || 0); return v > 0 ? v : 0; }
+
+  const TAB_NAME = {};
+  TABS.forEach((t) => { TAB_NAME[t.id] = t.name; });
+  // 文案里提到别的页面时，直接给一个能点的跳转
+  function go(tabId, label) {
+    return `<button class="link" data-act="tab" data-p='${attr({ t: tabId })}' title="去「${esc(TAB_NAME[tabId] || tabId)}」">${esc(label || TAB_NAME[tabId] || tabId)}</button>`;
+  }
   function money(n) { return "₽" + G.fmt(n); }
 
   UI.markDirty = function () { dirty = true; };
@@ -86,7 +93,7 @@ window.G = window.G || {};
     const ids = Object.keys(S.seeds).filter((id) => S.seeds[id] > 0)
       .map(Number).sort((a, b) => G.BERRY_BY_ID[a].tier - G.BERRY_BY_ID[b].tier || a - b);
     if (!ids.length) {
-      box.innerHTML = `<div class="sub">没有种子了。去「商店」买一些，或者让阿特拉斯出门碰碰运气。</div>`;
+      box.innerHTML = `<div class="sub">没有种子了。去${go("shop", "商店")}买一些，或者让${go("atlas", "阿特拉斯")}出门碰碰运气。</div>`;
       return;
     }
     if (!pick.seed || !(S.seeds[pick.seed] > 0)) pick.seed = ids[0];
@@ -146,7 +153,7 @@ window.G = window.G || {};
     h += `</div>`;
 
     h += `<div class="card"><h4>商品</h4>`;
-    if (!keys.length) h += `<div class="sub">还没有加工出来的商品。去「加工」看看。</div>`;
+    if (!keys.length) h += `<div class="sub">还没有加工出来的商品。去${go("kitchen", "加工")}看看。</div>`;
     const regs = G.engine.regionRegulars(S.region).filter((r) => G.engine.regState(S, r.dex).unlocked);
     keys.forEach((k) => {
       const parts = k.split("|");
@@ -215,7 +222,7 @@ window.G = window.G || {};
 
     const unlocked = G.engine.unlockedRecipes(S);
     if (!unlocked.length) {
-      h += `<div class="card"><h4>还没有配方</h4><div class="sub">去「商店 → 配方」买一个。最先该买的是「辣味果酱」。</div></div>`;
+      h += `<div class="card"><h4>还没有配方</h4><div class="sub">去${go("shop", "商店")}买一个配方。最先该买的是「辣味果酱」。</div></div>`;
       return h;
     }
     if (!pick.recipe || !S.recipes[pick.recipe]) pick.recipe = unlocked[0].id;
@@ -242,7 +249,7 @@ window.G = window.G || {};
     if (!elig.length) {
       const hint = G.engine.berryHint(S, recipe);
       if (hint.length) {
-        h += `<div class="sub" style="margin-top:6px">库存不够（要 ${recipe.needCount} 个）。能做这个配方的是这些，去「商店」买种子种起来：</div>`;
+        h += `<div class="sub" style="margin-top:6px">库存不够（要 ${recipe.needCount} 个）。能做这个配方的是这些，去${go("shop", "商店")}买种子种起来：</div>`;
         hint.slice(0, 6).forEach((b) => {
           h += `<div class="list-item"><img src="${b.icon}" alt="">
             <span class="grow flavor-${b.flavor}">${esc(b.zh)}</span>
@@ -256,7 +263,7 @@ window.G = window.G || {};
         h += `<div class="sub" style="margin-top:6px">这一带还没有「${recipe.needFlavor || "对应"}」味的树果，搬到后面的区域才会有。</div>`;
         if (beingSold) {
           h += `<div class="sub" style="color:#ffc98a;margin-top:4px">也可能是刚收上来就被摊位自动卖掉了——
-            去「市场」页把「摊位自动出货」的保留量调高，或者直接关掉它。</div>`;
+            去${go("market", "市场")}页把「摊位自动出货」的保留量调高，或者直接关掉它。</div>`;
         }
       }
     } else {
@@ -313,6 +320,45 @@ window.G = window.G || {};
     }
     h += `</div>`;
 
+    list.forEach((reg) => {
+      const st = G.engine.regState(S, reg.dex);
+      const unlock = st.unlocked;
+      const order = S.orders[reg.dex];
+      const prog = (() => {
+        const u = reg.unlock || {};
+        const stt = S.stats;
+        const map = {
+          harvest: [stt.harvested, u.value, "累计收获树果"],
+          species: [Object.keys(S.dex).length, u.value, "见过的树果种类"],
+          crafted: [stt.crafted, u.value, "累计加工商品"],
+          revenue: [stt.revenueRegion, u.value, "本区域累计收入"],
+          affinity: [Math.max(0, ...Object.keys(S.regulars).map((d) => S.regulars[d].aff || 0)), u.value, "最高好感等级"]
+        };
+        return map[u.type] || [0, u.value || 1, "未知条件"];
+      })();
+      const pctv = Math.min(1, prog[0] / prog[1]);
+
+      h += `<div class="card"><div class="mon">
+        <img class="portrait" src="assets/pmd/${String(reg.dex).padStart(4, "0")}_portrait.png" alt="" onerror="this.style.visibility='hidden'">
+        <div class="grow">
+          <div class="who">${esc(reg.name)} <span class="tag">${esc(reg.title)}</span>
+            ${unlock ? "" : `<span class="tag">未解锁</span>`}</div>
+          <div class="sub">性格 ${esc(reg.nature)}　喜欢 <b class="flavor-${reg.flavor}">${reg.flavor}</b>　讨厌 <b class="flavor-${reg.dislike}">${reg.dislike}</b>
+            ｜好感 ${st.aff}/5</div>
+          <div class="sub">${esc(reg.desc)}</div>
+          ${unlock ? `<div class="sub" style="margin-top:4px">${esc(reg.lines.greet[st.aff % reg.lines.greet.length])}</div>`
+            : `<div class="sub" style="margin-top:4px">解锁条件：${esc(prog[2])} ${G.fmt(prog[0])} / ${G.fmt(prog[1])}</div>
+               <div class="bar-outer" style="margin-top:4px"><i style="width:${(pctv * 100).toFixed(0)}%"></i></div>`}
+          ${order ? `<div class="sub" style="margin-top:4px;color:#9fd8ff">【订单】要 ${order.count} 份<b class="flavor-${order.flavor}">${order.flavor}</b>味的商品，
+             赏金 ${money(order.reward)}，剩 ${G.clock((order.expires - G.now(S)) / 1000)}</div>
+             <button class="small gold" data-act="deliver" data-p='${attr({ dex: reg.dex })}'>交付订单</button>` : ""}
+          ${unlock ? `<button class="small" data-act="hire" data-p='${attr({ dex: reg.dex })}'
+             ${S.helpers.some((x) => x.dex === reg.dex) ? "disabled" : ""}>${S.helpers.some((x) => x.dex === reg.dex) ? "已在帮忙" : "请来帮忙（₽" + G.fmt(G.engine.helperCost(S)) + "）"}</button>
+             ${S.helpers.some((x) => x.dex === reg.dex) ? `<button class="small danger" data-act="fire" data-p='${attr({ dex: reg.dex })}'>让他回去</button>` : ""}` : ""}
+        </div>
+      </div></div>`;
+    });
+
     const slots = G.engine.helperSlots(S);
     h += `<div class="card"><h4>帮手（${S.helpers.length}/${slots}）</h4>
       <div class="sub">槽位靠道具解锁（农具类里的帮手道具）。帮手会自动收获、补种、浇水。</div>
@@ -351,46 +397,6 @@ window.G = window.G || {};
       });
     });
     h += `</div>`;
-
-    list.forEach((reg) => {
-      const st = G.engine.regState(S, reg.dex);
-      const unlock = st.unlocked;
-      const order = S.orders[reg.dex];
-      const prog = (() => {
-        const u = reg.unlock || {};
-        const stt = S.stats;
-        const map = {
-          harvest: [stt.harvested, u.value, "累计收获树果"],
-          species: [Object.keys(S.dex).length, u.value, "见过的树果种类"],
-          crafted: [stt.crafted, u.value, "累计加工商品"],
-          revenue: [stt.revenueRegion, u.value, "本区域累计收入"],
-          affinity: [Math.max(0, ...Object.keys(S.regulars).map((d) => S.regulars[d].aff || 0)), u.value, "最高好感等级"]
-        };
-        return map[u.type] || [0, u.value || 1, "未知条件"];
-      })();
-      const pctv = Math.min(1, prog[0] / prog[1]);
-
-      h += `<div class="card"><div class="mon">
-        <img class="portrait" src="assets/pmd/${String(reg.dex).padStart(4, "0")}_portrait.png" alt="" onerror="this.style.visibility='hidden'">
-        <div class="grow">
-          <div class="who">${esc(reg.name)} <span class="tag">${esc(reg.title)}</span>
-            ${unlock ? "" : `<span class="tag">未解锁</span>`}</div>
-          <div class="sub">性格 ${esc(reg.nature)}　喜欢 <b class="flavor-${reg.flavor}">${reg.flavor}</b>　讨厌 <b class="flavor-${reg.dislike}">${reg.dislike}</b>
-            ｜好感 ${st.aff}/5</div>
-          <div class="sub">${esc(reg.desc)}</div>
-          ${unlock ? `<div class="sub" style="margin-top:4px">${esc(reg.lines.greet[st.aff % reg.lines.greet.length])}</div>`
-            : `<div class="sub" style="margin-top:4px">解锁条件：${esc(prog[2])} ${G.fmt(prog[0])} / ${G.fmt(prog[1])}</div>
-               <div class="bar-outer" style="margin-top:4px"><i style="width:${(pctv * 100).toFixed(0)}%"></i></div>`}
-          ${order ? `<div class="sub" style="margin-top:4px;color:#9fd8ff">【订单】要 ${order.count} 份<b class="flavor-${order.flavor}">${order.flavor}</b>味的商品，
-             赏金 ${money(order.reward)}，剩 ${G.clock((order.expires - G.now(S)) / 1000)}</div>
-             <button class="small gold" data-act="deliver" data-p='${attr({ dex: reg.dex })}'>交付订单</button>` : ""}
-          ${unlock ? `<button class="small" data-act="hire" data-p='${attr({ dex: reg.dex })}'
-             ${S.helpers.some((x) => x.dex === reg.dex) ? "disabled" : ""}>${S.helpers.some((x) => x.dex === reg.dex) ? "已在帮忙" : "请来帮忙（₽" + G.fmt(Math.round(5000 * Math.pow(3.2, S.region - 1) * (1 + S.helpers.length))) + "）"}</button>
-             ${S.helpers.some((x) => x.dex === reg.dex) ? `<button class="small danger" data-act="fire" data-p='${attr({ dex: reg.dex })}'>让他回去</button>` : ""}` : ""}
-        </div>
-      </div></div>`;
-    });
-
 
     // 材料（杂货铺）
     h += `<div class="card"><h4>杂货铺 · 材料（代购，贵）</h4>
@@ -601,12 +607,12 @@ window.G = window.G || {};
   function renderHelp() {
     return `<div class="card"><h4>怎么玩</h4>
       <ol>
-        <li><b>买种子</b>：去「商店」，买你现在买得起的最贵的树果种子。</li>
+        <li><b>买种子</b>：去${go("shop", "商店")}，买你现在买得起的最贵的树果种子。</li>
         <li><b>播种</b>：点左上的空地，或者点种子旁边的「全种」。</li>
         <li><b>买地</b>：田地里的虚线格是空位，点一下就用宝可元买一块新地（每区最多买到基础数量的两倍）。</li>
         <li><b>浇水</b>：点田里正在长的作物，或者用底下的「浇水（全部田）」。浇水能明显加快生长。</li>
         <li><b>收获</b>：成熟后点一下，或者「收获全部」。</li>
-        <li><b>卖</b>：生果在「市场」直接卖；但先看看「加工」——同一批树果做成商品能多卖好几倍。</li>
+        <li><b>卖</b>：生果在${go("market", "市场")}直接卖；但先看看${go("kitchen", "加工")}——同一批树果做成商品能多卖好几倍。</li>
         <li><b>学配方</b>：配方要花钱学。学会之后，投入越贵的树果，商品越值钱。</li>
         <li><b>常客</b>：每位常客只爱一种口味。把对应口味的商品交给他，售价 +50%，好感还会涨。</li>
         <li><b>道具</b>：材料可以让阿特拉斯去杂货铺代购，也可以让他出远门买（便宜，要等）。材料齐了他会亲手做。</li>
@@ -663,7 +669,18 @@ window.G = window.G || {};
     const fn = RENDERERS[UI.tab] || renderMarket;
     const body = $("tabBody");
     const scroll = body.scrollTop;
-    body.innerHTML = fn();
+    // 某个页面渲染出错时，不能把整个界面卡在旧内容上：把错误显示出来
+    UI.lastError = null;
+    try {
+      body.innerHTML = fn();
+    } catch (e) {
+      UI.lastError = { tab: UI.tab, message: e && e.message, stack: (e && e.stack) || "" };
+      console.error("渲染 " + UI.tab + " 出错", e);
+      body.innerHTML = `<div class="card"><h4>这个页面出错了</h4>
+        <div class="sub">${esc(e && e.message)}</div>
+        <pre style="white-space:pre-wrap;font-size:12px;color:#9fa286">${esc((e && e.stack) || "")}</pre>
+        <div class="sub">存档没坏，切到别的页签还能继续玩。</div></div>`;
+    }
     body.scrollTop = scroll;
   }
 
@@ -687,11 +704,14 @@ window.G = window.G || {};
     const region = G.regionOf(S);
     const ripe = S.plots.filter((p) => p.ripe).length;
     const empty = S.plots.filter((p) => !p.berry).length;
-    let hint = region.tip || "";
-    if (ripe) hint = "有 " + ripe + " 块田熟了，先收。";
+    let hint = esc(region.tip || "");
+    if (ripe) hint = "有 " + ripe + " 块田熟了，按 H 或者点右边的「收获全部」收掉。";
     else if (empty && Object.keys(S.seeds).some((k) => S.seeds[k] > 0)) hint = "还有 " + empty + " 块空地，把种子种下去。";
-    else if (S.craftQueue.length < G.engine.craftSlots(S) && Object.keys(S.berries).length) hint = "加工台空着，做点商品比直接卖生果赚得多。";
-    $("uiHint").textContent = hint;
+    else if (!Object.keys(S.seeds).length) hint = "手上的种子用完了，去" + go("shop") + "买点，或者让" + go("atlas") + "出门买。";
+    else if (S.craftQueue.length < G.engine.craftSlots(S) && Object.keys(S.berries).length) {
+      hint = "加工台空着，去" + go("kitchen") + "做点商品，比直接卖生果赚得多。";
+    }
+    $("uiHint").innerHTML = hint;
   }
 
   // 每帧都重建 innerHTML 太浪费，用签名判断"真的变了没有"

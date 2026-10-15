@@ -32,6 +32,23 @@
     if (p.tp) S.talentPoints = parseFloat(p.tp);
     if (p.tab) G.UI.tab = p.tab;
     if (p.act === "overlay") { G.UI.openSettings(); }
+
+    // #check=tabs：把所有页签逐一渲染一遍，任何一页抛错都记下来。
+    // 这类错误会让页面卡在旧内容上，肉眼很难发现，必须靠自检。
+    if (p.check === "tabs") {
+      const tabs = ["market", "kitchen", "regulars", "shop", "atlas", "talents", "dex", "help"];
+      const bad = [];
+      tabs.forEach((t) => {
+        G.UI.tab = t;
+        G.UI.forceRender();
+        if (G.UI.lastError) bad.push(G.UI.lastError.tab + ": " + G.UI.lastError.message);
+      });
+      const pre = document.createElement("pre");
+      pre.id = "tabcheck";
+      pre.textContent = bad.length ? "TABCHECK FAIL\n" + bad.join("\n") : "TABCHECK OK";
+      document.body.appendChild(pre);
+    }
+
     G.UI.forceRender();
 
     // 供截图脚本判断是否就绪

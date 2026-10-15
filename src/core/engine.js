@@ -610,12 +610,17 @@ window.G = window.G || {};
     if (state.helpers.some((h) => h.dex === dex)) return false;
     const reg = A.regularByDex(dex);
     if (!reg || !A.regState(state, dex).unlocked) return false;
-    const cost = Math.round(1200 * Math.pow(2.6, state.region - 1) * (1 + state.helpers.length));
+    const cost = A.helperCost(state);
     if (state.money < cost) return false;
     state.money -= cost;
     state.helpers.push({ dex: dex, cd: 0 });
     G.addLog(state, reg.name + "答应来帮忙看田了。", "good");
     return true;
+  };
+
+  // 请一位帮手的价钱（UI 和实际收费都走这里，避免两处公式漂移）
+  A.helperCost = function (state) {
+    return Math.round(1200 * Math.pow(2.6, state.region - 1) * (1 + state.helpers.length));
   };
 
   A.fireHelper = function (state, dex) {
