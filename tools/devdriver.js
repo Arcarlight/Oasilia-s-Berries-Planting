@@ -33,6 +33,64 @@
     if (p.tab) G.UI.tab = p.tab;
     if (p.act === "overlay") { G.UI.openSettings(); }
 
+    // #cells=0,10,11：依次点几个格子（仓库/研发的格子墙）。
+    // 研发那边就是"往锅里丢食材"，用来验证预告和出锅。
+    if (p.cells !== undefined) {
+      G.UI.forceRender();
+      // 支持两种写法：
+      //   #cells=0,10      → 按格子在页面上的先后顺序点
+      //   #cells=b0,b0,f0  → b 从树果托盘点、f 从素材托盘点（推荐，不受数量影响）
+      String(p.cells).split(",").forEach((tok) => {
+        const t = tok.trim();
+        let cells, i;
+        if (/^[bf]\d+$/.test(t)) {
+          const tray = t[0] === "b" ? "berry" : "find";
+          cells = document.querySelectorAll(".lab-cell[data-tray='" + tray + "']");
+          i = parseInt(t.slice(1), 10) || 0;
+        } else {
+          cells = document.querySelectorAll(".wh-cell, .lab-cell");
+          i = parseInt(t, 10) || 0;
+        }
+        if (cells[i]) cells[i].click();
+        G.UI.forceRender();
+      });
+    }
+    // #giveprod=1：直接塞几件甜品进仓库，方便看味道雷达图
+    // （正常玩的时候成品很快就会被常客买走，验收时等不到）
+    if (p.giveprod) {
+      const combos = [[ "candy", "辣", "cinderpepper", true, 6 ], [ "cake", "甜", null, false, 3 ]];
+      combos.forEach((c) => {
+        const r = G.makeResearchRecipe(c[0], c[1], c[2], c[3], c[4]);
+        S.recipes[r.id] = true;
+        S.products[G.productKey(r.id, 1)] = 3;
+      });
+      G.UI.forceRender();
+    }
+
+    // #sel=product：在仓库里选中某一类的第一格（find/material/berry/product/waste）
+    if (p.sel) {
+      G.UI.forceRender();
+      const all = document.querySelectorAll(".wh-cell");
+      for (let i = 0; i < all.length; i++) {
+        let d = {};
+        try { d = JSON.parse(all[i].dataset.p || "{}"); } catch (e) { d = {}; }
+        if (d.kind === p.sel) { all[i].click(); break; }
+      }
+      G.UI.forceRender();
+    }
+
+    // #stir=1：点搅拌，然后快进到出锅，用来抓出锅画面
+    if (p.stir) {
+      G.UI.forceRender();
+      const btn = document.querySelector("[data-act='potStir']");
+      if (btn && !btn.disabled) btn.click();
+      G.UI.forceRender();
+      if (p.stir === "done") {
+        for (let t = 0; t < 30; t++) G.advance(S, 1);
+        G.UI.forceRender();
+      }
+    }
+
     // #check=tabs：把所有页签逐一渲染一遍，任何一页抛错都记下来。
     // 这类错误会让页面卡在旧内容上，肉眼很难发现，必须靠自检。
     if (p.check === "tabs") {

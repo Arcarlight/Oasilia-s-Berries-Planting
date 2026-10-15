@@ -54,6 +54,17 @@ window.G = window.G || {};
     merged.stallOn = s.stallOn !== false;
     merged.stallReserve = (typeof s.stallReserve === "number") ? s.stallReserve : 20;
     merged.waste = s.waste || 0;
+    // 老存档没有锅，或者在搅拌中途被关掉过 —— 补一个完整的结构
+    const bp = base.pot;
+    const sp = s.pot || {};
+    merged.pot = {
+      level: Math.min(G.POT_LEVELS.length, Math.max(1, sp.level || 1)),
+      inPot: Array.isArray(sp.inPot) ? sp.inPot.filter((x) => x && x.kind && x.id !== undefined).slice(0, 12) : [],
+      stir: sp.stir && sp.stir.until ? sp.stir : null,
+      pending: sp.pending || null,
+      last: sp.last || null
+    };
+    if (!merged.pot.inPot.length && !merged.pot.stir) merged.pot.inPot = [];
     merged.plots = Array.isArray(s.plots) ? s.plots : [];
     merged.plots = merged.plots.map((p) => ({
       berry: p && p.berry ? p.berry : null,

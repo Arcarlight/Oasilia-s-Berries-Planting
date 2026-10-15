@@ -82,46 +82,46 @@ window.SIM = {};
       if (eng.startTrip(state, want).ok) simStats.trips++;
     }
 
-    // 4.42 有素材就做实验：按搭配表挑一个能成的组合
-    if (!state.atlas.trip) {
-      const owned = Object.keys(state.finds).filter((k) => state.finds[k] > 0);
-      if (owned.length >= 2) {
-        const flavors = ["辣", "涩", "甜", "苦", "酸"];
-        let done = false;
-        for (let c = 0; c < (G.RESEARCH_COMBOS || []).length && !done; c++) {
+    // 4.42 有素材就往锅里丢：挑一个还没做过的搭配，丢够料再搅
+    if (!state.atlas.trip && !state.pot.stir && !state.pot.pending) {
+      const ownedFind = Object.keys(state.finds).filter((k) => state.finds[k] > 0);
+      const ownedBerry = Object.keys(state.berries).filter((k) => state.berries[k] > 0);
+      if (ownedFind.length >= 2 && ownedBerry.length) {
+        const berryId = +ownedBerry.sort((x, y) => G.BERRY_BY_ID[y].basePrice - G.BERRY_BY_ID[x].basePrice)[0];
+        const flavor = G.BERRY_BY_ID[berryId].flavor;
+        for (let c = 0; c < (G.RESEARCH_COMBOS || []).length; c++) {
           const combo = G.RESEARCH_COMBOS[c];
           if ((state.maxRegion || 1) < combo.region) continue;
           // 这一组底料手上有齐吗
           const pick = [];
           for (let r = 0; r < combo.need.length; r++) {
             const role = combo.need[r];
-            const f = owned.filter((id) => G.FIND_BY_ID[id].role === role && pick.indexOf(id) < 0)[0];
+            const f = ownedFind.filter((id) => G.FIND_BY_ID[id].role === role && pick.indexOf(id) < 0)[0];
             if (!f) break;
             pick.push(f);
           }
           if (pick.length < combo.need.length) continue;
           // 糖果那一条还得配一样香料
           if (combo.requireSpice) {
-            const sp = owned.filter((id) => G.FIND_BY_ID[id].role === "spice")[0];
+            const sp = ownedFind.filter((id) => G.FIND_BY_ID[id].role === "spice" && pick.indexOf(id) < 0)[0];
             if (sp) pick.push(sp); else continue;
           }
-          for (let fi = 0; fi < flavors.length && !done; fi++) {
-            const ev = eng2Evaluator(state, pick, flavors[fi]);
-            if (ev.kind !== "recipe") continue;
-            if (state.money < ev.cost * 1.5) continue;
-            const berryId = Object.keys(state.berries)
-              .filter((id) => G.BERRY_BY_ID[id].flavor === flavors[fi])[0];
-            if (!berryId) continue;
-            const money0 = state.money;
-            const r = eng.research(state, pick, +berryId);
-            if (r.ok) {
-              done = true;
-              simStats.spent += money0 - state.money;
-              if (r.waste) simStats.waste++; else simStats.research++;
-            }
-          }
+          const ev = G.evaluateResearch(state, pick, flavor, pick.length + 1);
+          if (ev.kind !== "recipe" || state.money < ev.cost * 1.5) continue;
+          G.engine.potClear(state);
+          if (!G.engine.potAdd(state, "berry", berryId).ok) continue;
+          pick.forEach((id) => G.engine.potAdd(state, "find", id));
+          const st = G.engine.potStir(state);
+          if (st.ok) { simStats.research++; simStats.spent += st.preview.cost; }
+          break;
         }
       }
+    }
+
+    // 4.43 锅里有结果就收下（记下做法），别让它一直挂着
+    if (state.pot.pending) {
+      if (state.pot.pending.ok && state.pot.pending.recipeId) G.engine.potKeepRecipe(state);
+      else G.engine.potDismiss(state);
     }
 
     // 4.5 学配方优先于扩张：配方是收益乘数
@@ -531,37 +531,114 @@ window.SIM = {};
     check("既不算配对也不算毁锅", sourNeutral.kind === "recipe" && sourNeutral.good === false,
       sourNeutral.kind + "/good=" + sourNeutral.good);
 
-    // 研发动作：成功学到配方，加工时不再消耗素材
-    const ok1 = G.engine.research(rState, ["sugar", "cinderpepper"], 1);
-    check("研发成功", ok1.ok && ok1.recipe, ok1.why || "");
-    check("研发出的配方名字按味道起外号", /火口辣到冒烟/.test(ok1.recipe.name), ok1.recipe.name);
-    check("配方记进了存档", rState.recipes[ok1.recipe.id] === true);
-    check("研发配方进得了加工列表",
-      G.engine.unlockedRecipes(rState).some((r) => r.id === ok1.recipe.id));
-    check("研发配方加工时不再吃素材", !ok1.recipe.fromFind && !ok1.recipe.findCount, ok1.recipe.findCount);
-    check("同一搭配再研发会被拦", G.engine.research(rState, ["sugar", "cinderpepper"], 1).ok === false);
+    // 大锅：丢料 → 搅拌 → 出锅（成品直接进仓库，配方要不要记得自己决定）
+    const potS = fresh();
+    potS.maxRegion = 10;
+    potS.money = 1e12;
+    potS.finds = { flour: 40, moomoo: 40, butter: 40, sugar: 40, cinderpepper: 20, moonherb: 20 };
+    potS.berries = { 1: 99 };                       // 樱子果：辣味
+    check("锅默认 4 格、6 秒", G.engine.potSlots(potS) === 4 && G.engine.potStirSecs(potS) === 6,
+      G.engine.potSlots(potS) + "格/" + G.engine.potStirSecs(potS) + "s");
+    check("空锅搅不动", G.engine.potStir(potS).ok === false);
+    check("只放树果不算数",
+      (G.engine.potAdd(potS, "berry", 1).ok && G.engine.potCheck(potS).kind === "invalid"),
+      G.engine.potCheck(potS).why);
+    G.engine.potAdd(potS, "find", "sugar");
+    G.engine.potAdd(potS, "find", "cinderpepper");
+    const pchk = G.engine.potCheck(potS);
+    check("砂糖+火口椒+辣味 → 糖果（配对）",
+      pchk.kind === "recipe" && pchk.combo.cat === "candy" && pchk.good === true,
+      pchk.kind + "/good=" + pchk.good);
+    check("3 样料 → 前缀「丰富的」", G.potPrefix(3) === "丰富的", G.potPrefix(3));
+    check("料越多倍率越高",
+      G.potMultBonus(6) > G.potMultBonus(3) && G.potMultBonus(3) > G.potMultBonus(2),
+      G.potMultBonus(2) + "/" + G.potMultBonus(3) + "/" + G.potMultBonus(6));
 
-    // 废品
-    const wasteBefore = rState.waste;
-    // 月见草籽的坏味道是「辣」，正好撞上樱子果
-    const ok2 = G.engine.research(rState, ["flour", "moomoo", "moonherb"], 1);
-    check("配错的组合产出失败品", ok2.ok && ok2.waste === true, ok2.why);
-    check("失败品进了仓库", rState.waste === wasteBefore + 1, rState.waste);
-    check("失败品能卖钱", G.engine.sellWaste(rState, 1).ok === true);
+    const beforeMoney = potS.money;
+    const stir = G.engine.potStir(potS);
+    check("搅拌能开起来", stir.ok, stir.why || "");
+    check("搅拌时扣了研发费", potS.money < beforeMoney, beforeMoney - potS.money);
+    check("搅拌时锅里的料被收走",
+      potS.pot.inPot.length === 0 && potS.finds.sugar === 39,
+      JSON.stringify(potS.pot.inPot) + " 糖剩 " + potS.finds.sugar);
+    check("搅拌中不能接着丢", G.engine.potAdd(potS, "find", "flour").ok === false);
+    check("搅拌没到点不出货", G.engine.stepPot(potS) === null);
 
-    // 素材真的会被消耗
-    const flourBefore = rState.finds.flour;
-    G.engine.research(rState, ["flour", "moomoo"], 1);
-    check("研发消耗素材", rState.finds.flour === flourBefore - 1, rState.finds.flour);
+    potS.clock += 20000 * 1000;                     // 快进 20 秒
+    const out2 = G.engine.stepPot(potS);
+    check("到点出锅", !!out2 && out2.ok, JSON.stringify(out2));
+    check("成品进了仓库", Object.keys(potS.products).some((k) => /^res_candy/.test(k)),
+      JSON.stringify(potS.products));
+    check("出锅不自动记配方（等玩家决定）",
+      !Object.keys(potS.recipes).some((id) => /^res_/.test(id)), JSON.stringify(Object.keys(potS.recipes)));
+    check("成品名带料数前缀", /^丰富的/.test(out2.name), out2.name);
+    check("结果面板挂着等决定", !!potS.pot.pending && potS.pot.pending.recipeId, JSON.stringify(potS.pot.pending));
 
-    // 存档往返：研发的配方只存 id，读档要能复原
-    const code2 = G.exportSave(rState);
+    G.engine.potKeepRecipe(potS);
+    const rid2 = Object.keys(potS.recipes).filter((id) => /^res_/.test(id))[0];
+    check("「记下做法」才进配方本", !!rid2, rid2);
+    check("记下的配方能在加工台批量做",
+      G.engine.unlockedRecipes(potS).some((r) => r.id === rid2));
+    check("结果面板收起来了", !potS.pot.pending);
+    check("研发配方加工时不吃素材",
+      !G.RECIPE_BY_ID[rid2].fromFind && !G.RECIPE_BY_ID[rid2].findCount);
+
+    G.engine.forgetRecipe(potS, rid2);
+    check("配方可以删掉", !potS.recipes[rid2]);
+    check("删了就不在加工列表里",
+      !G.engine.unlockedRecipes(potS).some((r) => r.id === rid2));
+
+    // 配错味道 → 废品
+    const potW = fresh();
+    potW.maxRegion = 10; potW.money = 1e12;
+    potW.finds = { flour: 9, moomoo: 9, moonherb: 9 };
+    potW.berries = { 1: 9 };
+    G.engine.potAdd(potW, "berry", 1);
+    G.engine.potAdd(potW, "find", "flour");
+    G.engine.potAdd(potW, "find", "moomoo");
+    G.engine.potAdd(potW, "find", "moonherb");
+    check("月见草籽配辣味会煮废", G.engine.potCheck(potW).kind === "waste", G.engine.potCheck(potW).kind);
+    const wasteBefore2 = potW.waste;
+    G.engine.potStir(potW);
+    potW.clock += 20000 * 1000;
+    const wout = G.engine.stepPot(potW);
+    check("废品进了仓库", potW.waste === wasteBefore2 + 1 && wout.ok === false, potW.waste);
+
+    // 换锅
+    const potU = fresh();
+    potU.money = 1e9;
+    check("换锅要花钱、格子变多、搅拌变快",
+      (function () {
+        const before = G.engine.potSlots(potU);
+        const r = G.engine.potUpgrade(potU);
+        return r.ok && G.engine.potSlots(potU) > before && G.engine.potStirSecs(potU) < 6;
+      })());
+
+    // 存档往返：研发的配方只存 id，读档要按 id 把配方造回来
+    // 前面把配方删掉了，这里再搅一锅记下来
+    G.engine.potAdd(potS, "berry", 1);
+    G.engine.potAdd(potS, "find", "sugar");
+    G.engine.potAdd(potS, "find", "cinderpepper");
+    G.engine.potStir(potS);
+    potS.clock += 20000 * 1000;
+    G.engine.stepPot(potS);
+    G.engine.potKeepRecipe(potS);
+    const keptId = Object.keys(potS.recipes).filter((id) => /^res_/.test(id))[0];
+    check("存档测试前确实记下了一个配方", !!keptId, String(keptId));
+    const code2 = G.exportSave(potS);
     const reloaded = G.importSave(code2);
-    const rid = ok1.recipe.id;
-    check("存档能带走研发的配方", reloaded.recipes[rid] === true);
-    check("读档把配方表复原回来了", !!G.RECIPE_BY_ID[rid] && G.RECIPE_BY_ID[rid].research === true);
-    check("读档后仓库里的素材还在", reloaded.finds.flour === rState.finds.flour, reloaded.finds.flour);
-    check("读档后失败品还在", reloaded.waste === rState.waste, reloaded.waste);
+    check("存档能带走研发的配方", reloaded.recipes[keptId] === true, keptId);
+    check("读档把配方表按 id 复原回来了",
+      !!G.RECIPE_BY_ID[keptId] && G.RECIPE_BY_ID[keptId].research === true, keptId);
+    check("读档后仓库里的素材还在", reloaded.finds.flour === potS.finds.flour, reloaded.finds.flour);
+    check("读档后失败品还在", reloaded.waste === potS.waste, reloaded.waste);
+    check("读档后锅的等级和格子还在",
+      reloaded.pot.level === potS.pot.level && G.engine.potSlots(reloaded) === G.engine.potSlots(potS),
+      reloaded.pot.level);
+    // 老存档没有 pot 字段，迁移要能补上
+    const legacy = G.migrate(JSON.parse(JSON.stringify(Object.assign({}, potS, { pot: undefined }))));
+    check("老存档能补出锅", !!legacy.pot && legacy.pot.level === 1 && Array.isArray(legacy.pot.inPot),
+      JSON.stringify(legacy.pot));
     check("树果 65 种", G.BERRIES.length === 65, G.BERRIES.length);
     check("道具 24 件", (G.ITEMS || []).length === 24, (G.ITEMS || []).length);
     check("材料 12 种", (G.MATERIALS || []).length === 12, (G.MATERIALS || []).length);

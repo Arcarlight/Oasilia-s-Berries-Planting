@@ -141,12 +141,14 @@ window.G = window.G || {};
   // ── 研发配方：按需生成 ───────────────────────────────────────────────────
   // 组合数 × 口味 × 香料 = 300 多个，没必要全部预建。真正被研发出来的时候才造，
   // 存档里只存一个 id；读档时用 hydrateResearch 按 id 复原。
-  G.RESEARCH_ID_RE = /^res_([a-z]+)_([a-z]+)_([a-z]+)$/;
+  // id 里带上投入的食材数：同一套搭配，料越足做出来的是越强的另一个东西
+  G.RESEARCH_ID_RE = /^res_([a-z]+)_([a-z]+)_([a-z]+)(?:_(\d+))?$/;
   const SPICE_BY_ID = {};
   FINDS.forEach((f) => { SPICE_BY_ID[f.id] = f; });
 
-  G.makeResearchRecipe = function (catId, flavor, spiceId, good) {
-    const id = "res_" + catId + "_" + FLAVOR_KEY[flavor] + "_" + (spiceId || "plain");
+  G.makeResearchRecipe = function (catId, flavor, spiceId, good, potCount) {
+    const n = Math.max(2, potCount || 2);
+    const id = "res_" + catId + "_" + FLAVOR_KEY[flavor] + "_" + (spiceId || "plain") + "_" + n;
     if (G.RECIPE_BY_ID[id]) return G.RECIPE_BY_ID[id];
     good = !!good;
     const cat = (G.RECIPE_CATS || []).filter((c) => c.id === catId)[0];
@@ -159,7 +161,9 @@ window.G = window.G || {};
     const needCount = base ? base.needCount + 1 : 4;
     const r = {
       id: id,
-      name: G.researchName(flavor, cat.name, spice, good),
+      // 前缀表示料数：朴实的 → 多味的 → 层层叠叠的 ……
+      // 不这么写的话，两种强度在仓库里长得一模一样。
+      name: G.potPrefix(n) + G.researchName(flavor, cat.name, spice, good),
       cat: cat.id,
       catName: cat.name,
       unit: cat.unit,
@@ -168,7 +172,8 @@ window.G = window.G || {};
       needFlavor: flavor,
       needCount: needCount,
       minTier: 1,
-      mult: Math.round(cat.mult * (good ? 1.5 : spice ? 1.35 : 1.3) * 100) / 100,
+      mult: Math.round(cat.mult * (good ? 1.5 : spice ? 1.35 : 1.3) * G.potMultBonus(n) * 100) / 100,
+      potCount: n,
       time: Math.round(cat.time * 1.15),
       region: cat.region,
       cost: 0,
@@ -189,10 +194,12 @@ window.G = window.G || {};
     Object.keys(state.recipes).forEach((id) => {
       if (!G.RESEARCH_ID_RE.test(id)) return;
       const m = id.match(G.RESEARCH_ID_RE);
+      if (!m) return;
       const fl = flavorOfKey(m[2]);
       const sid = m[3] === "plain" ? null : m[3];
       const sp = sid ? SPICE_BY_ID[sid] : null;
-      G.makeResearchRecipe(m[1], fl, sid, !!(sp && (sp.good || []).indexOf(fl) >= 0));
+      // 老存档的 id 没有世代数，当成两手料（2 样）处理
+      G.makeResearchRecipe(m[1], fl, sid, !!(sp && (sp.good || []).indexOf(fl) >= 0), m[4] ? +m[4] : 2);
     });
   };
 
@@ -207,7 +214,7 @@ window.G = window.G || {};
   //   { kind:"known" }                       —— 这个搭配已经研发过了
   //   { kind:"waste" }                       —— 会煮成失败品（素材照样消耗）
   //   { kind:"invalid" }                     —— 连火都没点起来（不消耗）
-  G.evaluateResearch = function (state, findIds, flavor) {
+  G.evaluateResearch = function (state, findIds, flavor, potN) {
     const list = (findIds || []).map((id) => G.FIND_BY_ID[id]).filter(Boolean);
     const cores = list.filter((f) => f.role !== "spice");
     const spices = list.filter((f) => f.role === "spice");
@@ -242,7 +249,8 @@ window.G = window.G || {};
     }
     const cat = (G.RECIPE_CATS || []).filter((c) => c.id === combo.cat)[0];
     const good = !!(spice && (spice.good || []).indexOf(flavor) >= 0);
-    const id = "res_" + combo.cat + "_" + FLAVOR_KEY[flavor] + "_" + (spice ? spice.id : "plain");
+    const n = Math.max(2, potN || list.length || 2);
+    const id = "res_" + combo.cat + "_" + FLAVOR_KEY[flavor] + "_" + (spice ? spice.id : "plain") + "_" + n;
     const known = !!(state && state.recipes[id]);
     const cost = G.researchCost(combo.cat, flavor, list.length, !!spice);
     return {
@@ -263,6 +271,45 @@ window.G = window.G || {};
     const b = base ? base.cost : (cat ? Math.round(cat.mult * 260 * Math.pow(1.85, cat.region - 1)) : 4000);
     return Math.round(b * (1.8 + 0.6 * (nIngredients || 2)) * (withSpice ? 1.3 : 1));
   };
+
+  // ── 大锅 ────────────────────────────────────────────────────────────────
+  // 锅越大，一次能丢进去的食材越多（做出来的甜品越值钱），搅拌也越快。
+  G.POT_LEVELS = [
+    { level: 1, slots: 4, stir: 6.0, cost: 0,        name: "一口旧铁锅" },
+    { level: 2, slots: 5, stir: 5.0, cost: 9000,     name: "补过底的铁锅" },
+    { level: 3, slots: 6, stir: 4.0, cost: 75000,    name: "铜箍深锅" },
+    { level: 4, slots: 8, stir: 3.0, cost: 600000,   name: "三口连灶的大锅" },
+    { level: 5, slots: 10, stir: 2.2, cost: 5000000, name: "恒温石锅" },
+    { level: 6, slots: 12, stir: 1.6, cost: 45000000, name: "星屑夹层锅" }
+  ];
+  G.potLevel = function (level) {
+    const t = G.POT_LEVELS;
+    return t[Math.min(t.length, Math.max(1, level || 1)) - 1] || t[0];
+  };
+
+  // 一次投入的食材越多，做出来的东西越值钱：每多一样 +12% 倍率。
+  // 上限设一下，免得堆满锅就无敌。
+  G.POT_MIN_INGREDIENTS = 2;
+  G.potMultBonus = function (n) {
+    return 1 + Math.min(8, Math.max(0, (n || 2) - 2)) * 0.12;
+  };
+  // 卖给对口常客的加成也跟着涨：2 样 +50%，之后每多一样 +5%，封顶 +95%
+  G.potFlavorBonus = function (n) {
+    return Math.min(1.95, 1.5 + Math.min(8, Math.max(0, (n || 2) - 2)) * 0.05);
+  };
+
+  // 料越足，名字前面的前缀越夸张。这不只是好听 —— 前缀就是强度等级，
+  // 一眼能从仓库里认出「这是几样料煮出来的」。
+  const POT_PREFIX = [
+    "", "简约的", "朴实的", "丰富的", "多味的", "层层叠叠的", "花团锦簇的",
+    "极尽奢华的", "铺张的", "不计成本的", "过了头的", "不知节制的", "不像话的"
+  ];
+  G.potPrefix = function (n) {
+    const i = Math.max(1, Math.min(POT_PREFIX.length - 1, n || 1));
+    return POT_PREFIX[i];
+  };
+  // 锅最多 12 格，所以前缀也只排到 12
+  G.POT_PREFIX = POT_PREFIX;
 
   // 出门带回来的概率：底料常见，香料看运气
   G.FIND_DROP = { stapleChance: 0.6, rareChance: 0.22 };

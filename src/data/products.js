@@ -116,6 +116,60 @@ window.G = window.G || {};
   // 商品图标：用神奇宝贝百科的原作道具贴图打底，右下角叠一颗投入的树果。
   const FLAVOR_COLOR = { 辣: "#e05635", 涩: "#714fda", 甜: "#ff9861", 苦: "#77d2e2", 酸: "#e9d93f", 混合: "#8cbf6a" };
 
+  // ── 味道画像 ────────────────────────────────────────────────────────────
+  // 一件甜品在「辣涩甜苦酸」五个方向上的强度，用来画那张五边形雷达图。
+  // 用商品 key 做种子，所以同一样东西每次看到的图都一样（不是随机数）。
+  G.FLAVORS_5 = ["辣", "涩", "甜", "苦", "酸"];
+
+  function hashStr(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  G.flavorProfile = function (recipe, berry) {
+    const seed = hashStr(G.productKey(recipe.id, berry.id));
+    const prof = {};
+    G.FLAVORS_5.forEach((f, i) => {
+      // 底色：每种味道都有一点点，多少由种子决定，像是"这一锅的底子"
+      prof[f] = 6 + ((seed >>> (i * 3)) & 15);
+    });
+    // 主味：配方本身的味道，料越足越浓
+    const n = recipe.potCount || 2;
+    prof[recipe.flavor] = Math.min(97, 60 + n * 4);
+    // 香料再顶一角
+    const sp = recipe.spice ? G.FIND_BY_ID[recipe.spice] : null;
+    if (sp && sp.flavor !== recipe.flavor) {
+      prof[sp.flavor] = Math.max(prof[sp.flavor], 38 + ((seed >>> 11) & 17));
+    }
+    // 果子自己的味道也算一味底子
+    if (berry && berry.flavor !== recipe.flavor) {
+      prof[berry.flavor] = Math.max(prof[berry.flavor], 22 + ((seed >>> 17) & 12));
+    }
+    return prof;
+  };
+
+  // 一句吐槽：点开一看就知道这一锅到底什么味儿
+  G.flavorVerdict = function (prof) {
+    const top = G.FLAVORS_5.slice().sort((a, b) => prof[b] - prof[a]);
+    const hi = top[0], v = prof[hi];
+    const lowest = Math.min.apply(null, G.FLAVORS_5.map((f) => prof[f]));
+    if (v - lowest < 22) return "哪儿都不突出，但没人会拒绝第二块。";
+    if (hi === "甜" && v > 88) return "甜得掉牙——这次是字面意思。";
+    if (hi === "辣" && v > 78) return "这真的还算甜品吗。阿特拉斯说好吃。";
+    if (hi === "酸" && v > 78) return "牙软。先喝口水吧。";
+    if (hi === "苦" && v > 74) return "吃完会安静一会儿。";
+    if (hi === "涩" && v > 74) return "舌头上留了一层膜，得再吃一口压下去。";
+    if (hi === "甜") return "偏甜，配茶正好。";
+    if (hi === "辣") return "后劲在喉咙里，挺暖。";
+    if (hi === "酸") return "酸得干净，开胃。";
+    if (hi === "苦") return "苦味收得很利落，不讨厌。";
+    return "涩口，但回味是甜的。";
+  };
+
   G.productSprite = function (recipe) {
     const cat = recipe.cat;
     if (cat === "cube") return "assets/item/cube_" + (recipe.flavor === "混合" ? "辣" : recipe.flavor) + ".png";

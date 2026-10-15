@@ -524,51 +524,6 @@ window.G = window.G || {};
     return { ok: true, count: cnt };
   };
 
-  // 研发：拿几样素材 + 一种树果做实验。
-  // 搭配不对 → 煮出一份「失败品」（素材照样消耗，钱照样花，这就是实验的代价）
-  // 搭配对 → 学会一个新配方；香料和果子味道搭的话，这个配方倍率更高
-  A.research = function (state, findIds, berryId) {
-    const berry = G.BERRY_BY_ID[berryId];
-    if (!berry) return { ok: false, why: "先选一种树果" };
-    const ids = (findIds || []).filter((id) => state.finds[id] > 0);
-    if (!ids.length) return { ok: false, why: "先勾几样素材" };
-    // 勾了但库里没有的，直接拦掉
-    const missing = (findIds || []).filter((id) => !(state.finds[id] > 0));
-    if (missing.length) {
-      const m = G.FIND_BY_ID[missing[0]];
-      return { ok: false, why: "仓库里没有" + (m ? m.name : missing[0]) };
-    }
-
-    const ev = G.evaluateResearch(state, ids, berry.flavor);
-    if (ev.kind === "invalid") return { ok: false, why: ev.why };
-    if (ev.kind === "known") return { ok: false, why: "这个搭配已经研发过了，换个组合吧。" };
-    if (state.money < ev.cost) {
-      return { ok: false, why: "研发要 ₽" + G.fmt(ev.cost) + "，钱不够" };
-    }
-
-    // 花掉素材和钱
-    state.money -= ev.cost;
-    ids.forEach((id) => {
-      state.finds[id] -= 1;
-      if (state.finds[id] <= 0) delete state.finds[id];
-    });
-    state.stats.researched = (state.stats.researched || 0) + 1;
-
-    if (ev.kind === "waste") {
-      state.waste = (state.waste || 0) + 1;
-      G.addLog(state, "研发失败：" + ev.why + "（得到 1 份失败品）", "order");
-      return { ok: true, waste: true, why: ev.why };
-    }
-
-    const recipe = G.makeResearchRecipe(ev.combo.cat, berry.flavor, ev.spice ? ev.spice.id : null, ev.good);
-    if (!recipe) return { ok: false, why: "这个搭配还没做出来过（数据缺失）" };
-    state.recipes[recipe.id] = true;
-    G.addLog(state, "研发出新配方：" + recipe.name + "（吃掉 ₽" + G.fmt(ev.cost) +
-      " 和 " + ids.map((id) => G.FIND_BY_ID[id].name).join("、") + "）", "good");
-    A.checkUnlocks(state);
-    return { ok: true, recipe: recipe, cost: ev.cost, good: ev.good };
-  };
-
   // 失败品：能卖，但基本不值钱
   A.sellWaste = function (state, n) {
     const have = Math.floor(state.waste || 0);
@@ -590,6 +545,183 @@ window.G = window.G || {};
     state.waste = have - cnt;
     G.addLog(state, "倒掉了 " + cnt + " 份失败品。", "atlas");
     return { ok: true };
+  };
+
+  // ---------- 大锅（研发） ----------
+  // 往锅里丢树果 + 素材，搅拌，出来就是成品。锅越大能丢越多，成品越值钱。
+  A.potSlots = function (state) { return G.potLevel(state.pot && state.pot.level).slots; };
+  A.potStirSecs = function (state) { return G.potLevel(state.pot && state.pot.level).stir; };
+  A.potLevelInfo = function (state) {
+    const lv = (state.pot && state.pot.level) || 1;
+    return { now: G.potLevel(lv), next: lv < G.POT_LEVELS.length ? G.potLevel(lv + 1) : null, level: lv };
+  };
+
+  function potBag(state, kind) {
+    return kind === "berry" ? state.berries : state.finds;
+  }
+
+  A.potAdd = function (state, kind, id) {
+    const pot = state.pot;
+    if (!pot) return { ok: false, why: "锅不见了" };
+    if (pot.stir) return { ok: false, why: "正在搅拌，等它转完" };
+    if (pot.inPot.length >= A.potSlots(state)) return { ok: false, why: "锅满了" };
+    const bag = potBag(state, kind);
+    const have = Math.floor(bag[id] || 0);
+    const used = pot.inPot.filter((x) => x.kind === kind && String(x.id) === String(id)).length;
+    if (have - used <= 0) return { ok: false, why: "手上没有这样东西了" };
+    pot.inPot.push({ kind: kind, id: kind === "berry" ? +id : id });
+    return { ok: true };
+  };
+
+  A.potRemove = function (state, index) {
+    const pot = state.pot;
+    if (!pot || pot.stir) return { ok: false, why: "正在搅拌" };
+    if (index < 0 || index >= pot.inPot.length) return { ok: false, why: "这里没有东西" };
+    pot.inPot.splice(index, 1);
+    return { ok: true };
+  };
+
+  A.potClear = function (state) {
+    if (!state.pot || state.pot.stir) return { ok: false, why: "正在搅拌" };
+    state.pot.inPot = [];
+    return { ok: true };
+  };
+
+  // 锅里现在这样丢，会煮出什么？
+  A.potCheck = function (state) {
+    const pot = state.pot;
+    if (!pot) return { kind: "invalid", why: "锅不见了" };
+    if (pot.stir) return { kind: "stirring", why: "正在搅拌…" };
+    const items = pot.inPot || [];
+    if (!items.length) return { kind: "invalid", why: "锅里还什么都没有。" };
+
+    const berries = items.filter((x) => x.kind === "berry");
+    const finds = items.filter((x) => x.kind === "find");
+    if (!berries.length) return { kind: "invalid", why: "得放一颗树果，不然煮出来没味道。" };
+    if (!finds.length) return { kind: "invalid", why: "光放树果煮不出花样，再丢点素材。" };
+
+    // 口味取锅里占多数的那种树果（一样多就按先放的）
+    const tally = {};
+    berries.forEach((b) => {
+      const f = G.BERRY_BY_ID[b.id].flavor;
+      tally[f] = (tally[f] || 0) + 1;
+    });
+    let flavor = null, best = -1;
+    berries.forEach((b) => {
+      const f = G.BERRY_BY_ID[b.id].flavor;
+      if (tally[f] > best) { best = tally[f]; flavor = f; }
+    });
+
+    const n = items.length;
+    const ev = G.evaluateResearch(state, finds.map((x) => x.id), flavor, n);
+    const out = Object.assign({}, ev);
+    out.flavor = flavor;
+    out.n = n;
+    out.berryId = berries[0].id;
+    out.items = items.slice();
+    out.cost = ev.kind === "invalid" ? 0 : G.researchCost(ev.combo ? ev.combo.cat : (ev.cat && ev.cat.id) || "cake", flavor, n, !!ev.spice);
+    return out;
+  };
+
+  // 搅拌：先扣料扣钱，转完再出货
+  A.potStir = function (state) {
+    const chk = A.potCheck(state);
+    if (chk.kind === "invalid" || chk.kind === "stirring") return { ok: false, why: chk.why };
+    if (chk.kind === "known") return { ok: false, why: "这个搭配已经会做了，换个料试试。" };
+    if (state.money < chk.cost) return { ok: false, why: "研发费 ₽" + G.fmt(chk.cost) + "，钱不够" };
+
+    // 扣料
+    chk.items.forEach((x) => {
+      const bag = potBag(state, x.kind);
+      bag[x.id] -= 1;
+      if (bag[x.id] <= 0) delete bag[x.id];
+    });
+    state.money -= chk.cost;
+    const secs = A.potStirSecs(state);
+    state.pot.stir = { until: G.now(state) + secs * 1000, secs: secs, chk: chk, flavor: chk.flavor };
+    state.pot.inPot = [];
+    state.stats.researched = (state.stats.researched || 0) + 1;
+    return { ok: true, secs: secs, preview: chk };
+  };
+
+  // 搅拌结束：出货
+  A.stepPot = function (state) {
+    const pot = state.pot;
+    if (!pot || !pot.stir) return null;
+    if (G.now(state) < pot.stir.until) return null;
+    const chk = pot.stir.chk;
+    pot.stir = null;
+
+    if (chk.kind === "waste") {
+      state.waste = (state.waste || 0) + 1;
+      G.addLog(state, "研发失败：" + chk.why + "（得到 1 份失败品）", "order");
+      pot.pending = { ok: false, name: G.WASTE.name, reason: chk.why, t: Date.now() };
+      pot.last = pot.pending;
+      return pot.pending;
+    }
+
+    const recipe = G.makeResearchRecipe(chk.combo.cat, chk.flavor, chk.spice ? chk.spice.id : null, chk.good, chk.n);
+    if (!recipe) return null;
+    const first = !state.recipes[recipe.id];
+    const key = G.productKey(recipe.id, chk.berryId);
+    // 料越足，一锅出的成品越多：2-4 样 1 份，5-7 样 2 份，8 样以上 3 份
+    const count = chk.n >= 8 ? 3 : chk.n >= 5 ? 2 : 1;
+    state.products[key] = (state.products[key] || 0) + count;
+    G.addLog(state, "锅里出了「" + recipe.name + "」×" + count + "。", "good");
+    // 做成的东西直接进仓库；要不要顺手把做法记下来，交给玩家决定
+    pot.pending = {
+      ok: true, name: recipe.name, count: count, key: key, first: first,
+      recipeId: first ? recipe.id : null, t: Date.now()
+    };
+    pot.last = pot.pending;
+    A.checkUnlocks(state);
+    return pot.pending;
+  };
+
+  // 出锅的结果面板：记下做法就能在加工台批量做，不记也行（东西已经在仓库里了）
+  A.potKeepRecipe = function (state) {
+    const pd = state.pot && state.pot.pending;
+    if (!pd || !pd.recipeId) return { ok: false, why: "没有要记的配方" };
+    state.recipes[pd.recipeId] = true;
+    const r = G.RECIPE_BY_ID[pd.recipeId];
+    G.addLog(state, "把「" + (r ? r.name : pd.name) + "」的做法记进了配方本。", "good");
+    state.pot.pending = null;
+    A.checkUnlocks(state);
+    return { ok: true, recipe: r };
+  };
+
+  A.potDismiss = function (state) {
+    if (!state.pot || !state.pot.pending) return { ok: false, why: "没有要收起来的东西" };
+    state.pot.pending = null;
+    return { ok: true };
+  };
+
+  // 配方本里可以删掉研发出来的配方（商店买的那些删了没意义，不给删）
+  A.forgetRecipe = function (state, recipeId) {
+    const r = G.RECIPE_BY_ID[recipeId];
+    if (!r || !r.research) return { ok: false, why: "这个配方删不了" };
+    if (!state.recipes[recipeId]) return { ok: false, why: "本来就没学过" };
+    delete state.recipes[recipeId];
+    // 自动加工盯着它的话，顺手关掉，免得一直卡着找不到配方
+    if (state.autoRecipe === recipeId) state.autoRecipe = null;
+    // 锅里/队列里正在做的也清掉
+    state.craftQueue = (state.craftQueue || []).filter((j) => j.recipeId !== recipeId);
+    G.addLog(state, "把「" + r.name + "」的做法从配方本里划掉了。", "atlas");
+    return { ok: true };
+  };
+
+  A.potUpgrade = function (state) {
+    const info = A.potLevelInfo(state);
+    if (!info.next) return { ok: false, why: "这已经是最大的锅了。" };
+    if (state.money < info.next.cost) {
+      return { ok: false, why: "换锅要 ₽" + G.fmt(info.next.cost) + "，钱不够" };
+    }
+    state.money -= info.next.cost;
+    state.pot.level = info.next.level;
+    state.pot.inPot = [];
+    G.addLog(state, "把锅换成了「" + info.next.name + "」：" + info.next.slots +
+      " 格，搅拌 " + info.next.stir + "s。", "good");
+    return { ok: true, level: info.next };
   };
 
   // 材料也能卖（回收价六成）或丢掉
@@ -1064,6 +1196,7 @@ window.G = window.G || {};
     stepCraft(state, dt);
     stepCraftQueue(state);
     A.finishTrip(state);
+    if (A.stepPot) A.stepPot(state);
     A.trySpawnOrders(state);
     A.checkUnlocks(state);
 

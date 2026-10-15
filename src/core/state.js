@@ -35,6 +35,7 @@ window.G = window.G || {};
       materials: {},
       finds: {},          // 素材库存（只能靠阿特拉斯出门带回来）
       waste: 0,           // 研发失败的产物
+      pot: { level: 1, inPot: [], stir: null, pending: null, last: null },   // 研发用的大锅
       items: {},
       recipes: {},
       regulars: {},
