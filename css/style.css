@@ -84,6 +84,28 @@ button.big { padding: 6px 16px; font-size: 24px; line-height: 1.1; }
 
 img.px { image-rendering: pixelated; }
 
+
+/* ---------- UI 图标（Kenney Cursor Pixel Pack, CC0） ----------
+   用 img 直接引 PNG：mask-image 引用本地 file:// 时在本机打开不生效，
+   img 两种打开方式都稳。图标是白色的，用 opacity / filter 控制强弱与颜色。 */
+.ico {
+  display: inline-block; width: 16px; height: 16px; flex: 0 0 16px;
+  image-rendering: pixelated; vertical-align: -3px; margin-right: 4px;
+  opacity: .62;
+}
+#tabs button .ico { margin-right: 3px; vertical-align: -4px; opacity: .5; }
+#tabs button.on .ico { opacity: 1; }
+.card h4 .ico, .modal h3 .ico, .panel-head .ico { opacity: .85; }
+
+/* ---------- 像素光标 ---------- */
+html, body {
+  cursor: url("../assets/ui/cursor-arrow.png") 1 1, auto;
+}
+button, .link, select, input[type=checkbox], .plot, .dex-cell {
+  cursor: url("../assets/ui/cursor-hand.png") 5 1, pointer;
+}
+textarea { cursor: url("../assets/ui/cursor-cross.png") 7 7, text; }
+
 /* ---------- 布局 ---------- */
 #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 

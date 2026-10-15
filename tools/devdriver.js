@@ -45,7 +45,13 @@
       });
       const pre = document.createElement("pre");
       pre.id = "tabcheck";
-      pre.textContent = bad.length ? "TABCHECK FAIL\n" + bad.join("\n") : "TABCHECK OK";
+      // 顺手报一下光标有没有挂上（截图里看不到光标）
+      const cur = getComputedStyle(document.body).cursor;
+      const btn = document.querySelector("#tabs button");
+      const btnCur = btn ? getComputedStyle(btn).cursor : "?";
+      const curOk = cur.indexOf("cursor-arrow") >= 0 && btnCur.indexOf("cursor-hand") >= 0;
+      pre.textContent = (bad.length ? "TABCHECK FAIL\n" + bad.join("\n") : "TABCHECK OK")
+        + "\nCURSOR " + (curOk ? "OK" : "缺失");
       document.body.appendChild(pre);
     }
 

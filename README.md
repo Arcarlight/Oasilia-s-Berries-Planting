@@ -137,6 +137,13 @@ git add -A && git commit -m "..." && git push
   - 商品图标 = 原作道具贴图打底 + 右下角叠一颗投入的树果：
     果酱=甜甜蜜，果汁=树果汁，宝可方块=各色宝可方块，宝芬=各口味宝芬，树果派=心形甜点，陈酿果酒=果汁牛奶（瓶子当酒器）。
 - 宝可梦立绘与行走图：PMD Sprite Repository（github.com/PMDCollab/SpriteCollab），CC BY-NC-SA 4.0。
+- 界面图标与鼠标光标：**Kenney**（kenney.nl），**CC0 1.0**（可商用，署名非必需）。
+  - 光标：Cursor Pixel Pack — https://kenney.nl/assets/cursor-pixel-pack
+  - 页签与界面小图标也取自同一个包（它其实是一套 16×16 单色字形）。
+  - 物品图标仍然用神奇宝贝百科的原作贴图；**物品=原作贴图，界面/光标=Kenney**。
+  - 图标是白色 PNG，前端用 `<img>` + `opacity` 控制强弱。
+    （试过用 `mask-image` + `currentColor` 上色更优雅，但 `mask-image` 在 `file://` 下不生效，
+    本地双击打开会变成实心方块，所以放弃。）
 - 字体：**融合像素字体 / Fusion Pixel Font**（github.com/TakWolf/fusion-pixel-font），SIL OFL 1.1。
   取的是 12px 比例版，只用拉丁 + 简体中文两个子集（约 1.3 MB，本地自托管，不联网）。
   这款字是按 12px 点阵设计的，**只有在 12 的整数倍字号下才是整像素**，所以全站字号统一为 12 / 24，

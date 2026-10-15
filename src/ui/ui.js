@@ -28,6 +28,11 @@ window.G = window.G || {};
   // 库存一律按整数显示：果子/种子/商品/材料都是离散的
   function int(n) { const v = Math.floor(n || 0); return v > 0 ? v : 0; }
 
+  // UI 图标（Kenney Cursor Pixel Pack，CC0）。白色 16x16 PNG，用 img 引，靠 opacity 控制强弱。
+  function icon(name) {
+    return `<img class="ico" src="assets/ui/${name}.png" alt="" aria-hidden="true">`;
+  }
+
   const TAB_NAME = {};
   TABS.forEach((t) => { TAB_NAME[t.id] = t.name; });
   // 文案里提到别的页面时，直接给一个能点的跳转
@@ -579,7 +584,7 @@ window.G = window.G || {};
 
   function renderDex() {
     const known = Object.keys(S.dex).length;
-    let h = `<div class="card"><h4>树果图鉴 ${known}/${G.BERRIES.length}</h4>
+    let h = `<div class="card"><h4>${icon("dex")}树果图鉴 ${known}/${G.BERRIES.length}</h4>
       <div class="sub">见过就点亮。种过、买过种子、或者阿特拉斯带回来的都算。</div></div>`;
     h += `<div class="dex-grid">`;
     G.BERRIES.forEach((b) => {
@@ -591,7 +596,7 @@ window.G = window.G || {};
     });
     h += `</div>`;
 
-    h += `<div class="card" style="margin-top:8px"><h4>常客图鉴</h4><div class="dex-grid">`;
+    h += `<div class="card" style="margin-top:8px"><h4>${icon("regulars")}常客图鉴</h4><div class="dex-grid">`;
     (G.REGULARS || []).forEach((r) => {
       const st = G.engine.regState(S, r.dex);
       h += `<div class="dex-cell ${st.unlocked ? "" : "unknown"}">
@@ -657,7 +662,7 @@ window.G = window.G || {};
 
   function renderTabs() {
     $("tabs").innerHTML = TABS.map((t) =>
-      `<button data-act="tab" data-p='${attr({ t: t.id })}' class="${UI.tab === t.id ? "on" : ""}">${t.name}</button>`
+      `<button data-act="tab" data-p='${attr({ t: t.id })}' class="${UI.tab === t.id ? "on" : ""}" title="${t.name}">${icon("tab-" + t.id)}${t.name}</button>`
     ).join("");
   }
 
@@ -705,7 +710,7 @@ window.G = window.G || {};
     const ripe = S.plots.filter((p) => p.ripe).length;
     const empty = S.plots.filter((p) => !p.berry).length;
     let hint = esc(region.tip || "");
-    if (ripe) hint = "有 " + ripe + " 块田熟了，按 H 或者点右边的「收获全部」收掉。";
+    if (ripe) hint = "有 " + ripe + " 块田熟了，按 H 或者点底下的「收获全部」收掉。";
     else if (empty && Object.keys(S.seeds).some((k) => S.seeds[k] > 0)) hint = "还有 " + empty + " 块空地，把种子种下去。";
     else if (!Object.keys(S.seeds).length) hint = "手上的种子用完了，去" + go("shop") + "买点，或者让" + go("atlas") + "出门买。";
     else if (S.craftQueue.length < G.engine.craftSlots(S) && Object.keys(S.berries).length) {
@@ -900,7 +905,7 @@ window.G = window.G || {};
     const ov = $("overlay");
     ov.className = "";
     ov.innerHTML = `<div class="modal">
-      <h3>设置与存档</h3>
+      <h3>${icon("settings")}设置与存档</h3>
       <div class="sub">存档自动保存在这个浏览器里（localStorage）。换设备就复制下面的字符串。</div>
       <div class="row2" style="margin:8px 0">
         <button data-act="closeOverlay">关闭</button>

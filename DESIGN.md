@@ -245,6 +245,7 @@
 |------|------|------|
 | 树果图标 / 树果树阶段图 / 商品图标 | 神奇宝贝百科 wiki.52poke.com | 版权归 TPC/GF/Creatures，非商业同人使用 |
 | 字体 | 融合像素字体 fusion-pixel-font（12px 比例版，SIL OFL 1.1） | 12 的整数倍字号 + 关闭合成粗体 |
+| 界面图标 / 光标 | Kenney Cursor Pixel Pack（CC0 1.0） | 物品仍用原作贴图，图标只用于界面与页签 |
 | 宝可梦立绘 / 行走图 | PMD Sprite Repository（github.com/PMDCollab/SpriteCollab） | CC BY-NC-SA 4.0 |
 | 字体/图标（可选） | 虹星收集素材页 | 见各自来源 |
 
