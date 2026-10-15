@@ -27,6 +27,29 @@
   加了 `fill` 会把面板底色盖成黑色。
 - 进度条用 `bar-mid.png` 平铺（`repeat-x` + `background-size: auto 100%`）。
 
+## 鼠标光标
+
+同一套 Cursor Pixel Pack 里取的三个字形，各出 1x（16×16）/2x（32×32）/3x（48×48）：
+
+| 文件 | 图号 | 用在哪 |
+|------|------|--------|
+| `cursor-hand` | 0176 | 平时（整页默认） |
+| `cursor-point` | 0175 | 可点击：按钮、链接、下拉、田地、图鉴格 |
+| `cursor-water` | 0129 | 浇水：「浇水（全部田）」按钮，以及正在生长的田 |
+| `cursor-arrow` | 0168 | 备用（当前没用到） |
+
+**为什么要出三档**：在 2 倍屏（Retina）上，16×16 的光标图会被浏览器平滑放大成 32 个物理像素，
+结果就是发糊。CSS 的 `cursor` **不吃 `image-rendering: pixelated`**，所以只能靠喂更高分辨率解决。
+2x/3x 是用最近邻放大的——像素图放大用最近邻不会产生插值毛边，效果等同于矢量。
+
+**为什么用 `image-set` 而不是 `@supports` 裸判断**：
+`@supports (cursor: image-set(...))` 这种写法**不成立**，因为单独一个 `image-set(...)`
+不是合法的 cursor 值（cursor 必须是 `<image> <x> <y>?, <keyword>` 的形式）。
+条件里必须带上热点和关键字，例如 `@supports (cursor: image-set(url("a.png") 1x) 0 0, auto)`。
+两套写法都保留了：先写 1x 的 `url()` 兜底，再用 `@supports` 覆盖；不支持 image-set 的浏览器会整条丢弃。
+
+热点（hotspot）坐标是按 1x 图给的：hand `6 1`、point `3 0`、water `8 2`。
+
 ## 改图标颜色
 
 图标本身是白色的，前端一律用 CSS `mask-image` + `background: currentColor` 上色，

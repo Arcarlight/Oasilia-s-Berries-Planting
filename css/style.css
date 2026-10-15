@@ -105,14 +105,49 @@ img.px { image-rendering: pixelated; }
 #tabs button.on .ico { opacity: 1; }
 .card h4 .ico, .modal h3 .ico, .panel-head .ico { opacity: .85; }
 
-/* ---------- 像素光标 ---------- */
-html, body {
-  cursor: url("../assets/ui/cursor-arrow.png") 1 1, auto;
+/* ---------- 像素光标 ----------
+   屏幕是 2 倍（Retina）时，16x16 的图被浏览器平滑放大就会发糊，所以每种光标都出
+   1x/2x/3x 三档，用 image-set 让浏览器按屏幕密度自己挑。像素图是最近邻放大，效果等同矢量。
+   不支持 image-set 的浏览器会整条丢弃，退回上面的 1x 图。
+
+   三种光标：
+     cursor-hand  = 平时（0176）
+     cursor-point = 可点击（0175）
+     cursor-water = 浇水（0129） */
+
+/* 平时 */
+html, body, .card, .panel, nav, .log, p, span, div {
+  cursor: url("../assets/ui/cursor-hand.png") 6 1, default;
 }
-button, .link, select, input[type=checkbox], .plot, .dex-cell {
-  cursor: url("../assets/ui/cursor-hand.png") 5 1, pointer;
+/* 能点的 */
+button, .link, select, input, .plot, .dex-cell, summary, label {
+  cursor: url("../assets/ui/cursor-point.png") 3 0, pointer;
 }
-textarea { cursor: url("../assets/ui/cursor-cross.png") 7 7, text; }
+/* 浇水：底下的「全部田」按钮，以及正在生长（点一下就是浇水）的田 */
+#btnWaterAll, .plot:not(.ripe) {
+  cursor: url("../assets/ui/cursor-water.png") 8 2, pointer;
+}
+
+@supports (cursor: image-set(url("a.png") 1x) 0 0, auto) {
+  html, body, .card, .panel, nav, .log, p, span, div {
+    cursor: image-set(
+      url("../assets/ui/cursor-hand.png") 1x,
+      url("../assets/ui/cursor-hand-2x.png") 2x,
+      url("../assets/ui/cursor-hand-3x.png") 3x) 6 1, default;
+  }
+  button, .link, select, input, .plot, .dex-cell, summary, label {
+    cursor: image-set(
+      url("../assets/ui/cursor-point.png") 1x,
+      url("../assets/ui/cursor-point-2x.png") 2x,
+      url("../assets/ui/cursor-point-3x.png") 3x) 3 0, pointer;
+  }
+  #btnWaterAll, .plot:not(.ripe) {
+    cursor: image-set(
+      url("../assets/ui/cursor-water.png") 1x,
+      url("../assets/ui/cursor-water-2x.png") 2x,
+      url("../assets/ui/cursor-water-3x.png") 3x) 8 2, pointer;
+  }
+}
 
 /* ---------- 滚动条（默认样式跟像素风不搭） ---------- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

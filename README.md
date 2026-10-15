@@ -143,6 +143,9 @@ git add -A && git commit -m "..." && git push
   - 按钮 / 面板框 / 进度条：UI Pack - Pixel Adventure — https://kenney.nl/assets/ui-pack-pixel-adventure
     （用 border-image 九宫格拉伸，普通/悬停/按下三态）
   - 物品图标仍然用神奇宝贝百科的原作贴图；**物品=原作贴图，界面/光标=Kenney**。
+  - 鼠标光标用了三个字形（平时 / 可点击 / 浇水），各出 1x·2x·3x 三档，
+    用 `image-set` 按屏幕密度选图——否则 Retina 上 16×16 会被平滑放大成糊的。
+    `cursor` 属性不支持 `image-rendering: pixelated`，只能靠喂高分辨率解决。
   - 图标是白色 PNG，前端用 `<img>` + `opacity` 控制强弱。
     （试过用 `mask-image` + `currentColor` 上色更优雅，但 `mask-image` 在 `file://` 下不生效，
     本地双击打开会变成实心方块，所以放弃。）

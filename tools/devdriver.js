@@ -56,9 +56,21 @@
       const cur = getComputedStyle(document.body).cursor;
       const btn = document.querySelector("#tabs button");
       const btnCur = btn ? getComputedStyle(btn).cursor : "?";
-      const curOk = cur.indexOf("cursor-arrow") >= 0 && btnCur.indexOf("cursor-hand") >= 0;
+      // 平时=hand，可点击=point，浇水=water
+      const curOk = cur.indexOf("cursor-hand") >= 0
+                 && btnCur.indexOf("cursor-point") >= 0
+                 && cur.indexOf("2x") >= 0;
+      const pick2x = cur.indexOf("2x") >= 0;
       pre.textContent = (bad.length ? "TABCHECK FAIL\n" + bad.join("\n") : "TABCHECK OK")
         + "\nCURSOR " + (curOk ? "OK" : "缺失")
+        + " dpr=" + window.devicePixelRatio
+        + " 用到2倍图=" + (pick2x ? "是" : "否")
+        + "\n  body=" + cur.replace(/file:[^)]*\//g, "").slice(0, 110)
+        + "\n  btn =" + btnCur.replace(/file:[^)]*\//g, "").slice(0, 110)
+        + "\n  water=" + (() => {
+            const w = document.querySelector('#btnWaterAll, .plot:not(.ripe)');
+            return w ? getComputedStyle(w).cursor.replace(/file:[^)]*\//g, "").slice(0, 60) : "（页面上没找到浇水按钮）";
+          })()
         + "\nBTN " + probe.join(" | ");
       document.body.appendChild(pre);
     }
