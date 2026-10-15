@@ -89,6 +89,20 @@ python3 tools/copy_chunks.py check     # 与 data_raw/copy_backup/ 对拍结构
 python3 tools/make_dev.py
 ```
 
+### UI 渲染的一条铁律：不要整块替换 DOM
+
+标签页/地块/日志/标签栏的内容更新一律走 `UI.morph()`，**不要用 `innerHTML = ...`**。
+
+原因：`innerHTML` 会把所有节点销毁重造，于是
+
+- 鼠标正悬停的按钮被换掉 → `:hover` 状态丢失 → **按钮一闪一闪**
+- 手机上打开的原生 `<select>` 被销毁 → 选择器瞬间关闭，**根本选不中**
+- 输入框里打到一半的字会没
+
+`morph()` 只改变化的文字、就地同步属性，列表变长变短也只增删尾部节点，
+所以鼠标下的按钮和打开的下拉都不会被换掉。表单一类控件在交互期间还会额外锁住重建
+（`formBusy()`），双保险。
+
 ### 页面自检（改完 UI 一定要跑）
 
 某个页签的渲染函数抛异常时，界面会**卡在上一个页签的内容上**，看起来像"点不动"，
@@ -103,6 +117,17 @@ python3 tools/make_dev.py
 
 输出 `TABCHECK OK` 才算过；任何一页报错会列出页签名与错误信息。
 建议至少在早期（`hours=0.5`）、中期（`hours=8`）、后期（`hours=40`）各跑一次。
+它还会顺带报光标是否三种都挂上、有没有真的吃到 2 倍图。
+
+另外两个自检：
+
+```bash
+# 就地合入机制的单元自检（按钮/下拉节点是否会被销毁重造）
+--dump-dom "file://$PWD/dev.html#hours=1&check=morph"
+
+# 标签页 DOM 重建频率（正常应该接近 0 次/秒）
+--dump-dom "file://$PWD/dev.html#hours=6&tab=market&check=churn"
+```
 
 文案打磨全程用 `deepseek-v4-pro` 并行跑，改的只有字符串。如果以后还要再润色一遍，
 记得保留 `data_raw/copy_backup/`（里面是润色前的快照），否则 `check` 子命令没有对照物。

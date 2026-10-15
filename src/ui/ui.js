@@ -5,6 +5,9 @@ window.G = window.G || {};
   let S = null;
   let dirty = true;
   let lastTabRender = 0;
+  let lastHtml = "";
+  // 手机原生下拉打开期间锁住重建：从按下 select 起，到它失焦/选中为止
+  let formLock = 0;
 
   const TABS = [
     { id: "market", name: "市场" },
@@ -42,6 +45,9 @@ window.G = window.G || {};
   function money(n) { return "₽" + G.fmt(n); }
 
   UI.markDirty = function () { dirty = true; };
+
+  // 切标签页要作废上一页的 HTML 缓存
+  UI.pinForm = function (el) { formLock = performance.now(); };
   UI.toast = function (text) {
     const wrap = $("toastWrap");
     const d = document.createElement("div");
@@ -88,7 +94,7 @@ window.G = window.G || {};
           <div style="font-size:20px;color:#f0c04a">＋</div>买地<br>${money(price)}
         </div></div>`;
     }
-    box.innerHTML = html;
+    morph(box, html);
     const ripe = S.plots.filter((p) => p.ripe).length;
     $("uiPlotInfo").textContent = "（" + S.plots.length + "/" + (S.plots.length + (cap - bought)) + " 块，成熟 " + ripe + "）";
   }
@@ -98,11 +104,11 @@ window.G = window.G || {};
     const ids = Object.keys(S.seeds).filter((id) => S.seeds[id] > 0)
       .map(Number).sort((a, b) => G.BERRY_BY_ID[a].tier - G.BERRY_BY_ID[b].tier || a - b);
     if (!ids.length) {
-      box.innerHTML = `<div class="sub">没有种子了。去${go("shop", "商店")}买一些，或者让${go("atlas", "阿特拉斯")}出门碰碰运气。</div>`;
+      morph(box, `<div class="sub">没有种子了。去${go("shop", "商店")}买一些，或者让${go("atlas", "阿特拉斯")}出门碰碰运气。</div>`);
       return;
     }
     if (!pick.seed || !(S.seeds[pick.seed] > 0)) pick.seed = ids[0];
-    box.innerHTML = `<div class="sub" style="margin-bottom:4px">手上的种子（点一下选中，再点空地播种）</div>` +
+    const seedHtml = `<div class="sub" style="margin-bottom:4px">手上的种子（点一下选中，再点空地播种）</div>` +
       ids.map((id) => {
         const b = G.BERRY_BY_ID[id];
         const on = pick.seed === id ? "style=\"outline:2px solid var(--gold)\"" : "";
@@ -114,6 +120,7 @@ window.G = window.G || {};
           <button class="small" data-act="plantAll" data-p='${attr({ b: id })}'>全种</button>
         </div>`;
       }).join("");
+    morph(box, seedHtml);
   }
 
   // ---------------- 市场 ----------------
@@ -661,13 +668,73 @@ window.G = window.G || {};
   };
 
   function renderTabs() {
-    $("tabs").innerHTML = TABS.map((t) =>
+    // 也用合入：点标签页时会触发重绘，整块替换会让鼠标下的那个标签闪一下
+    morph($("tabs"), TABS.map((t) =>
       `<button data-act="tab" data-p='${attr({ t: t.id })}' class="${UI.tab === t.id ? "on" : ""}" title="${t.name}">${icon("tab-" + t.id)}${t.name}</button>`
-    ).join("");
+    ).join(""));
   }
 
+  // 用户正在操作表单控件时不重建 DOM：
+  // 手机上的原生下拉一被销毁就会立刻关闭，表现为"选不中"。
+  function formBusy() {
+    const body = $("tabBody");
+    const el = document.activeElement;
+    if (el && body.contains(el) && /^(SELECT|INPUT|TEXTAREA)$/.test(el.tagName)) return true;
+    return formLock && performance.now() - formLock < 20000;
+  }
+
+  // ── 把新 HTML 合到已有的 DOM 上，而不是整个替换 ──────────────────────────
+  // innerHTML 会把所有节点销毁重造。那样有两个后果：
+  //   1. 鼠标正悬停的按钮被换掉 → hover 状态丢失 → 一闪一闪
+  //   2. 手机上打开的原生下拉（select）节点被销毁 → 选择器瞬间关闭，选不中
+  // 事件全部是委托在 document 上的，所以保留节点不会丢监听。
+  function syncAttrs(a, b) {
+    const attrs = a.attributes;
+    for (let i = attrs.length - 1; i >= 0; i--) {
+      const name = attrs[i].name;
+      if (!b.hasAttribute(name)) a.removeAttribute(name);
+    }
+    for (let i = 0; i < b.attributes.length; i++) {
+      const at = b.attributes[i];
+      if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+    }
+  }
+
+  // 逐层合入。节点类型/标签对得上就复用，对不上只替换那一个节点（不动兄弟节点）。
+  // 列表变长变短也只增删尾部的节点，已有的节点一律保留 —— 这样鼠标下的按钮永远不会被换掉。
+  function mergeInto(oldParent, newParent) {
+    const olds = Array.prototype.slice.call(oldParent.childNodes);
+    const news = Array.prototype.slice.call(newParent.childNodes);
+    const min = Math.min(olds.length, news.length);
+    for (let i = 0; i < min; i++) {
+      const a = olds[i], b = news[i];
+      if (a.nodeType !== b.nodeType || (a.nodeType === 1 && a.tagName !== b.tagName)) {
+        oldParent.replaceChild(b.cloneNode(true), a);   // 只换这一个
+        continue;
+      }
+      if (a.nodeType === 3) { if (a.data !== b.data) a.data = b.data; continue; }
+      if (a.nodeType !== 1) continue;
+      syncAttrs(a, b);
+      mergeInto(a, b);
+    }
+    // 收尾：多了就删，少了就补
+    for (let i = olds.length - 1; i >= news.length; i--) oldParent.removeChild(olds[i]);
+    for (let i = olds.length; i < news.length; i++) oldParent.appendChild(news[i].cloneNode(true));
+  }
+
+  function morph(parent, html) {
+    const tpl = document.createElement("template");
+    tpl.innerHTML = html;
+    mergeInto(parent, tpl.content);
+    return true;
+  }
+
+  UI.morph = morph;          // 暴露出来给自检用
+
   function renderTabBody(force) {
-    const now = G.now(S);
+    // 节流用真实时间，不用游戏时钟：以后加变速也不会让界面跟着狂刷
+    const now = performance.now();
+    if (!force && formBusy()) return;
     if (!force && !dirty && now - lastTabRender < 400) return;
     lastTabRender = now;
     dirty = false;
@@ -676,17 +743,28 @@ window.G = window.G || {};
     const scroll = body.scrollTop;
     // 某个页面渲染出错时，不能把整个界面卡在旧内容上：把错误显示出来
     UI.lastError = null;
+    let html = null;
     try {
-      body.innerHTML = fn();
+      html = fn();
     } catch (e) {
       UI.lastError = { tab: UI.tab, message: e && e.message, stack: (e && e.stack) || "" };
       console.error("渲染 " + UI.tab + " 出错", e);
-      body.innerHTML = `<div class="card"><h4>这个页面出错了</h4>
+      html = `<div class="card"><h4>这个页面出错了</h4>
         <div class="sub">${esc(e && e.message)}</div>
         <pre style="white-space:pre-wrap;font-size:12px;color:#9fa286">${esc((e && e.stack) || "")}</pre>
         <div class="sub">存档没坏，切到别的页签还能继续玩。</div></div>`;
     }
+    // 内容没变就别动 DOM：innerHTML 会把按钮节点整个销毁重造，
+    // 鼠标悬停时会导致 hover 状态反复丢失（一闪一闪），手机上的原生下拉也会被关掉。
+    if (html === lastHtml && !UI.lastError) {
+      body.scrollTop = scroll;
+      return;
+    }
+    lastHtml = html;
+    // 优先"就地合入"，只有结构对不上才整体替换
+    if (!morph(body, html)) UI.replaceCount = (UI.replaceCount || 0) + 1;
     body.scrollTop = scroll;
+    UI.renderCount = (UI.renderCount || 0) + 1;
   }
 
   function renderTop() {
@@ -700,9 +778,9 @@ window.G = window.G || {};
 
   function renderLog() {
     const box = $("uiLog");
-    box.innerHTML = S.log.slice(0, 60).map((e) =>
+    morph(box, S.log.slice(0, 60).map((e) =>
       `<div class="entry ${e.kind || ""}"><span class="t">${new Date(e.t).toLocaleTimeString("zh-CN", { hour12: false })}</span>${esc(e.text)}</div>`
-    ).join("");
+    ).join(""));
   }
 
   function renderHint() {
@@ -891,12 +969,31 @@ window.G = window.G || {};
   });
 
   document.addEventListener("change", (e) => {
+    const tag = e.target && e.target.tagName;
+    // 选完立刻解锁并重画（手机上原生下拉这一步很关键）
+    if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") {
+      formLock = 0;
+      lastHtml = "";
+      UI.markDirty();
+    }
     const t = e.target.closest("[data-act='picksell']");
     if (!t) return;
     const p = JSON.parse(t.dataset.p);
     pick.regularFor[p.k] = t.value ? +t.value : null;
     UI.markDirty();
   });
+
+  // 表单控件交互期间锁住重建，具体原因见 formBusy()
+  document.addEventListener("pointerdown", (e) => {
+    const el = e.target;
+    const tag = el && el.tagName;
+    if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") formLock = performance.now();
+    else if (!el.closest || !el.closest("#tabBody")) formLock = 0;   // 点了别处就解锁
+  }, true);
+  document.addEventListener("blur", (e) => {
+    const tag = e.target && e.target.tagName;
+    if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") formLock = 0;
+  }, true);
 
   // 设置 / 存档弹层
   UI.closeOverlay = function () { $("overlay").className = "hidden"; $("overlay").innerHTML = ""; };
