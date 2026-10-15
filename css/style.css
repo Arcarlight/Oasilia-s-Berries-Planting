@@ -63,24 +63,32 @@ b { color: var(--gold); }
 .link:hover { background: transparent; color: #ffe9a8; }
 .link:active { box-shadow: none; }
 
+/* 按钮用 Kenney UI Pack 的像素贴图做九宫格拉伸（CC0）。
+   border-image 的 fill 会盖住背景色，所以配色直接由贴图决定。 */
 button, input, select {
   font-family: inherit; font-size: 12px; color: var(--ink);
   white-space: nowrap;
-  background: var(--panel3);
-  border: 2px solid var(--line2);
+  background: transparent;
+  border: 2px solid transparent;
+  border-style: solid;
+  border-width: 6px;
   border-radius: 0;
-  padding: 4px 10px;
+  padding: 2px 8px;
   cursor: pointer;
-  box-shadow: inset -2px -2px 0 rgba(0,0,0,.35), inset 2px 2px 0 rgba(255,255,255,.06);
+  border-image: url("../assets/ui/btn.png") 10 fill / 6px / 0 stretch;
+  image-rendering: pixelated;
 }
-button:hover:not(:disabled) { background: #3a4729; }
-button:active:not(:disabled) { box-shadow: inset 2px 2px 0 rgba(0,0,0,.4); }
-button:disabled { opacity: .42; cursor: not-allowed; }
-button.gold { background: #6b5a1c; border-color: var(--gold); color: #ffe9a8; }
-button.gold:hover:not(:disabled) { background: #857022; }
-button.danger { border-color: var(--red); }
-button.small { padding: 1px 6px; font-size: 12px; }
-button.big { padding: 6px 16px; font-size: 24px; line-height: 1.1; }
+button:hover:not(:disabled) { border-image-source: url("../assets/ui/btn-main.png"); }
+button:active:not(:disabled) { border-image-source: url("../assets/ui/btn-press.png"); }
+button:disabled { opacity: .38; cursor: not-allowed; filter: grayscale(.6); }
+button.gold { border-image-source: url("../assets/ui/btn-main.png"); color: #3a2a12; }
+button.gold:hover:not(:disabled) { border-image-source: url("../assets/ui/btn.png"); }
+button.gold:active:not(:disabled) { border-image-source: url("../assets/ui/btn-press.png"); color: var(--ink); }
+button.danger { border-image-source: url("../assets/ui/btn-danger.png"); color: #ffe6e0; }
+button.danger:hover:not(:disabled) { border-image-source: url("../assets/ui/btn-press.png"); color: var(--ink); }
+input[type=checkbox] { border-width: 0; border-image: none; accent-color: var(--gold); }
+button.small { padding: 0 4px; font-size: 12px; border-width: 5px; border-image-slice: 10 fill; border-image-width: 5px; }
+button.big { padding: 2px 14px; font-size: 24px; line-height: 1.1; border-width: 8px; border-image-slice: 12 fill; border-image-width: 8px; }
 
 img.px { image-rendering: pixelated; }
 
@@ -105,6 +113,16 @@ button, .link, select, input[type=checkbox], .plot, .dex-cell {
   cursor: url("../assets/ui/cursor-hand.png") 5 1, pointer;
 }
 textarea { cursor: url("../assets/ui/cursor-cross.png") 7 7, text; }
+
+/* ---------- 滚动条（默认样式跟像素风不搭） ---------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #141a0f; }
+::-webkit-scrollbar-thumb {
+  background: #4a5a30; border: 2px solid #141a0f;
+}
+::-webkit-scrollbar-thumb:hover { background: #61763f; }
+::-webkit-scrollbar-corner { background: #141a0f; }
+* { scrollbar-color: #4a5a30 #141a0f; scrollbar-width: thin; }
 
 /* ---------- 布局 ---------- */
 #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -137,9 +155,11 @@ textarea { cursor: url("../assets/ui/cursor-cross.png") 7 7, text; }
 
 .panel {
   background: var(--panel);
-  border: 3px solid var(--line);
+  border: 5px solid var(--line);
+  /* 木质面板框：注意不能加 fill，否则贴图中心的黑色会盖掉面板底色 */
+  border-image: url("../assets/ui/panel.png") 11 / 5px / 0 stretch;
   display: flex; flex-direction: column; overflow: hidden;
-  box-shadow: inset -3px -3px 0 rgba(0,0,0,.25), inset 3px 3px 0 rgba(255,255,255,.03);
+  image-rendering: pixelated;
 }
 .panel-head {
   padding: 5px 10px; background: var(--panel2);
@@ -175,7 +195,12 @@ textarea { cursor: url("../assets/ui/cursor-cross.png") 7 7, text; }
   position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
   background: rgba(0,0,0,.5);
 }
-.plot .bar > i { display: block; height: 100%; background: var(--leaf); }
+.plot .bar > i {
+  display: block; height: 100%;
+  background: url("../assets/ui/bar-mid.png") repeat-x left center;
+  background-size: auto 100%;
+  image-rendering: pixelated;
+}
 .plot .badge {
   position: absolute; top: 2px; right: 2px; font-size: 12px;
   background: rgba(0,0,0,.55); padding: 0 3px; color: var(--gold);
@@ -242,8 +267,13 @@ textarea { cursor: url("../assets/ui/cursor-cross.png") 7 7, text; }
 .flavor-甜 { color: #ffb27a; } .flavor-苦 { color: #7fd8e8; }
 .flavor-酸 { color: #ffe066; } .flavor-混合 { color: var(--green); }
 
-.bar-outer { height: 8px; background: #0e120a; border: 1px solid var(--line); }
-.bar-outer > i { display: block; height: 100%; background: var(--gold); }
+.bar-outer { height: 10px; background: #0e120a; border: 1px solid var(--line); }
+.bar-outer > i {
+  display: block; height: 100%;
+  background: url("../assets/ui/bar-mid.png") repeat-x left center;
+  background-size: auto 100%;
+  image-rendering: pixelated;
+}
 
 /* ---------- 宝可梦立绘 ---------- */
 .mon { display: flex; gap: 10px; }

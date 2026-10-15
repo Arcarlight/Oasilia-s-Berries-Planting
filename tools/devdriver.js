@@ -43,6 +43,13 @@
         G.UI.forceRender();
         if (G.UI.lastError) bad.push(G.UI.lastError.tab + ": " + G.UI.lastError.message);
       });
+      G.UI.tab = "market"; G.UI.forceRender();
+      const probe = [];
+      document.querySelectorAll("#tabBody button:not(.link)").forEach((b, i) => {
+        if (i > 6) return;
+        const cs = getComputedStyle(b);
+        probe.push(b.textContent.trim().slice(0, 6) + "=" + cs.borderImageSource.split("/").pop().slice(0, 14) + "@" + cs.borderWidth);
+      });
       const pre = document.createElement("pre");
       pre.id = "tabcheck";
       // 顺手报一下光标有没有挂上（截图里看不到光标）
@@ -51,7 +58,8 @@
       const btnCur = btn ? getComputedStyle(btn).cursor : "?";
       const curOk = cur.indexOf("cursor-arrow") >= 0 && btnCur.indexOf("cursor-hand") >= 0;
       pre.textContent = (bad.length ? "TABCHECK FAIL\n" + bad.join("\n") : "TABCHECK OK")
-        + "\nCURSOR " + (curOk ? "OK" : "缺失");
+        + "\nCURSOR " + (curOk ? "OK" : "缺失")
+        + "\nBTN " + probe.join(" | ");
       document.body.appendChild(pre);
     }
 

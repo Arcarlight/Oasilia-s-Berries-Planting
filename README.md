@@ -137,9 +137,11 @@ git add -A && git commit -m "..." && git push
   - 商品图标 = 原作道具贴图打底 + 右下角叠一颗投入的树果：
     果酱=甜甜蜜，果汁=树果汁，宝可方块=各色宝可方块，宝芬=各口味宝芬，树果派=心形甜点，陈酿果酒=果汁牛奶（瓶子当酒器）。
 - 宝可梦立绘与行走图：PMD Sprite Repository（github.com/PMDCollab/SpriteCollab），CC BY-NC-SA 4.0。
-- 界面图标与鼠标光标：**Kenney**（kenney.nl），**CC0 1.0**（可商用，署名非必需）。
-  - 光标：Cursor Pixel Pack — https://kenney.nl/assets/cursor-pixel-pack
-  - 页签与界面小图标也取自同一个包（它其实是一套 16×16 单色字形）。
+- 界面图标、鼠标光标、按钮/面板框/进度条贴图：**Kenney**（kenney.nl），**CC0 1.0**（可商用，署名非必需）。
+  - 光标与页签图标：Cursor Pixel Pack — https://kenney.nl/assets/cursor-pixel-pack
+    （它其实是一套 16×16 单色字形，正好当图标库用）
+  - 按钮 / 面板框 / 进度条：UI Pack - Pixel Adventure — https://kenney.nl/assets/ui-pack-pixel-adventure
+    （用 border-image 九宫格拉伸，普通/悬停/按下三态）
   - 物品图标仍然用神奇宝贝百科的原作贴图；**物品=原作贴图，界面/光标=Kenney**。
   - 图标是白色 PNG，前端用 `<img>` + `opacity` 控制强弱。
     （试过用 `mask-image` + `currentColor` 上色更优雅，但 `mask-image` 在 `file://` 下不生效，
