@@ -120,11 +120,13 @@ window.G = window.G || {};
   //   区域招牌 → 保留它自己的名字（那些名字本身就是文案的一部分）
   G.productName = function (recipe, berry) {
     if (!berry) return recipe.name;
+    // 无味时配方名里已经带了「无味」，别再拼一次（否则是「无味铺张的无味拿破仑」）
+    if (berry.id === 0) return recipe.name;
     return recipe.specialty ? recipe.name : berry.zh + recipe.name;
   };
 
   // 商品图标：用神奇宝贝百科的原作道具贴图打底，右下角叠一颗投入的树果。
-  const FLAVOR_COLOR = { 辣: "#e05635", 涩: "#714fda", 甜: "#ff9861", 苦: "#77d2e2", 酸: "#e9d93f", 混合: "#8cbf6a" };
+  const FLAVOR_COLOR = { 辣: "#e05635", 涩: "#714fda", 甜: "#ff9861", 苦: "#77d2e2", 酸: "#e9d93f", 混合: "#8cbf6a", 无味: "#9a9a8c" };
 
   // ── 味道画像 ────────────────────────────────────────────────────────────
   // 一件甜品在「辣涩甜苦酸」五个方向上的强度，用来画那张五边形雷达图。
@@ -141,6 +143,12 @@ window.G = window.G || {};
   }
 
   G.flavorProfile = function (recipe, berry) {
+    // 无味：五个角全是 0 —— 没有树果就没有味道，雷达图是空的
+    if (!berry || berry.id === 0 || recipe.flavor === "无味") {
+      const zero = {};
+      G.FLAVORS_5.forEach((f) => { zero[f] = 0; });
+      return zero;
+    }
     const seed = hashStr(G.productKey(recipe.id, berry.id));
     const prof = {};
     G.FLAVORS_5.forEach((f, i) => {
@@ -167,6 +175,8 @@ window.G = window.G || {};
     const top = G.FLAVORS_5.slice().sort((a, b) => prof[b] - prof[a]);
     const hi = top[0], v = prof[hi];
     const lowest = Math.min.apply(null, G.FLAVORS_5.map((f) => prof[f]));
+    // 无味：五个角全 0，别套"平衡"那套话
+    if (v <= 0) return "……什么味道都没有。便宜是有道理的。";
     if (v - lowest < 22) return "哪儿都不突出，但没人会拒绝第二块。";
     if (hi === "甜" && v > 88) return "甜得掉牙——这次是字面意思。";
     if (hi === "辣" && v > 78) return "这真的还算甜品吗。阿特拉斯说好吃。";
@@ -213,7 +223,8 @@ window.G = window.G || {};
   // berry 可以省略（比如还没决定用哪种树果时），省略就只显示底图
   G.productIcon = function (recipe, berry) {
     const base = `<img class="pbase" src="${G.productSprite(recipe)}" alt="">`;
-    const over = berry
+    // 无味（berry.id === 0）没有图可叠，别输出一个坏图片
+    const over = berry && berry.icon
       ? `<img class="pberry" src="${berry.icon}" alt="${berry.zh}">`
       : "";
     return `<span class="picon" title="${recipe.flavor}">${base}${over}</span>`;

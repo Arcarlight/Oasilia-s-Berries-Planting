@@ -151,6 +151,39 @@
       return Object.keys(bad);
     }
 
+    // #check=tripsel：勾一个材料，确认下面那行总价立刻更新（不用点第二次）
+    if (p.check === "tripsel") {
+      const out = [];
+      S.money = 1e6;
+      G.UI.tab = "atlas";
+      G.UI.forceRender();
+      const readQuote = () => {
+        const el = document.querySelector("#tabBody");
+        const m = el.textContent.match(/这一趟：₽([\d.万]+)/);
+        return m ? m[1] : "（没有报价行）";
+      };
+      const before = readQuote();
+      const box = document.querySelector("[data-act='tripToggle']");
+      if (!box) out.push("找不到代购勾选框");
+      else {
+        // 用真实的 pointerdown → click 序列，模拟鼠标
+        const r = box.getBoundingClientRect();
+        const opt = { bubbles: true, cancelable: true, clientX: r.left + 4, clientY: r.top + 4, button: 0 };
+        box.dispatchEvent(new PointerEvent("pointerdown", opt));
+        box.checked = true;
+        box.dispatchEvent(new MouseEvent("click", opt));
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+        G.UI.frame();
+        const after = readQuote();
+        out.push("勾之前：" + before + "　勾之后：" + after);
+        out.push(after !== before && after !== "0" ? "总价立刻更新了 ✓" : "总价没更新 ✗（还是要点第二次）");
+      }
+      const pre2 = document.createElement("pre");
+      pre2.id = "tripselcheck";
+      pre2.textContent = "TRIPSELCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre2);
+    }
+
     // #check=trip：造一趟完整的出行，验证"他回来了"有没有汇总、有没有提示
     if (p.check === "trip") {
       const out = [];

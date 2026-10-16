@@ -651,8 +651,9 @@ window.G = window.G || {};
 
     const berries = items.filter((x) => x.kind === "berry");
     const finds = items.filter((x) => x.kind === "find");
-    if (!berries.length) return { kind: "invalid", why: "得放一颗树果，不然煮出来没味道。" };
-    if (!finds.length) return { kind: "invalid", why: "光放树果煮不出花样，再丢点素材。" };
+    // 树果不放也行 —— 底料对就成糕点，只是「无味」的（五个味道全 0），卖不上价。
+    // 这是软限制：特殊糕点要占掉锅的前好几格，逼玩家每锅都塞一颗树果太死板。
+    if (!finds.length) return { kind: "invalid", why: "光放树果煮不出花样，再丢点底料。" };
 
     // 口味取锅里占多数的那种树果（一样多就按先放的）
     const tally = {};
@@ -660,7 +661,7 @@ window.G = window.G || {};
       const f = G.BERRY_BY_ID[b.id].flavor;
       tally[f] = (tally[f] || 0) + 1;
     });
-    let flavor = null, best = -1;
+    let flavor = "无味", best = -1;   // 一颗树果都没放 → 无味
     berries.forEach((b) => {
       const f = G.BERRY_BY_ID[b.id].flavor;
       if (tally[f] > best) { best = tally[f]; flavor = f; }
@@ -671,7 +672,7 @@ window.G = window.G || {};
     const out = Object.assign({}, ev);
     out.flavor = flavor;
     out.n = n;
-    out.berryId = berries[0].id;
+    out.berryId = berries.length ? berries[0].id : 0;   // 0 = 无味
     out.items = items.slice();
     out.cost = ev.kind === "invalid" ? 0 : G.researchCost(ev.combo ? ev.combo.cat : (ev.cat && ev.cat.id) || "cake", flavor, n, !!ev.spice);
     return out;

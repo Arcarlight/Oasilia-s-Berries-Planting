@@ -656,10 +656,12 @@ window.SIM = {};
     // 特殊糕点要下 4 样底料（两份 + 两份），所以上限放宽到四样；
     // 五样才算"放太杂"
     rState.pot.level = 2;   // 特殊糕点要 5 格起的锅
-    const four2 = G.evaluateResearch(rState, ["flour", "flour", "moomoo", "moomoo"], "辣");
-    check("两份+两份的底料能配成特殊糕点", four2.kind !== "invalid", four2.kind + "/" + (four2.combo || {}).cat);
-    const five2 = G.evaluateResearch(rState, ["flour", "flour", "moomoo", "butter", "sugar"], "辣");
-    check("底料超过四样拦下来", five2.kind === "invalid", five2.kind);
+    const layer4 = G.evaluateResearch(rState, ["flour", "flour", "butter", "butter"], "辣");
+    check("面粉×2+黄油×2 能配成千层酥",
+      layer4.kind === "recipe" && layer4.combo.cat === "layer", layer4.kind + "/" + (layer4.combo || {}).cat);
+    const tooMuch = G.evaluateResearch(rState,
+      ["flour", "flour", "flour", "flour", "flour", "butter", "butter", "butter", "moomoo"], "辣");
+    check("底料超过八样拦下来", tooMuch.kind === "invalid", tooMuch.kind);
     const twoSpice = G.evaluateResearch(rState, ["flour", "moomoo", "cinderpepper", "saltbloom"], "辣");
     check("两种香料拦下来", twoSpice.kind === "invalid", twoSpice.kind);
 
@@ -679,25 +681,48 @@ window.SIM = {};
     sp.maxRegion = 10;
     sp.money = 1e12;
     sp.finds = { flour: 20, moomoo: 20, butter: 20, sugar: 20 };
-    const layerAt = (lv) => {
+    const LAYER = ["flour", "flour", "butter", "butter"];
+    const NAPOLEON = ["flour", "flour", "flour", "flour", "butter", "butter", "butter", "moomoo"];
+    const at = (idv, lv) => {
       sp.pot.level = lv;
-      return G.evaluateResearch(sp, ["flour", "flour", "moomoo", "moomoo"], "甜");
+      return G.evaluateResearch(sp, idv, "甜", idv.length);
     };
-    check("4 格的锅下不了特殊糕点（要 5 格起）",
-      layerAt(1).kind === "invalid" && /锅/.test(layerAt(1).why), layerAt(1).why);
-    check("换成 5 格的锅就能下了", layerAt(2).kind === "recipe" && layerAt(2).combo.cat === "layer",
-      layerAt(2).kind);
+    check("4 格的锅下不了千层酥（面粉×2+黄油×2 加一颗树果要 5 格）",
+      at(LAYER, 1).kind === "invalid" && /锅/.test(at(LAYER, 1).why), at(LAYER, 1).why);
+    check("换成 5 格的锅就能下了", at(LAYER, 2).kind === "recipe" && at(LAYER, 2).combo.cat === "layer",
+      at(LAYER, 2).kind);
     sp.maxRegion = 4;
-    sp.pot.level = 5;
-    check("区域不够照样不行", G.evaluateResearch(sp, ["flour", "flour", "moomoo", "moomoo"], "甜").kind === "invalid");
+    check("区域不够照样不行", at(LAYER, 5).kind === "invalid");
     sp.maxRegion = 10;
-    check("拿破仑要 10 格的锅",
+    check("拿破仑（面粉×4+黄油×3+鲜奶×1）要 10 格的锅",
+      at(NAPOLEON, 4).kind === "invalid" && at(NAPOLEON, 5).kind === "recipe");
+
+    // 树果是软限制：不放也能出锅，但出来的是无味、五个味道全 0、价钱低一截
+    const sTaste = fresh();
+    sTaste.money = 1e12;
+    sTaste.maxRegion = 10;
+    sTaste.pot.level = 2;
+    sTaste.finds = { flour: 9, butter: 9 };
+    ["flour", "flour", "butter", "butter"].forEach((id) => G.engine.potAdd(sTaste, "find", id));
+    const ckNoBerry = G.engine.potCheck(sTaste);
+    check("不放树果也能开火", ckNoBerry.kind === "recipe" && ckNoBerry.flavor === "无味",
+      ckNoBerry.kind + "/" + ckNoBerry.flavor);
+    G.engine.potStir(sTaste);
+    sTaste.clock += 60000 * 1000;
+    const outNoBerry = G.engine.stepPot(sTaste);
+    check("出锅的是无味的", outNoBerry && /无味/.test(outNoBerry.name), outNoBerry && outNoBerry.name);
+    check("无味的雷达图五个角全是 0",
       (function () {
-        sp.pot.level = 4;
-        const no = G.evaluateResearch(sp, ["moomoo", "moomoo", "sugar", "sugar"], "甜");
-        sp.pot.level = 5;
-        const yes = G.evaluateResearch(sp, ["moomoo", "moomoo", "sugar", "sugar"], "甜");
-        return no.kind === "invalid" && yes.kind === "recipe";
+        const [rid, bid] = Object.keys(sTaste.products)[0].split("|");
+        const prof = G.flavorProfile(G.RECIPE_BY_ID[rid], G.BERRY_BY_ID[+bid]);
+        return +bid === 0 && G.FLAVORS_5.every((f) => prof[f] === 0);
+      })());
+    check("无味比正常便宜一个数量级",
+      (function () {
+        const [rid] = Object.keys(sTaste.products)[0].split("|");
+        const r = G.RECIPE_BY_ID[rid];
+        const best = G.BERRIES.slice().sort((a, b) => b.basePrice - a.basePrice)[0];
+        return G.productValue(r, G.FLAVORLESS) * 20 < G.productValue(r, best);
       })());
 
     // 大锅：丢料 → 搅拌 → 出锅（成品直接进仓库，配方要不要记得自己决定）

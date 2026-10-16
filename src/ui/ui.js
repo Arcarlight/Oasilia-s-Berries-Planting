@@ -756,8 +756,10 @@ window.G = window.G || {};
           <td class="sub">区域 ${c.region}${c.potLevel ? "　要" + G.potLevel(c.potLevel).slots + "格以上的锅" : ""}</td></tr>`).join("")}
       </table>
       <div class="sub" style="margin-top:6px">底下那六款特殊糕点（千层酥 / 黑森林 / 螺旋卷 / 奶香圆包 / 可颂 / 拿破仑）
-      要往锅里下<b>两份 + 两份</b>的底料，比普通配方费一倍料，所以价钱也高一档 ——
-      但起始那口 4 格的锅根本放不下，得先换锅。</div>
+      要按<b>具体几份</b>下底料，多一样少一样都成不了型 —— 蛋糕总得有面粉。
+      料占掉锅的前几格，<b>剩下的格子丢树果定味道</b>；一颗不放也能出锅，但那是「无味」的，
+      五个味道全是 0，卖价只有一两百分之一。</div>
+      <div class="sub" style="margin-top:4px">所以锅越大，能做的花样越多：起始那口 4 格的锅连千层酥都放不下，得先换锅。</div>
       <div class="sub" style="margin-top:6px">香料（月见草籽 / 岩盐花 / 火口椒 / 铁壳果 / 霜苔 / 暮色李）是可选的：
       配上对的味道会多提一档，配错了整锅就废了。每个香料适合和不适合什么味道，在${go("store", "仓库")}里能看到。</div>
       <div class="sub" style="margin-top:4px">出锅的成品会直接进仓库；选「记下做法」之后，配方才会出现在${go("kitchen", "加工")}页，
@@ -1072,9 +1074,16 @@ window.G = window.G || {};
       const catName = chk.catName || (chk.cat ? chk.cat.name : "");
       if (chk.kind === "recipe") {
         const rc = G.RECIPE_BY_ID[chk.id] || G.makeResearchRecipe(chk.combo.cat, chk.flavor, chk.spice ? chk.spice.id : null, chk.good, chk.n);
-        h += `<span class="sub">这一锅会出：<b class="gold">${esc(rc ? rc.name : catName)}</b>
+        const tasteless = chk.flavor === "无味";
+        h += `<span class="sub">这一锅会出：<b class="${tasteless ? "" : "gold"}">${esc(rc ? rc.name : catName)}</b>
           　${chk.n} 样料　倍率 ×${rc ? rc.mult : "?"}　研发费 ${money(chk.cost)}</span>`;
-        h += `<div class="sub" style="margin-top:2px">${esc(chk.why)}</div>`;
+        if (tasteless) {
+          // 软限制：树果是可选的，但不放就是无味，价钱差上百倍
+          h += `<div class="sub" style="margin-top:2px;color:#e0b060">锅里一颗树果都没有 —— 这样出来是<b>无味</b>的，
+            五个味道全是 0，卖价只有正常的一两百分之一。要好吃就再丢颗树果进去（剩下的格子都行）。</div>`;
+        } else {
+          h += `<div class="sub" style="margin-top:2px">${esc(chk.why)}</div>`;
+        }
       } else if (chk.kind === "waste") {
         h += `<span class="sub" style="color:#cf5a41">这一锅会煮废：${esc(chk.why)}</span>
           <div class="sub" style="margin-top:2px">料和钱照扣，要试就试吧。</div>`;
@@ -1180,12 +1189,26 @@ window.G = window.G || {};
     ).join(""));
   }
 
-  // 用户正在操作表单控件时不重建 DOM：
-  // 手机上的原生下拉一被销毁就会立刻关闭，表现为"选不中"。
+  // 用户正在操作表单控件时不重建 DOM —— 但只锁"被销毁就出问题"的那几种：
+  //   SELECT   手机上原生下拉被销毁会立刻关闭，表现为"选不中"
+  //   文本框   正在输入时重建会丢焦点和光标
+  // 复选框、单选、按钮、range 这些重建是安全的。
+  // 以前这里把任何 INPUT 都算进去，而且 formLock 是 20 秒 —— 结果在代购页勾一个
+  // 材料之后，下面那行总价要等 20 秒（或者再点一下让焦点移开）才更新。
+  function isTypingControl(el) {
+    if (!el) return false;
+    if (el.tagName === "SELECT" || el.tagName === "TEXTAREA") return true;
+    if (el.tagName === "INPUT") {
+      const t = (el.type || "text").toLowerCase();
+      return t === "text" || t === "number" || t === "search" || t === "password" || t === "email";
+    }
+    return false;
+  }
+
   function formBusy() {
     const body = $("tabBody");
     const el = document.activeElement;
-    if (el && body.contains(el) && /^(SELECT|INPUT|TEXTAREA)$/.test(el.tagName)) return true;
+    if (el && body.contains(el) && isTypingControl(el)) return true;
     return formLock && performance.now() - formLock < 20000;
   }
 
@@ -1641,13 +1664,11 @@ window.G = window.G || {};
   // 表单控件交互期间锁住重建，具体原因见 formBusy()
   document.addEventListener("pointerdown", (e) => {
     const el = e.target;
-    const tag = el && el.tagName;
-    if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") formLock = performance.now();
-    else if (!el.closest || !el.closest("#tabBody")) formLock = 0;   // 点了别处就解锁
+    if (isTypingControl(el)) formLock = performance.now();
+    else if (!el || !el.closest || !el.closest("#tabBody")) formLock = 0;   // 点了别处就解锁
   }, true);
   document.addEventListener("blur", (e) => {
-    const tag = e.target && e.target.tagName;
-    if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") formLock = 0;
+    if (isTypingControl(e.target)) formLock = 0;
   }, true);
 
   // 设置 / 存档弹层

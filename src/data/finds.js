@@ -97,22 +97,33 @@ window.G = window.G || {};
     { need: ["base", "fat", "sweet"], cat: "cookie", region: 9, hint: "面粉 + 黄油 + 砂糖  →  曲奇" },
     { need: ["base", "liquid", "fat"], cat: "bread", region: 10, hint: "面粉 + 鲜奶 + 黄油  →  面包" },
 
-    // ── 特殊糕点：底料要「两份 + 两份」，比普通配方费一倍料 ──
-    // 所以有两道门槛：区域要走到，锅也得够大（4 样底料 + 至少一颗树果 = 5 格起）。
-    // 起始的锅只有 4 格，想下这个手就得先换锅。
-    { need: ["base", "base", "liquid", "liquid"], cat: "layer", region: 5, potLevel: 2,
-      hint: "面粉×2 + 鲜奶×2  →  千层酥" },
-    { need: ["base", "base", "sweet", "sweet"], cat: "blackforest", region: 6, potLevel: 2,
-      hint: "面粉×2 + 砂糖×2  →  黑森林" },
-    { need: ["base", "base", "fat", "fat"], cat: "spiral", region: 7, potLevel: 3,
-      hint: "面粉×2 + 黄油×2  →  螺旋卷" },
-    { need: ["liquid", "liquid", "fat", "fat"], cat: "milkbun", region: 8, potLevel: 3,
-      hint: "鲜奶×2 + 黄油×2  →  奶香圆包" },
-    { need: ["fat", "fat", "sweet", "sweet"], cat: "croissant", region: 9, potLevel: 4,
-      hint: "黄油×2 + 砂糖×2  →  可颂" },
-    { need: ["liquid", "liquid", "sweet", "sweet"], cat: "napoleon", region: 10, potLevel: 5,
-      hint: "鲜奶×2 + 砂糖×2  →  拿破仑" }
+    // ── 特殊糕点 ──
+    // 底料要按「具体几份」下，而且必须**完全吻合**：多一样少一样都成不了型。
+    // 配方按各糕点真实的用料配 —— 面粉是主料，黄油 / 鲜奶 / 砂糖按比例搭。
+    // 底料占掉锅的前几格，剩下的槽位丢树果定味道；一颗不放也能出锅，
+    // 但那就是「无味」的：五个味道全是 0，价钱低一大截（这就是它的软限制）。
+    { need: ["base", "base", "fat", "fat"], cat: "layer", region: 5, potLevel: 2,
+      hint: "面粉×2 + 黄油×2  →  千层酥" },
+    { need: ["base", "base", "sweet", "liquid"], cat: "blackforest", region: 6, potLevel: 2,
+      hint: "面粉×2 + 砂糖×1 + 鲜奶×1  →  黑森林" },
+    { need: ["base", "base", "base", "liquid", "liquid"], cat: "spiral", region: 7, potLevel: 3,
+      hint: "面粉×3 + 鲜奶×2  →  螺旋卷" },
+    { need: ["base", "base", "base", "liquid", "liquid", "sweet"], cat: "milkbun", region: 8, potLevel: 4,
+      hint: "面粉×3 + 鲜奶×2 + 砂糖×1  →  奶香圆包" },
+    { need: ["base", "base", "base", "fat", "fat", "liquid"], cat: "croissant", region: 9, potLevel: 4,
+      hint: "面粉×3 + 黄油×2 + 鲜奶×1  →  可颂" },
+    { need: ["base", "base", "base", "base", "fat", "fat", "fat", "liquid"],
+      cat: "napoleon", region: 10, potLevel: 5,
+      hint: "面粉×4 + 黄油×3 + 鲜奶×1  →  拿破仑" }
   ];
+
+  // 「无味」：锅里一颗树果都没放时出锅的东西。
+  // 它不是失败品 —— 底料下对了照样成糕点，只是五个味道全是 0，卖不上价。
+  G.FLAVORLESS = {
+    id: 0, zh: "无味", flavor: "无味", basePrice: 30, firmness: 1, icon: "",
+    firmnessCn: "—", effect: "就是没什么味道"
+  };
+  G.BERRY_BY_ID[0] = G.FLAVORLESS;
 
   // 废品：搭配失败剩下的那一坨。能卖，但基本不值钱。
   G.WASTE = {
@@ -121,12 +132,13 @@ window.G = window.G || {};
     use: "没别的用。卖了吧，三十块也是钱。"
   };
 
-  const FLAVOR_KEY = { 辣: "spicy", 涩: "dry", 甜: "sweet", 苦: "bitter", 酸: "sour" };
+  const FLAVOR_KEY = { 辣: "spicy", 涩: "dry", 甜: "sweet", 苦: "bitter", 酸: "sour", 无味: "flavorless" };
   G.FLAVOR_KEY = FLAVOR_KEY;
 
   // 研发出来的东西不叫「甜味蛋糕」这种说明书名字，按味道起外号：
   //   普通版偏中性（偏甜、微苦），加了配对香料就往夸张里走（甜得掉牙、辣到冒烟）。
   G.FLAVOR_FUN = {
+    无味: { mild: "无味", rich: "没味道" },
     辣: { mild: "微辣", rich: "辣到冒烟" },
     涩: { mild: "带点涩", rich: "涩得发麻" },
     甜: { mild: "偏甜", rich: "甜得掉牙" },
@@ -236,8 +248,8 @@ window.G = window.G || {};
     const spices = list.filter((f) => f.role === "spice");
 
     if (!cores.length && !spices.length) return { kind: "invalid", why: "一样都没放。" };
-    // 特殊糕点要下 4 样底料（两份 + 两份），所以上限放到四样
-    if (cores.length > 4) return { kind: "invalid", why: "底料放太杂了，先减到四样以内。" };
+    // 特殊糕点最多要 8 样底料（拿破仑：面粉×4 + 黄油×3 + 鲜奶×1），上限放到八样
+    if (cores.length > 8) return { kind: "invalid", why: "底料放太杂了，先减到八样以内。" };
     if (spices.length > 1) return { kind: "invalid", why: "两种香料一起下，味道会互相打架。" };
 
     const spice = spices[0] || null;
