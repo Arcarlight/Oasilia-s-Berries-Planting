@@ -194,7 +194,9 @@ window.G = window.G || {};
     if (v <= 0) return "无味";
     let name = "无味";
     G.FLAVOR_TIERS.forEach((t) => { if (v >= t.min) name = t.name; });
-    return name === "清" ? "清" + (flavor || "") : name;
+    // 最淡那档并进味道里（清甜）；再往上就把味道缀在后面（芬芳 · 甜）
+    if (name === "清") return "清" + (flavor || "");
+    return flavor ? name + " · " + flavor : name;
   };
 
   G.flavorProfile = function (recipe, berry) {

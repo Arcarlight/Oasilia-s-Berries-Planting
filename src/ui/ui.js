@@ -412,8 +412,43 @@ window.G = window.G || {};
 
   // ---------------- 商店 ----------------
 
+  // 种子那一栏（现在排在商店最前面）
+  function shopSeeds() {
+    let h = `<div class="card"><h4>种子</h4>
+      <div class="sub">区域越往后，树果越贵、味道也越浓，做出来的甜品更值钱。</div>`;
+    const byRegion = {};
+    G.BERRIES.forEach((b) => {
+      if (b.region > S.maxRegion) return;
+      (byRegion[b.region] = byRegion[b.region] || []).push(b);
+    });
+    Object.keys(byRegion).forEach((rid) => {
+      const region = G.REGION_BY_ID[rid];
+      h += `<div class="sub" style="margin:6px 0 2px;color:var(--green)">${esc(region.name)}</div>`;
+      byRegion[rid].forEach((b) => {
+        const price = G.seedPrice(S, b);
+        const have = S.seeds[b.id] || 0;
+        h += `<div class="list-item">
+          <span class="picon" style="width:28px;height:28px;flex:0 0 28px">
+            <img class="pbase" src="assets/item/seed_bag.png" alt="">
+            <img class="pberry" src="${b.icon}" alt="${esc(b.zh)}"></span>
+          <span class="grow flavor-${b.flavor}">${esc(b.zh)}
+            <span class="sub">${b.growHours}h／收${b.yield}／果₽${b.basePrice}
+              <span class="ftier small flavor-${b.flavor}">${esc(G.berryFlavorTier(b))}</span></span></span>
+          <span>手上 ${int(have)}</span>
+          <span>种子 ${money(price)}</span>
+          <button class="small" data-act="buySeed" data-p='${attr({ b: b.id, n: 1 })}' ${S.money < price ? "disabled" : ""}>×1</button>
+          <button class="small" data-act="buySeed" data-p='${attr({ b: b.id, n: 10 })}' ${S.money < price * 10 ? "disabled" : ""}>×10</button>
+        </div>`;
+      });
+    });
+    return h + `</div>`;
+  }
+
   function renderShop() {
     let h = "";
+    // 种子放最前面 —— 这里是最常来的一栏，别让玩家每次都往下滚
+    h += shopSeeds();
+
     // 基础食材：阿特拉斯出门会带，但懒得等或者手气差的时候可以直接买，就是贵
     const staples = G.FINDS_FOR_SALE || [];
     if (staples.length) {
@@ -434,29 +469,6 @@ window.G = window.G || {};
       });
       h += `</div>`;
     }
-    // 种子
-    h += `<div class="card"><h4>种子</h4><div class="sub">区域越往后，树果越贵，也越值钱。</div>`;
-    const byRegion = {};
-    G.BERRIES.forEach((b) => {
-      if (b.region > S.maxRegion) return;
-      (byRegion[b.region] = byRegion[b.region] || []).push(b);
-    });
-    Object.keys(byRegion).forEach((rid) => {
-      const region = G.REGION_BY_ID[rid];
-      h += `<div class="sub" style="margin:6px 0 2px;color:var(--green)">${esc(region.name)}</div>`;
-      byRegion[rid].forEach((b) => {
-        const price = G.seedPrice(S, b);
-        h += `<div class="list-item"><img src="${b.icon}" alt="">
-          <span class="grow flavor-${b.flavor}">${esc(b.zh)} <span class="tag ftag flavor-${b.flavor}">${b.flavor}</span>
-            <span class="sub">${b.growHours}h／收${b.yield}／果₽${b.basePrice}</span></span>
-          <span>种子 ${money(price)}</span>
-          <button class="small" data-act="buySeed" data-p='${attr({ b: b.id, n: 1 })}' ${S.money < price ? "disabled" : ""}>×1</button>
-          <button class="small" data-act="buySeed" data-p='${attr({ b: b.id, n: 10 })}' ${S.money < price * 10 ? "disabled" : ""}>×10</button>
-        </div>`;
-      });
-    });
-    h += `</div>`;
-
     // 材料（杂货铺）
     h += `<div class="card"><h4>杂货铺 · 材料（代购，贵）</h4>
       <div class="sub">直接买能立刻拿到，但比让阿特拉斯出门贵得多。他出门还会带点别的东西回来。</div>`;
@@ -855,7 +867,10 @@ window.G = window.G || {};
       const b = G.BERRY_BY_ID[id];
       if (!b) return null;
       return {
-        kind: kind, id: +id, n: S.seeds[id] || 0, name: b.zh + "的种子", img: b.icon,
+        kind: kind, id: +id, n: S.seeds[id] || 0, name: b.zh + "的种子",
+        // 统一用那个扎口布袋，右下角叠一颗对应的树果来区分 —— 和商品图标一个做法
+        img: "assets/item/seed_bag.png",
+        icon: `<span class="picon" title="${esc(b.zh)}的种子"><img class="pbase" src="assets/item/seed_bag.png" alt=""><img class="pberry" src="${b.icon}" alt="${esc(b.zh)}"></span>`,
         desc: "种下去长成" + b.zh + "，大约 " + b.growHours + " 小时。",
         note: "回收只给四成价。收获时回种的那些是白来的，卖掉算白赚；花钱买的再卖就亏了。",
         price: G.seedSellPrice(S, b), priceLabel: "回收价（折损）", tags: [b.flavor],
@@ -903,7 +918,7 @@ window.G = window.G || {};
     const e = storeEntry(kind, id);
     if (!e) return "";
     const on = pick.storeSel && pick.storeSel.kind === kind && String(pick.storeSel.id) === String(id);
-    const inner = kind === "product" && e.icon ? e.icon : `<img src="${e.img}" alt="">`;
+    const inner = e.icon ? e.icon : `<img src="${e.img}" alt="">`;
     return `<button class="wh-cell${on ? " on" : ""}" data-act="storeSel"
       data-p='${attr({ kind: kind, id: id })}' title="${esc(e.name)}">
       ${inner}<span class="wh-n">×${int(n)}</span></button>`;
