@@ -151,6 +151,7 @@
       out.push("回来弹提示：" + (toast ? "弹了 —— " + toast.textContent : "没弹"));
       // 阿特拉斯页要留一条
       G.UI.tab = "atlas"; G.UI.forceRender();
+      // 只要这趟带回了东西（材料也算）就该有记录，不能只看素材
       out.push("阿特拉斯页有记录：" + (/上次出门带回来/.test(document.querySelector("#tabBody").textContent) ? "有" : "没有"));
       G.UI.tab = "market"; G.UI.forceRender();
       const preT = document.createElement("pre");

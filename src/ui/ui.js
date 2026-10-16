@@ -129,7 +129,7 @@ window.G = window.G || {};
         const on = pick.seed === id ? "style=\"outline:2px solid var(--gold)\"" : "";
         return `<div class="row" ${on}>
           <img src="${b.icon}" alt="">
-          <span class="nm flavor-${b.flavor}">${esc(b.zh)} <span class="tag">${b.flavor}</span></span>
+          <span class="nm flavor-${b.flavor}">${esc(b.zh)} <span class="tag ftag flavor-${b.flavor}">${b.flavor}</span></span>
           <span class="sub">×${S.seeds[id]}</span>
           <button class="small" data-act="seed" data-p='${attr({ b: id })}'>选中</button>
           <button class="small" data-act="plantAll" data-p='${attr({ b: id })}'>全种</button>
@@ -170,7 +170,7 @@ window.G = window.G || {};
       const price = G.berrySellPrice(S, b);
       h += `<div class="list-item">
         <img src="${b.icon}" alt="">
-        <span class="grow flavor-${b.flavor}">${esc(b.zh)} <span class="tag">${b.flavor}</span></span>
+        <span class="grow flavor-${b.flavor}">${esc(b.zh)} <span class="tag ftag flavor-${b.flavor}">${b.flavor}</span></span>
         <span>×${int(S.berries[id])}</span>
         <span class="sub">单价 ${money(price)}</span>
         <button class="small" data-act="sellBerry" data-p='${attr({ id: +id, n: 1 })}'>卖1</button>
@@ -447,7 +447,7 @@ window.G = window.G || {};
       byRegion[rid].forEach((b) => {
         const price = G.seedPrice(S, b);
         h += `<div class="list-item"><img src="${b.icon}" alt="">
-          <span class="grow flavor-${b.flavor}">${esc(b.zh)} <span class="tag">${b.flavor}</span>
+          <span class="grow flavor-${b.flavor}">${esc(b.zh)} <span class="tag ftag flavor-${b.flavor}">${b.flavor}</span>
             <span class="sub">${b.growHours}h／收${b.yield}／果₽${b.basePrice}</span></span>
           <span>种子 ${money(price)}</span>
           <button class="small" data-act="buySeed" data-p='${attr({ b: b.id, n: 1 })}' ${S.money < price ? "disabled" : ""}>×1</button>
@@ -500,9 +500,16 @@ window.G = window.G || {};
 
     // 出行
     const rep = S.atlas.report;
-    if (rep && rep.finds && rep.finds.length) {
+    const repMats = (rep && rep.mats) || [];
+    const repFinds = (rep && rep.finds) || [];
+    // 只带回材料、没带回素材的那一趟也要显示 —— 材料同样是"他带回来的东西"
+    if (rep && (repMats.length || repFinds.length || rep.eventText)) {
       h += `<div class="card"><h4>上次出门带回来</h4>`;
-      rep.finds.forEach((f) => {
+      repMats.forEach((m) => {
+        h += `<div class="list-item"><img class="micon" src="assets/mat/${m.id}.png" alt="">
+          <span class="grow">${esc(m.name)}</span><span>×${int(m.count)}</span></div>`;
+      });
+      repFinds.forEach((f) => {
         h += `<div class="list-item"><img class="micon" src="assets/find/${f.id}.png" alt="">
           <span class="grow">${esc(f.name)} <span class="sub">${esc((G.FIND_BY_ID[f.id] || {}).use || "")}</span></span>
           <span>×${int(f.count)}</span>
@@ -884,7 +891,10 @@ window.G = window.G || {};
     h += `<div class="wh-detail-head">`;
     h += e.icon ? e.icon : (e.img ? `<img src="${e.img}" alt="">` : "");
     h += `<div class="wh-detail-meta"><div>持有 <b>×${int(e.n)}</b></div>`;
-    e.tags.forEach((t) => { h += `<span class="tag">${esc(t)}</span>`; });
+    e.tags.forEach((t) => {
+      const isFlavor = (G.FLAVORS_5 || []).indexOf(t) >= 0 || t === "混合";
+      h += `<span class="tag${isFlavor ? " ftag flavor-" + t : ""}">${esc(t)}</span>`;
+    });
     h += `</div></div>`;
     if (e.desc) h += `<div class="sub wh-desc">${esc(e.desc)}</div>`;
     if (e.note) h += `<div class="sub wh-note">${esc(e.note)}</div>`;

@@ -174,7 +174,9 @@ window.G = window.G || {};
     const cat = recipe.cat;
     if (cat === "cube") return "assets/item/cube_" + (recipe.flavor === "混合" ? "辣" : recipe.flavor) + ".png";
     if (cat === "poffin") return "assets/item/poffin_" + (recipe.flavor === "混合" ? "甜" : recipe.flavor) + ".png";
-    if (cat === "jam") return "assets/item/jam.png";
+    // 果酱按口味换罐身颜色（同样是 化け猫缶 的罐子，只改了色相），
+    // 不然五个口味共用一张「甜甜蜜」，全靠右下角那颗树果区分，太偷懒了
+    if (cat === "jam") return "assets/item/jam_" + (recipe.flavor === "混合" ? "辣" : recipe.flavor) + ".png";
     if (cat === "juice") return "assets/item/juice.png";
     if (cat === "pie") return "assets/item/pie.png";
     if (cat === "wine") return "assets/item/wine.png";

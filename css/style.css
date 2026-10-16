@@ -369,6 +369,9 @@ button, .link, select, input, .plot, .dex-cell, summary, label {
 .flavor-辣 { color: #ff7a52; } .flavor-涩 { color: #a48cf0; }
 .flavor-甜 { color: #ffb27a; } .flavor-苦 { color: #7fd8e8; }
 .flavor-酸 { color: #ffe066; } .flavor-混合 { color: var(--green); }
+/* 味道标签：文字用味道色，边框跟随，整块像个小牌子。
+   .flavor-* 的规则在 .tag 之后，同权重下后者生效，所以颜色能盖住 .tag 的 --dim。 */
+.tag.ftag { border-color: currentColor; opacity: .95; }
 
 .bar-outer { height: 10px; background: #0e120a; border: 1px solid var(--line); }
 .bar-outer > i {
@@ -495,7 +498,6 @@ label .micon { margin-right: 4px; }
 .cat-group .row2 { gap: 4px; }
 
 /* 仓库 / 研发：素材的味道标签 */
-.flavor-tag { color: var(--green); }
 #tabBody .list-item > .tag { flex: 0 0 auto; }
 
 /* ---------- 仓库：左边格子墙 + 右边详情栏 ---------- */

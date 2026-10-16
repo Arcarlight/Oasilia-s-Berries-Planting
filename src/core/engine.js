@@ -372,11 +372,12 @@ window.G = window.G || {};
     // 一条"他回来了"的汇总。
     // 原来只有「多带回来：X」这种零碎条目，回来了反而没有一条完整的话，
     // 日志又挤在右侧栏里，很容易看漏。
-    const parts = [];
-    Object.keys(got).forEach((mid) => {
+    // 材料单独列一份：只带回材料、没带回素材的那一趟，页面上也该有东西显示
+    const mats = Object.keys(got).map((mid) => {
       const m = (G.MATERIALS || []).filter((x) => x.id === mid)[0];
-      parts.push((m ? m.name : mid) + "×" + got[mid]);
+      return { id: mid, name: m ? m.name : mid, count: got[mid] };
     });
+    const parts = mats.map((x) => x.name + "×" + x.count);
     finds.forEach((f) => { parts.push(f.name + "×" + f.count); });
     if (extra && extra.seed) {
       const sb = G.BERRY_BY_ID[extra.seed.id];
@@ -389,7 +390,8 @@ window.G = window.G || {};
     state.atlas.report = {
       at: Date.now(),
       summary: summary,
-      got: parts.slice(),
+      got: parts.slice(),                       // 留给老代码看的那份（字符串）
+      mats: mats,                               // 材料（带 id，页面上要显示图标）
       finds: finds.map((f) => ({ id: f.id, name: f.name, count: f.count })),
       eventText: ev ? ev.text : "",
       seed: extra && extra.seed ? extra.seed : null
