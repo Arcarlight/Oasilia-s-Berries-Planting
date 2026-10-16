@@ -675,6 +675,41 @@ window.G = window.G || {};
     });
     h += `</div>`;
 
+    // 制品图鉴：每个品类一行，五个口味各一格，做过就点亮
+    const made = S.madeProducts || {};
+    const total = G.RECIPE_CATS.length * G.FLAVORS_5.length;
+    const got = Object.keys(made).length;
+    h += `<div class="card" style="margin-top:8px"><h4>制品图鉴 ${got}/${total}</h4>
+      <div class="sub">做过一次就点亮。加工台做的和锅里出的都算；
+      同一品类的普通版、强化版、加料版算同一样东西。</div>`;
+    G.RECIPE_CATS.forEach((cat) => {
+      h += `<div class="dex-cat"><span class="dex-cat-name">${esc(cat.name)}${
+        cat.researchOnly ? '<span class="sub">研发专属</span>' : ""}</span>`;
+      h += `<div class="dex-grid dex-grid-sm">`;
+      G.FLAVORS_5.forEach((fl) => {
+        const ok = !!made[cat.id + "|" + fl];
+        h += `<div class="dex-cell ${ok ? "" : "unknown"}"
+          title="${esc(ok ? fl + "味" + cat.name + "　倍率 ×" + cat.mult : "还没做过" + fl + "味的" + cat.name)}">
+          <img src="${G.productSprite({ cat: cat.id, flavor: fl })}" alt="">
+          <div>${ok ? esc(fl + "味") : "？？？"}</div>
+          ${ok ? `<div class="flavor-${fl}">${fl}</div>` : ""}
+        </div>`;
+      });
+      h += `</div></div>`;
+    });
+    // 区域招牌单独列，它们每个区域只有一款
+    h += `<div class="dex-cat"><span class="dex-cat-name">区域招牌<span class="sub">每个区域一款</span></span>
+      <div class="dex-grid dex-grid-sm">`;
+    (G.RECIPES || []).filter((r) => r.specialty).forEach((r) => {
+      const ok = !!S.recipes[r.id];
+      h += `<div class="dex-cell ${ok ? "" : "unknown"}" title="${esc(ok ? r.name : "还没学会这个招牌配方（区域 " + r.region + "）")}">
+        <img src="${G.productSprite(r)}" alt="">
+        <div>${ok ? esc(r.name) : "？？？"}</div>
+        ${ok ? `<div class="flavor-${r.flavor}">${r.flavor}</div>` : ""}
+      </div>`;
+    });
+    h += `</div></div></div>`;
+
     h += `<div class="card" style="margin-top:8px"><h4>${icon("tab-regulars", "ico-h")}常客图鉴</h4><div class="dex-grid">`;
     (G.REGULARS || []).forEach((r) => {
       const st = G.engine.regState(S, r.dex);

@@ -721,3 +721,11 @@ label .micon { margin-right: 4px; }
 .log-head .sub { margin-left: 6px; }
 .log-item ul { margin: 2px 0 0 16px; padding: 0; }
 .log-item li { font-size: 12px; line-height: 1.55; color: var(--dim); }
+
+/* 制品图鉴：一个品类一行，左边品类名右边五个口味 */
+.dex-cat { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.dex-cat-name { flex: 0 0 68px; font-size: 12px; color: var(--green); padding-top: 6px; }
+.dex-cat-name .sub { display: block; font-size: 10px; color: var(--dim); }
+.dex-grid-sm { flex: 1; min-width: 0; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+.dex-grid-sm .dex-cell img { width: 28px; height: 28px; }
+@media (max-width: 860px) { .dex-cat { flex-direction: column; gap: 2px; } .dex-cat-name { flex: none; padding-top: 0; } }

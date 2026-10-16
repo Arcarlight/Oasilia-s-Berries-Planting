@@ -724,6 +724,51 @@ window.SIM = {};
         return r.ok && G.engine.potSlots(potU) > before && G.engine.potStirSecs(potU) < 6;
       })());
 
+    // 制品图鉴：做过一次就点亮，按「品类|口味」记
+    const sDex = fresh();
+    sDex.money = 1e6;
+    sDex.recipes.jam_spicy = true;
+    sDex.berries[1] = 50;
+    check("还没做过时图鉴是空的", Object.keys(sDex.madeProducts || {}).length === 0,
+      JSON.stringify(sDex.madeProducts));
+    check("开工不会点亮图鉴（要等出货）",
+      (function () {
+        G.engine.craft(sDex, "jam_spicy", 1);
+        return Object.keys(sDex.madeProducts || {}).length === 0;
+      })());
+    // 快进到出货
+    for (let t = 0; t < 60; t++) G.advance(sDex, 1);
+    check("做完就点亮了果酱·辣", sDex.madeProducts["jam|辣"] === true,
+      JSON.stringify(sDex.madeProducts));
+    check("同品类同口味的强化版算同一样东西",
+      (function () {
+        const r = G.makeResearchRecipe("jam", "辣", null, false, 4);
+        sDex.recipes[r.id] = true;
+        G.engine.noteMade(sDex, r);
+        return Object.keys(sDex.madeProducts).filter((k) => k === "jam|辣").length === 1;
+      })());
+    check("锅里出锅也点亮图鉴",
+      (function () {
+        const st = fresh();
+        st.money = 1e9; st.maxRegion = 10;
+        st.finds = { flour: 9, moomoo: 9, cinderpepper: 9 };
+        st.berries = { 1: 9 };
+        G.engine.potAdd(st, "berry", 1);
+        G.engine.potAdd(st, "find", "flour");
+        G.engine.potAdd(st, "find", "moomoo");
+        G.engine.potAdd(st, "find", "cinderpepper");
+        G.engine.potStir(st);
+        st.clock += 30000 * 1000;
+        G.engine.stepPot(st);
+        return Object.keys(st.madeProducts).length > 0;
+      })());
+    check("老存档能补出制品图鉴",
+      (function () {
+        const legacy = G.migrate(JSON.parse(JSON.stringify(
+          Object.assign({}, fresh(), { madeProducts: undefined }))));
+        return legacy.madeProducts && typeof legacy.madeProducts === "object";
+      })());
+
     // 存档往返：研发的配方只存 id，读档要按 id 把配方造回来
     // 前面把配方删掉了，这里再搅一锅记下来
     G.engine.potAdd(potS, "berry", 1);

@@ -473,6 +473,7 @@ window.G = window.G || {};
       let n = 1;
       if (extraChance > 0 && Math.random() < Math.min(0.75, extraChance)) n++;
       state.products[j.key] = (state.products[j.key] || 0) + n;
+      A.noteMade(state, G.RECIPE_BY_ID[j.recipeId]);
       state.craftQueue.splice(i, 1);
       state.stats.lastCraft = { key: j.key, n: n, at: now };
     }
@@ -720,6 +721,7 @@ window.G = window.G || {};
     // 料越足，一锅出的成品越多：2-4 样 1 份，5-7 样 2 份，8 样以上 3 份
     const count = chk.n >= 8 ? 3 : chk.n >= 5 ? 2 : 1;
     state.products[key] = (state.products[key] || 0) + count;
+    A.noteMade(state, recipe);
     G.addLog(state, "锅里出了「" + recipe.name + "」×" + count + "。", "good");
     // 做成的东西直接进仓库；要不要顺手把做法记下来，交给玩家决定
     pot.pending = {
@@ -816,6 +818,14 @@ window.G = window.G || {};
     state.money -= price;
     state.finds[id] = (state.finds[id] || 0) + n;
     return { ok: true, count: n, price: price };
+  };
+
+  // 制品图鉴：做过一次就点亮。按「品类|口味」记，不看是哪张配方做的
+  // （同一品类同一口味可能有普通版、强化版、不同料数的版本，算同一样东西）。
+  A.noteMade = function (state, recipe) {
+    if (!recipe || !recipe.cat || !recipe.flavor) return;
+    if (!state.madeProducts) state.madeProducts = {};
+    state.madeProducts[recipe.cat + "|" + recipe.flavor] = true;
   };
 
   // 叫卖：吆喝一声，把摊上最贵的几个生果出手。

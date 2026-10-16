@@ -50,6 +50,7 @@ window.G = window.G || {};
       talentPoints: 0,
       talentSpent: 0,
       dex: {},
+      madeProducts: {},   // 制品图鉴：做过哪些「品类|口味」
       stats: {
         harvested: 0, crafted: 0, sold: 0, clicks: 0, trips: 0, researched: 0,
         revenueRegion: 0, revenueTotal: 0, prestige: 0, orders: 0

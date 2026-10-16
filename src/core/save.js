@@ -99,7 +99,7 @@ window.G = window.G || {};
     merged.atlas.report = (s.atlas && s.atlas.report) || null;
     merged.settings = Object.assign({}, base.settings, s.settings || {});
     ["seeds", "berries", "products", "materials", "finds", "items", "recipes",
-      "regulars", "talents", "dex", "orders"].forEach((k) => {
+      "regulars", "talents", "dex", "madeProducts", "orders"].forEach((k) => {
       merged[k] = Object.assign({}, s[k] || {});
     });
     merged.extraPlots = s.extraPlots || 0;
