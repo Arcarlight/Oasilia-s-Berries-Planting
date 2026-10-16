@@ -56,6 +56,22 @@ def parse_hex(h):
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
+def desaturate(im, keep=0.12):
+    """把颜色抽掉，只留一点残余 —— 用来做「无味」那版。
+    明度不动，所以形状和高光还在，看着就是同一件东西没了味道。"""
+    out = im.copy()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = im.getpixel((x, y))
+            if a == 0:
+                continue
+            h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            if s > 0.05:
+                rr, gg, bb = colorsys.hsv_to_rgb(h, s * keep, v)
+                out.putpixel((x, y), (int(rr * 255), int(gg * 255), int(bb * 255), a))
+    return out
+
+
 def recolor(im, target):
     th, ts, _ = colorsys.rgb_to_hsv(*[c / 255 for c in parse_hex(target)])
     out = im.copy()
@@ -93,6 +109,19 @@ def main():
             path = OUT / ("%s_%s.png" % (cat, flavor))
             recolor(base, color).save(path)
             print("    %s  ← %s" % (path.name, color))
+        # 无味那版：把颜色抽掉
+        path = OUT / ("%s_无味.png" % cat)
+        desaturate(base).save(path)
+        print("    %s  ← 抽掉颜色" % path.name)
+
+    # 宝可方块 / 宝芬 用的是百科的成图，按口味本来就有五张；
+    # 无味那版直接拿「甜」那张抽色。
+    for cat, src in (("cube", "cube_甜.png"), ("poffin", "poffin_甜.png")):
+        p = OUT / src
+        if p.exists():
+            out = OUT / ("%s_无味.png" % cat)
+            desaturate(Image.open(p).convert("RGBA")).save(out)
+            print("    %s  ← 由 %s 抽色" % (out.name, src))
     return 0
 
 

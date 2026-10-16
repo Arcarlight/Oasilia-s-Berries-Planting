@@ -192,8 +192,9 @@ window.G = window.G || {};
 
   G.productSprite = function (recipe) {
     const cat = recipe.cat;
-    if (cat === "cube") return "assets/item/cube_" + (recipe.flavor === "混合" ? "辣" : recipe.flavor) + ".png";
-    if (cat === "poffin") return "assets/item/poffin_" + (recipe.flavor === "混合" ? "甜" : recipe.flavor) + ".png";
+    // 无味（锅里没放树果）有单独一套抽掉颜色的图
+    if (cat === "cube") return "assets/item/cube_" + (recipe.flavor === "无味" ? "无味" : recipe.flavor === "混合" ? "辣" : recipe.flavor) + ".png";
+    if (cat === "poffin") return "assets/item/poffin_" + (recipe.flavor === "无味" ? "无味" : recipe.flavor === "混合" ? "甜" : recipe.flavor) + ".png";
     // 这四类按口味换图：底都是 化け猫缶 的图标，只把"该变色的那部分"换了色相
     //  果酱 → 罐身   果汁 → 杯里的液体   果酒 → 瓶身   树果派 → 馅和果子
     // 以前五个口味共用一张百科的占位图，全靠右下角那颗树果区分，太偷懒了。

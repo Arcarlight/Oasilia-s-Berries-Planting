@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>最糟糕的一桌</title>
+<!-- 截图用的小页面：把游戏里"最糟糕"的那些料理排成一张图。
+     复用游戏自己的样式和素材，所以字体、配色、图标都是原生的。
+     跑法见 README 的验收工具那节。 -->
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  html, body { background: #171d12; }
+  #sheet { width: 1180px; padding: 26px 30px 30px; }
+  #sheet h1 { font-size: 26px; color: var(--gold); margin: 0 0 4px; font-weight: 400; }
+  #sheet .lead { color: var(--dim); font-size: 13px; margin-bottom: 4px; }
+  #sheet .lead b { color: #cf5a41; }
+  .worst-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-bottom: 1px solid #2b3421;
+  }
+  .worst-row:last-child { border-bottom: none; }
+  .worst-row .rank { width: 26px; color: #6f7a5e; font-size: 12px; text-align: right; }
+  .worst-row .picon { width: 34px; height: 34px; flex: 0 0 34px; }
+  .worst-row .picon .pbase { width: 34px; height: 34px; }
+  .worst-row .nm { flex: 1; min-width: 0; font-size: 14px; }
+  .worst-row .nm .sub { display: block; font-size: 11px; color: var(--dim); }
+  .worst-row .price { width: 108px; text-align: right; color: #cf5a41; font-size: 13px; }
+  .worst-row .cmp { width: 150px; text-align: right; color: var(--dim); font-size: 12px; }
+  .worst-row .mini { width: 74px; height: 66px; flex: 0 0 74px; }
+  .head-row { color: var(--green); font-size: 11px; border-bottom: 1px solid #3a4a2c; }
+  .head-row div { padding-bottom: 3px; }
+  #sheet .foot { margin-top: 14px; color: var(--dim); font-size: 12px; line-height: 1.8; }
+  #sheet .foot b { color: var(--gold); }
+  .band { margin-top: 20px; }
+  .band h2 { font-size: 15px; color: var(--green); margin: 0 0 4px; font-weight: 400; }
+</style>
+</head>
+<body>
+<div id="sheet">
+  <h1>菲洛若亚大陆 · 最糟糕的一桌</h1>
+  <div class="lead">锅里一颗树果都不放时出锅的那些。底料下对了照样成糕点，但<b>五个味道全是 0</b>。</div>
+  <div class="lead" id="stamp"></div>
+  <div id="out"></div>
+</div>
+
+<script src="../src/data/build.js"></script>
+<script src="../src/core/format.js"></script>
+<script src="../src/data/berries.js"></script>
+<script src="../src/data/regions.js"></script>
+<script src="../src/data/products.js"></script>
+<script src="../src/data/talents.js"></script>
+<script src="../src/data/regulars.js"></script>
+<script src="../src/data/atlas.js"></script>
+<script src="../src/data/finds.js"></script>
+<script src="../src/core/state.js"></script>
+<script src="../src/core/save.js"></script>
+<script src="../src/core/econ.js"></script>
+<script src="../src/core/engine.js"></script>
+<script>
+(function () {
+  const G = window.G;
+  const S = G.newState();
+  S.maxRegion = 10;
+  S.pot.level = 6;
+
+  // 每个搭配挑一份底料凑出来（和锅里一致）
+  function pickFor(combo) {
+    const out = [];
+    combo.need.forEach((role) => {
+      const f = G.FINDS.filter((x) => x.role === role)[0];
+      if (f) out.push(f.id);
+    });
+    if (combo.requireSpice) out.push(G.FINDS.filter((x) => x.role === "spice")[0].id);
+    return out;
+  }
+
+  const bestBerry = G.BERRIES.slice().sort((a, b) => b.basePrice - a.basePrice)[0];
+  const rows = [];
+
+  G.RESEARCH_COMBOS.forEach((combo) => {
+    const pick = pickFor(combo);
+    const n = pick.length;
+    const ev = G.evaluateResearch(S, pick, "无味", n);
+    if (ev.kind !== "recipe") return;
+    const r = G.makeResearchRecipe(ev.combo.cat, "无味", ev.spice ? ev.spice.id : null, ev.good, n);
+    const cat = G.RECIPE_CATS.filter((c) => c.id === combo.cat)[0];
+    // 同一锅底料，换成最贵的树果能卖多少
+    const rich = S.berries[bestBerry.id] = 999;
+    const withBerry = G.makeResearchRecipe(ev.combo.cat, bestBerry.flavor, ev.spice ? ev.spice.id : null, false, n);
+    rows.push({
+      r: r, cat: cat, n: n,
+      price: G.productValue(r, G.FLAVORLESS),
+      other: G.productValue(withBerry, bestBerry),
+      berryName: bestBerry.zh,
+      hint: combo.hint
+    });
+  });
+  rows.sort((a, b) => a.price - b.price);
+
+  const WASTE = G.WASTE.price;
+  const maxPrice = Math.max.apply(null, rows.map((x) => x.price).concat([WASTE]));
+
+  function radarSVG(prof) {
+    const F = G.FLAVORS_5;
+    const cx = 34, cy = 30, R = 22;
+    const pt = (i, r) => {
+      const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+      return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+    };
+    const fmt = (p) => p[0].toFixed(1) + "," + p[1].toFixed(1);
+    const grid = [0.34, 0.67, 1].map((k) =>
+      `<polygon points="${F.map((_, i) => fmt(pt(i, R * k))).join(" ")}" class="radar-grid"/>`).join("");
+    const spokes = F.map((_, i) => {
+      const p = pt(i, R);
+      return `<line x1="${cx}" y1="${cy}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}" class="radar-spoke"/>`;
+    }).join("");
+    const d = F.map((f, i) => fmt(pt(i, R * Math.max(0.03, prof[f] / 100)))).join(" ");
+    return `<svg class="mini" viewBox="0 0 68 60">${grid}${spokes}
+      <polygon points="${d}" class="radar-line" style="stroke:#5a6550"/></svg>`;
+  }
+
+  let h = `<div class="band"><h2>一、十六款「无味」</h2>`;
+  h += `<div class="worst-row head-row"><div class="rank"></div><div style="width:34px"></div>
+    <div class="nm">名字</div><div class="price" style="color:var(--green)">无味卖价</div>
+    <div class="cmp">放最贵的树果</div><div class="mini" style="color:var(--green);font-size:11px;text-align:center">味道</div></div>`;
+  rows.forEach((x, i) => {
+    const prof = G.flavorProfile(x.r, G.FLAVORLESS);
+    h += `<div class="worst-row">
+      <div class="rank">${i + 1}</div>
+      ${G.productIcon(x.r, G.FLAVORLESS)}
+      <div class="nm">${x.r.name}<span class="sub">${x.hint}　${x.n} 样料</span></div>
+      <div class="price">₽${G.fmt(x.price)}</div>
+      <div class="cmp">₽${G.fmt(x.other)}（${x.berryName}）</div>
+      ${radarSVG(prof)}
+    </div>`;
+  });
+  h += `</div>`;
+
+  h += `<div class="band"><h2>二、真正的垫底</h2>
+    <div class="worst-row">
+      <div class="rank">☠</div>
+      <div style="width:34px;flex:0 0 34px;text-align:center;font-size:22px">💀</div>
+      <div class="nm">失败品<span class="sub">${G.WASTE.desc}</span></div>
+      <div class="price">₽${G.fmt(WASTE)}</div>
+      <div class="cmp">没有味道，也没有别的</div>
+      <div class="mini"></div>
+    </div></div>`;
+
+  const worst = rows[0], best = rows[rows.length - 1];
+  h += `<div class="foot">
+    最便宜的一款是<b>${worst.r.name}</b>，₽${G.fmt(worst.price)}；
+    同样一锅底料换成${best.berryName}能卖 ₽${G.fmt(best.other)}，差 <b>${Math.round(best.other / Math.max(1, worst.price))}</b> 倍。<br>
+    十六款无味的雷达图全是空心的 —— 五个味道一个都没有，所以只能卖个材料钱。
+    <b>失败品</b>更惨：连糕点都不是，₽${G.fmt(WASTE)}，只够买半颗种子。
+  </div>`;
+
+  // productSprite 返回的是相对仓库根目录的路径（游戏自己跑在根上），
+  // 这个页面在 tools/ 下面，所以要补一层 ../
+  document.getElementById("out").innerHTML = h.replace(/src="assets\//g, 'src="../assets/');
+  // 顺便把内容高度报出来，截图时好定窗口尺寸
+  window.__h = Math.ceil(document.getElementById("sheet").getBoundingClientRect().height);
+  document.title = "最糟糕的一桌 h=" + window.__h;
+  document.getElementById("stamp").textContent =
+    "游戏版本 " + (G.BUILD.version || "?") + "　build " + (G.BUILD.build || 0) +
+    "　共 " + rows.length + " 款无味 + 1 款失败品";
+})();
+</script>
+</body>
+</html>
