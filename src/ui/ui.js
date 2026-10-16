@@ -664,7 +664,8 @@ window.G = window.G || {};
   function renderDex() {
     const known = Object.keys(S.dex).length;
     let h = `<div class="card"><h4>${icon("tab-dex", "ico-h")}树果图鉴 ${known}/${G.BERRIES.length}</h4>
-      <div class="sub">见过就点亮。种过、买过种子、或者阿特拉斯带回来的都算。</div></div>`;
+      <div class="sub">见过就点亮。种过、买过种子、或者阿特拉斯带回来的都算。</div>
+      <div class="sub">越贵区域的果子味道越浓（最高 ×2.4），做出来的甜品卖价更高、交给对口的常客加成也更多。</div></div>`;
     h += `<div class="dex-grid">`;
     G.BERRIES.forEach((b) => {
       const seen = S.dex[b.id];
@@ -956,7 +957,11 @@ window.G = window.G || {};
     // 甜品：画一张五边形味道图，配一句吐槽
     if (e.kind === "product" && e.recipe && e.berry) {
       const prof = G.flavorProfile(e.recipe, e.berry);
+      const peak = G.flavorIntensity(e.recipe, e.berry);
+      // 浓度是要给玩家看的：果子越贵越浓，售价和常客加成也越高
       h += `<div class="radar-wrap">${radarChart(prof)}
+        <div class="radar-verdict">味道浓度 <b>${peak}</b>（${esc(G.flavorWord(peak))}）
+          　常客对上这个味道 ×${G.flavorMult(e.recipe.flavor, { flavor: e.recipe.flavor, dislike: "" }, peak).toFixed(2)}</div>
         <div class="radar-verdict">${esc(G.flavorVerdict(prof))}</div></div>`;
     }
     h += `<div class="wh-price">${e.priceLabel} <b>${money(e.price)}</b></div>`;

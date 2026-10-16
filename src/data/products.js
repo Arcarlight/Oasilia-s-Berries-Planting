@@ -110,9 +110,17 @@ window.G = window.G || {};
   // 商品在库存里的键：配方 + 投入树果 id（投入越贵，商品越值钱）
   G.productKey = function (recipeId, berryId) { return recipeId + "|" + berryId; };
 
+  // 味道浓的，价钱上要体现出来 —— 不然"浓"就只是雷达图上好看了。
+  // 55 分以下不加（淡的没资格要价），满 99 分加 30%。
+  G.FLAVOR_VALUE_BONUS = 0.30;
+  G.flavorValueBonus = function (peak) {
+    return 1 + Math.max(0, Math.min(1, (peak - 55) / 44)) * G.FLAVOR_VALUE_BONUS;
+  };
+
   G.productValue = function (recipe, berry) {
     const firm = 1 + Math.max(0, (berry.firmness - 1) * 0.05);
-    return Math.floor(berry.basePrice * recipe.needCount * recipe.mult * firm);
+    const peak = G.flavorIntensity(recipe, berry);
+    return Math.floor(berry.basePrice * recipe.needCount * recipe.mult * firm * G.flavorValueBonus(peak));
   };
 
   // 商品叫法：树果名放最前，一眼看得出这份东西是用哪种果子做的。
@@ -142,6 +150,32 @@ window.G = window.G || {};
     return h >>> 0;
   }
 
+  // 味道浓度：果子越贵越浓（区域 1 的 ₽6 → ×1.0，区域 10 的 ₽5000 → ×2.4）。
+  // 同一区域里精品/量产的价格差不大，所以浓度也差不多 —— 浓度是"代"的差别，
+  // 精品/量产是"一颗换几颗"的差别，两条轴不打架。
+  const PRICE_LO = 6, PRICE_HI = 5400;
+  G.berryFlavorPower = function (berry) {
+    if (!berry || berry.id === 0) return 0;
+    const t = Math.log(Math.max(PRICE_LO, berry.basePrice) / PRICE_LO) / Math.log(PRICE_HI / PRICE_LO);
+    return 1 + 1.4 * Math.max(0, Math.min(1, t));
+  };
+
+  // 浓度：取味道画像里最高的那一角（0~100）。售价和常客加成都看它。
+  G.flavorIntensity = function (recipe, berry) {
+    const prof = G.flavorProfile(recipe, berry);
+    let peak = 0;
+    G.FLAVORS_5.forEach((f) => { if (prof[f] > peak) peak = prof[f]; });
+    return peak;
+  };
+
+  G.flavorWord = function (v) {
+    if (v <= 0) return "没味道";
+    if (v < 45) return "淡";
+    if (v < 65) return "有点味道";
+    if (v < 85) return "够味";
+    return "浓";
+  };
+
   G.flavorProfile = function (recipe, berry) {
     // 无味：五个角全是 0 —— 没有树果就没有味道，雷达图是空的
     if (!berry || berry.id === 0 || recipe.flavor === "无味") {
@@ -150,14 +184,16 @@ window.G = window.G || {};
       return zero;
     }
     const seed = hashStr(G.productKey(recipe.id, berry.id));
+    const power = G.berryFlavorPower(berry) || 1;
     const prof = {};
     G.FLAVORS_5.forEach((f, i) => {
-      // 底色：每种味道都有一点点，多少由种子决定，像是"这一锅的底子"
-      prof[f] = 6 + ((seed >>> (i * 3)) & 15);
+      // 底色：每种味道都有一点点，多少由种子决定，像是"这一锅的底子"。
+      // 果子越浓，这一层也越明显 —— 雷达图整个鼓起来。
+      prof[f] = Math.min(96, Math.round((6 + ((seed >>> (i * 3)) & 15)) * Math.pow(power, 0.8)));
     });
     // 主味：配方本身的味道，料越足越浓
     const n = recipe.potCount || 2;
-    prof[recipe.flavor] = Math.min(97, 60 + n * 4);
+    prof[recipe.flavor] = Math.min(99, Math.round((56 + n * 3.6) * Math.pow(power, 0.5)));
     // 香料再顶一角
     const sp = recipe.spice ? G.FIND_BY_ID[recipe.spice] : null;
     if (sp && sp.flavor !== recipe.flavor) {

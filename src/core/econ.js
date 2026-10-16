@@ -121,11 +121,15 @@ window.G = window.G || {};
     return Math.max(1, Math.floor(berry.basePrice * (1 + b.sellBonus) * (1 + b.allBonus)));
   };
 
-  // 卖给特定常客：口味匹配决定倍率
-  G.flavorMult = function (productFlavor, regular) {
+  // 卖给特定常客：口味对上就有加成，而且**味道越浓加成越高**
+  // （以前是死板的 ×1.5，淡淡的一口和浓得发苦的一个价，说不过去）。
+  G.flavorMult = function (productFlavor, regular, peak) {
     if (!regular) return 1;
-    if (productFlavor === "混合") return 1.25;
-    if (productFlavor === regular.flavor) return 1.5;
+    // 55 分以下 = 1.40，满 99 分 = 1.75；平均下来和原来的 1.5 差不多
+    const t = Math.max(0, Math.min(1, ((peak || 0) - 55) / 44));
+    const kick = 1.40 + 0.35 * t;
+    if (productFlavor === "混合") return 1 + (kick - 1) * 0.5;
+    if (productFlavor === regular.flavor) return kick;
     if (productFlavor === regular.dislike) return 0.8;
     return 1.0;
   };
@@ -138,7 +142,7 @@ window.G = window.G || {};
     v *= (1 + b.sellBonus) * (1 + b.allBonus);
     if (b.flavorSell && recipe.flavor === b.flavorSell) v *= (1 + b.flavorBonus);
     if (regular) {
-      v *= G.flavorMult(recipe.flavor, regular);
+      v *= G.flavorMult(recipe.flavor, regular, G.flavorIntensity(recipe, berry));
       v *= G.affinityMult(regular.aff);
     }
     return Math.max(1, Math.floor(v));

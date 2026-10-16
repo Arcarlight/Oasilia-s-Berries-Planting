@@ -838,6 +838,41 @@ window.SIM = {};
         return r.ok && G.engine.potSlots(potU) > before && G.engine.potStirSecs(potU) < 6;
       })());
 
+    // 味道浓度：果子越贵越浓，浓度影响售价和常客加成
+    // （以前 flavorProfile 只在界面上画个雷达图，一点数值都不影响）
+    const cheap = G.BERRIES.slice().sort((a, b) => a.basePrice - b.basePrice)[0];
+    const rich = G.BERRIES.slice().sort((a, b) => b.basePrice - a.basePrice)[0];
+    check("果子越贵，味道越浓",
+      G.berryFlavorPower(rich) > G.berryFlavorPower(cheap) &&
+      G.berryFlavorPower(cheap) === 1,
+      cheap.zh + " ×" + G.berryFlavorPower(cheap).toFixed(2) + " → " +
+      rich.zh + " ×" + G.berryFlavorPower(rich).toFixed(2));
+    check("浓度有封顶，雷达图不会画到框外",
+      (function () {
+        const r = G.makeResearchRecipe("napoleon", rich.flavor, null, false, 12);
+        const p = G.flavorProfile(r, rich);
+        return G.FLAVORS_5.every((f) => p[f] >= 0 && p[f] <= 99);
+      })());
+    check("同一张配方，贵果子做出来更浓",
+      (function () {
+        const r = G.RECIPES.filter((x) => !x.specialty)[0];
+        return G.flavorIntensity(r, rich) > G.flavorIntensity(r, cheap);
+      })());
+    check("浓的卖得更贵",
+      (function () {
+        const r = G.RECIPES.filter((x) => !x.specialty)[0];
+        return G.productValue(r, rich) > G.productValue(r, cheap) &&
+          G.flavorValueBonus(G.flavorIntensity(r, rich)) > 1;
+      })());
+    check("对上常客口味时，浓的加成更高",
+      (function () {
+        const r = G.RECIPES.filter((x) => !x.specialty)[0];
+        const reg = { flavor: r.flavor, dislike: "口" };
+        return G.flavorMult(r.flavor, reg, G.flavorIntensity(r, rich)) >
+          G.flavorMult(r.flavor, reg, G.flavorIntensity(r, cheap));
+      })());
+    check("无味不吃浓度加成", G.flavorValueBonus(0) === 1 && G.berryFlavorPower(G.FLAVORLESS) === 0);
+
     // 种子能卖能丢（以前只能囤着）
     const sSeed = fresh();
     sSeed.money = 0;
