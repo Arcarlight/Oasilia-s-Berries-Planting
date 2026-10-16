@@ -729,3 +729,14 @@ label .micon { margin-right: 4px; }
 .dex-grid-sm { flex: 1; min-width: 0; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
 .dex-grid-sm .dex-cell img { width: 28px; height: 28px; }
 @media (max-width: 860px) { .dex-cat { flex-direction: column; gap: 2px; } .dex-cat-name { flex: none; padding-top: 0; } }
+
+/* 味道浓度：用描边字显示，颜色就是那个味道的色。
+   paint-order: stroke fill 让描边压在填充下面，所以字还是实的、外圈一圈深色。 */
+.ftier {
+  font-size: 15px; letter-spacing: 1px; margin-left: 2px;
+  -webkit-text-stroke: 3.5px #10150c;
+  paint-order: stroke fill;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .5);
+}
+.ftier.small { font-size: 12px; -webkit-text-stroke: 2.6px #10150c; }
+.ftier-无味 { color: #8b917f; }

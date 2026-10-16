@@ -168,12 +168,22 @@ window.G = window.G || {};
     return peak;
   };
 
-  G.flavorWord = function (v) {
-    if (v <= 0) return "没味道";
-    if (v < 45) return "淡";
-    if (v < 65) return "有点味道";
-    if (v < 85) return "够味";
-    return "浓";
+  // 浓度分档 —— 界面上用描边字显示，一眼看得出浓淡：
+  //   无味 / 清甜·清涩（淡） / 芬芳 / 浓郁 / 厚重
+  // 只有最淡那一档带具体味道，再往上就是纯粹的程度词了。
+  G.FLAVOR_TIERS = [
+    { min: 0, name: "无味" },
+    { min: 1, name: "清" },        // 清 + 味道
+    { min: 45, name: "芬芳" },
+    { min: 65, name: "浓郁" },
+    { min: 85, name: "厚重" }
+  ];
+  G.flavorTier = function (peak, flavor) {
+    const v = peak || 0;
+    if (v <= 0) return "无味";
+    let name = "无味";
+    G.FLAVOR_TIERS.forEach((t) => { if (v >= t.min) name = t.name; });
+    return name === "清" ? "清" + (flavor || "") : name;
   };
 
   G.flavorProfile = function (recipe, berry) {

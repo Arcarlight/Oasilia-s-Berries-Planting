@@ -864,7 +864,7 @@ window.G = window.G || {};
         img: G.productSprite ? null : null, icon: G.productIcon(r, b),
         recipe: r, berry: b,
         desc: "用 " + b.zh + " 做出来的" + (r.catName || "") + "，基础倍率 ×" + r.mult + "。",
-        note: "交给喜欢" + r.flavor + "味的常客，价钱多五成。",
+        note: "交给喜欢" + r.flavor + "味的常客有加成，味道越浓加得越多（最多 +75%）。",
         price: G.marketPrice(S, r, b), priceLabel: "市场价", tags: [r.flavor],
         actions: [["sellProduct", "卖1", { k: id, n: 1 }], ["sellProduct", "卖光", { k: id, n: 9999 }]]
       };
@@ -958,10 +958,15 @@ window.G = window.G || {};
     if (e.kind === "product" && e.recipe && e.berry) {
       const prof = G.flavorProfile(e.recipe, e.berry);
       const peak = G.flavorIntensity(e.recipe, e.berry);
-      // 浓度是要给玩家看的：果子越贵越浓，售价和常客加成也越高
+      // 浓度是要给玩家看的：果子越贵越浓，售价和常客加成也越高。
+      // 分档用描边字，颜色就是味道的色 —— 无味是灰的。
+      const tier = G.flavorTier(peak, e.recipe.flavor);
+      const tierCls = peak > 0 ? "flavor-" + e.recipe.flavor : "ftier-无味";
       h += `<div class="radar-wrap">${radarChart(prof)}
-        <div class="radar-verdict">味道浓度 <b>${peak}</b>（${esc(G.flavorWord(peak))}）
-          　常客对上这个味道 ×${G.flavorMult(e.recipe.flavor, { flavor: e.recipe.flavor, dislike: "" }, peak).toFixed(2)}</div>
+        <div class="radar-verdict">
+          <span class="ftier ${tierCls}">${esc(tier)}</span>
+          <span style="margin-left:6px">浓度 ${peak}　常客对上这个味道 ×${G.flavorMult(e.recipe.flavor, { flavor: e.recipe.flavor, dislike: "" }, peak).toFixed(2)}</span>
+        </div>
         <div class="radar-verdict">${esc(G.flavorVerdict(prof))}</div></div>`;
     }
     h += `<div class="wh-price">${e.priceLabel} <b>${money(e.price)}</b></div>`;
