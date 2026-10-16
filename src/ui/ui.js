@@ -412,6 +412,13 @@ window.G = window.G || {};
 
   // ---------------- 商店 ----------------
 
+  // 种子袋的图：布袋按味道染色（化け猫缶 #0163 那个扎口袋），
+  // 面粉是 #0442、砂糖是 #0443，都是扁袋子，别混。
+  function seedBagImg(b) {
+    const fl = G.FLAVORS_5.indexOf(b.flavor) >= 0 ? b.flavor : "甜";
+    return "assets/item/seedbag_" + fl + ".png";
+  }
+
   // 种子那一栏（现在排在商店最前面）
   function shopSeeds() {
     let h = `<div class="card"><h4>种子</h4>
@@ -429,7 +436,7 @@ window.G = window.G || {};
         const have = S.seeds[b.id] || 0;
         h += `<div class="list-item">
           <span class="picon" style="width:28px;height:28px;flex:0 0 28px">
-            <img class="pbase" src="assets/item/seed_bag.png" alt="">
+            <img class="pbase" src="${seedBagImg(b)}" alt="">
             <img class="pberry" src="${b.icon}" alt="${esc(b.zh)}"></span>
           <span class="grow flavor-${b.flavor}">${esc(b.zh)}
             <span class="sub">${b.growHours}h／收${b.yield}／果₽${b.basePrice}
@@ -868,9 +875,9 @@ window.G = window.G || {};
       if (!b) return null;
       return {
         kind: kind, id: +id, n: S.seeds[id] || 0, name: b.zh + "的种子",
-        // 统一用那个扎口布袋，右下角叠一颗对应的树果来区分 —— 和商品图标一个做法
-        img: "assets/item/seed_bag.png",
-        icon: `<span class="picon" title="${esc(b.zh)}的种子"><img class="pbase" src="assets/item/seed_bag.png" alt=""><img class="pberry" src="${b.icon}" alt="${esc(b.zh)}"></span>`,
+        // 扎口布袋按味道染过色，右下角再叠一颗对应的树果 —— 和商品图标一个做法
+        img: seedBagImg(b),
+        icon: `<span class="picon" title="${esc(b.zh)}的种子"><img class="pbase" src="${seedBagImg(b)}" alt=""><img class="pberry" src="${b.icon}" alt="${esc(b.zh)}"></span>`,
         desc: "种下去长成" + b.zh + "，大约 " + b.growHours + " 小时。",
         note: "回收只给四成价。收获时回种的那些是白来的，卖掉算白赚；花钱买的再卖就亏了。",
         price: G.seedSellPrice(S, b), priceLabel: "回收价（折损）", tags: [b.flavor],

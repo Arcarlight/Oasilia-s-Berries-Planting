@@ -36,11 +36,17 @@ OUT = ROOT / "assets" / "item"
 #   果酒 #0329  瓶身和标签跟着换
 #   树果派 #0272 圆扁的果子酥。注意 #0277 是牛排不是派（看走眼过一次），
 #                  #0271 是带盘子的果塔、已经被「挞」占用，所以派只能挑这个
+# 每项是 (名字, 图标编号, 饱和度阈值, 饱和度缩放)。后两项可以省，省了就用默认值。
+#
+#   种子袋 #0163 是个扎口圆布袋。它主体是 s≈0.2 的米色，用默认阈值(0.22)吃不到色，
+#   所以阈值放到 0.12；再压低饱和度(0.55)，出来像"染过色的布"，不会艳得不像布袋。
+#   面粉是 #0442、砂糖是 #0443，都是扁袋子 —— 别拿那两个当种子袋，会撞车。
 TARGETS = [
-    ("jam", 284),
-    ("juice", 394),
-    ("wine", 329),
-    ("pie", 272),
+    ("jam", 284, 0.22, 0.82),
+    ("juice", 394, 0.22, 0.82),
+    ("wine", 329, 0.22, 0.82),
+    ("pie", 272, 0.22, 0.82),
+    ("seedbag", 163, 0.12, 0.55),
 ]
 
 # 五个口味的主题色，和 src/data/products.js 里的 FLAVOR_COLOR 保持一致
@@ -72,7 +78,7 @@ def desaturate(im, keep=0.12):
     return out
 
 
-def recolor(im, target):
+def recolor(im, target, smin=SAT_MIN, sat_scale=SAT_SCALE):
     th, ts, _ = colorsys.rgb_to_hsv(*[c / 255 for c in parse_hex(target)])
     out = im.copy()
     for y in range(im.height):
@@ -81,8 +87,8 @@ def recolor(im, target):
             if a == 0:
                 continue
             _, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-            if s > SAT_MIN and v > VAL_MIN:
-                rr, gg, bb = colorsys.hsv_to_rgb(th, min(1.0, ts * SAT_SCALE), v)
+            if s > smin and v > VAL_MIN:
+                rr, gg, bb = colorsys.hsv_to_rgb(th, min(1.0, ts * sat_scale), v)
                 out.putpixel((x, y), (int(rr * 255), int(gg * 255), int(bb * 255), a))
     return out
 
@@ -100,14 +106,17 @@ def main():
         return 1
     only = sys.argv[2] if len(sys.argv) > 2 else None
     OUT.mkdir(parents=True, exist_ok=True)
-    for cat, idx in TARGETS:
+    for entry in TARGETS:
+        cat, idx = entry[0], entry[1]
+        smin = entry[2] if len(entry) > 2 else 0.22
+        sat_scale = entry[3] if len(entry) > 3 else 0.82
         if only and only != cat:
             continue
         base = Image.open(files[idx]).convert("RGBA")
-        print("%s ← #%d %s" % (cat, idx, os.path.basename(files[idx])))
+        print("%s ← #%d %s（阈值 %.2f，饱和度 ×%.2f）" % (cat, idx, os.path.basename(files[idx]), smin, sat_scale))
         for flavor, color in FLAVORS:
             path = OUT / ("%s_%s.png" % (cat, flavor))
-            recolor(base, color).save(path)
+            recolor(base, color, smin, sat_scale).save(path)
             print("    %s  ← %s" % (path.name, color))
         # 无味那版：把颜色抽掉
         path = OUT / ("%s_无味.png" % cat)
