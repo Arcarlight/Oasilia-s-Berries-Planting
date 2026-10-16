@@ -1906,7 +1906,15 @@ window.G = window.G || {};
     UI.toast("删掉了，从头开始。");
   };
 
-  UI.replaceState = function (s) { S = s; UI.state = s; };
+  // 换掉整份存档（重新开始 / 读档 / 导入）。
+  // 光改这里的引用不够 —— main.js 自己也持有一份 state，自动存档、
+  // visibilitychange、beforeunload 存的都是那一份。不通知它的话，
+  // 点完"重新开始"下一次自动存档就把旧数据写回去了，刷新一看全回来了。
+  UI.replaceState = function (s) {
+    S = s;
+    UI.state = s;
+    if (G.onStateReplace) G.onStateReplace(s);
+  };
 
   UI.init = function (state) {
     S = state;

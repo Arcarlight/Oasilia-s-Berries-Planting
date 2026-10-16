@@ -151,6 +151,58 @@
       return Object.keys(bad);
     }
 
+    // #check=reset：重新开始之后，刷新不该把旧数据带回来。
+    // 复现路径：点确认 → 触发一次自动存档（beforeunload 走的就是这条路）→ 看存档里还有没有进度。
+    if (p.check === "reset") {
+      const out = [];
+      try {
+      const KEY = "philoroa.save.v1";
+      const read = () => {
+        try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; }
+      };
+      const progressOf = (sv) => sv && sv.stats ? (sv.stats.harvested || 0) : 0;
+
+      // 先像真玩家那样存一次，存档里得有进度，这个检查才有意义
+      window.dispatchEvent(new Event("beforeunload"));
+      const before = progressOf(read());
+      out.push("删之前存档里的收获数：" + before);
+      if (before <= 0) out.push("（这份档的进度是 0，测不出东西 —— 换个 hours 再跑）");
+
+      // 走真实的点击路径：先按"重新开始"解锁，再按那个红的
+      G.UI.openSettings();
+      const arm = document.querySelector("[data-act='resetArm']");
+      if (!arm) out.push("找不到重新开始的按钮");
+      else {
+        arm.click();
+        G.UI.forceRender();
+        const save2 = document.querySelector("[data-act='resetSave']");
+        if (!save2) out.push("点了重新开始之后没出现确认按钮");
+        else {
+          save2.click();
+          G.UI.forceRender();
+
+          // 关键一步：自动存档存的必须是新的那一份
+          const mainS = window.__state;
+          out.push("页面的存档引用和界面的一致：" +
+            (mainS === G.UI.state ? "是" : "否（main.js 还拿着旧的那份）"));
+
+          // beforeunload 触发的就是 main.js 里那句 G.saveGame(S)
+          window.dispatchEvent(new Event("beforeunload"));
+
+          const after = read();
+          out.push("删完自动存档之后，存档里的收获数：" + progressOf(after));
+          out.push(progressOf(after) === 0 && progressOf(after) !== before
+            ? "✓ 存档是干净的，刷新也是新档"
+            : "✗ 旧数据还在存档里（刷新一下就复原了）");
+        }
+      }
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "resetcheck";
+      pre.textContent = "RESETCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
     // #check=tripsel：勾一个材料，确认下面那行总价立刻更新（不用点第二次）
     if (p.check === "tripsel") {
       const out = [];

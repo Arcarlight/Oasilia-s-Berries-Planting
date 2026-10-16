@@ -107,6 +107,14 @@
     }
 
 
+    // 重新开始 / 读档 / 导入会把整份存档换掉，这里必须跟着换引用，
+    // 否则自动存档存的还是旧的那一份，刷新就"数据回来了"。
+    G.onStateReplace = (fresh2) => {
+      S = fresh2;
+      window.__state = fresh2;
+      lastFrame = performance.now();
+    };
+
     G.UI.init(state);
     if (fresh) welcome(state);
 
