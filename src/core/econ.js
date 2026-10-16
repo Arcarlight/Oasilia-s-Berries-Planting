@@ -109,6 +109,13 @@ window.G = window.G || {};
     return Math.max(1, Math.round(berry.seedCost * (1 - Math.min(0.85, b.seedDiscount))));
   };
 
+  // 种子回收价：买回来是 seedCost（打掉折扣之后），回收只给四成 —— 就是「折损」。
+  // 收获时那三成回种的种子是白来的，卖掉算白赚，所以这个价不能再高。
+  G.SEED_SELL_RATIO = 0.4;
+  G.seedSellPrice = function (state, berry) {
+    return Math.max(1, Math.floor(berry.seedCost * G.SEED_SELL_RATIO));
+  };
+
   G.berrySellPrice = function (state, berry) {
     const b = G.bonuses(state);
     return Math.max(1, Math.floor(berry.basePrice * (1 + b.sellBonus) * (1 + b.allBonus)));

@@ -802,6 +802,7 @@ window.G = window.G || {};
     { kind: "find", title: "素材", hint: "阿特拉斯出门带回来的。攒够几样就能去研发页搭配新配方——底料决定做出来是什么，香料决定味道合不合。" },
     { kind: "material", title: "材料", hint: "阿特拉斯做道具用的。除了给他打东西，也可以按六成价卖掉。" },
     { kind: "berry", title: "树果", hint: "种出来的生果。直接卖便宜，做成商品能多卖好几倍。" },
+    { kind: "seed", title: "种子", hint: "种下去用的。收获时有三成概率回种，攒多了占地儿 —— 想清就清：卖掉只有四成价（折损），不想留的直接丢。" },
     { kind: "product", title: "商品", hint: "加工出来的成品。交给喜欢这个口味的常客能多拿五成。" },
     { kind: "waste", title: "失败品", hint: "研发煮废的产物。除了卖三十块，没别的用。" }
   ];
@@ -840,6 +841,18 @@ window.G = window.G || {};
         actions: [["sellBerry", "卖1", { id: +id, n: 1 }], ["sellBerry", "卖光", { id: +id, n: 9999 }]]
       };
     }
+    if (kind === "seed") {
+      const b = G.BERRY_BY_ID[id];
+      if (!b) return null;
+      return {
+        kind: kind, id: +id, n: S.seeds[id] || 0, name: b.zh + "的种子", img: b.icon,
+        desc: "种下去长成" + b.zh + "，大约 " + b.growHours + " 小时。",
+        note: "回收只给四成价。收获时回种的那些是白来的，卖掉算白赚；花钱买的再卖就亏了。",
+        price: G.seedSellPrice(S, b), priceLabel: "回收价（折损）", tags: [b.flavor],
+        actions: [["sellSeed", "卖1", { id: +id, n: 1 }], ["sellSeed", "卖光", { id: +id, n: 9999 }],
+                  ["dropSeed", "丢", { id: +id }, "danger"]]
+      };
+    }
     if (kind === "product") {
       const parts = id.split("|");
       const r = G.RECIPE_BY_ID[parts[0]];
@@ -868,7 +881,8 @@ window.G = window.G || {};
 
   // 一类东西的持有清单 → [{id, n}]
   function storeBag(kind) {
-    const bag = { find: S.finds, material: S.materials, berry: S.berries, product: S.products }[kind];
+    const bag = { find: S.finds, material: S.materials, berry: S.berries,
+                  product: S.products, seed: S.seeds }[kind];
     if (kind === "waste") return S.waste ? [{ id: "waste", n: S.waste }] : [];
     return Object.keys(bag || {}).filter((k) => bag[k] >= 1).map((k) => ({ id: k, n: bag[k] }));
   }
@@ -949,7 +963,7 @@ window.G = window.G || {};
     h += `<div class="row2" style="flex-wrap:wrap;margin-top:6px">`;
     e.actions.forEach((a) => {
       h += `<button class="small${a[3] ? " " + a[3] : ""}" data-act="${a[0]}"
-        data-p='${attr(a[2])}' title="${a[0] === "dropFind" || a[0] === "dropMaterial" || a[0] === "dropWaste" ? "丢掉，不换钱" : a[1]}">${a[1]}</button>`;
+        data-p='${attr(a[2])}' title="${a[0] === "dropFind" || a[0] === "dropMaterial" || a[0] === "dropWaste" || a[0] === "dropSeed" ? "丢掉，不换钱" : a[1]}">${a[1]}</button>`;
     });
     h += `</div></div>`;
     return h;
@@ -1433,6 +1447,18 @@ window.G = window.G || {};
       const r = G.engine.dropFind(S, p.id, 9999);
       if (r.ok) UI.toast("扔掉了 " + r.count + " 份");
       else UI.toast(r.why);
+    },
+    sellSeed: (p) => {
+      const r = G.engine.sellSeed(S, +p.id, p.n);
+      if (!r.ok) return;
+      UI.toast("卖了 " + r.n + " 颗种子，收了 ₽" + G.fmt(r.got));
+      UI.markDirty();
+    },
+    dropSeed: (p) => {
+      const r = G.engine.dropSeed(S, +p.id, p.n);
+      if (!r.ok) return;
+      UI.toast("丢了 " + r.n + " 颗种子");
+      UI.markDirty();
     },
     sellWaste: (p) => {
       const r = G.engine.sellWaste(S, p.n);

@@ -798,6 +798,31 @@ window.G = window.G || {};
     return { ok: true, earned: earned };
   };
 
+  // 种子：卖掉是按折损价，也能直接丢
+  A.sellSeed = function (state, id, n) {
+    const have = state.seeds[id] || 0;
+    const take = Math.min(have, n || 1);
+    const berry = G.BERRY_BY_ID[id];
+    if (!berry || take <= 0) return { ok: false, got: 0 };
+    const got = G.seedSellPrice(state, berry) * take;
+    state.seeds[id] -= take;
+    if (state.seeds[id] <= 0) delete state.seeds[id];
+    state.money += got;
+    state.stats.revenue = (state.stats.revenue || 0) + got;
+    state.stats.revenueRegion = (state.stats.revenueRegion || 0) + got;
+    G.clearBonusCache();
+    return { ok: true, got: got, n: take };
+  };
+
+  A.dropSeed = function (state, id, n) {
+    const have = state.seeds[id] || 0;
+    const take = Math.min(have, n || 1);
+    if (take <= 0) return { ok: false, n: 0 };
+    state.seeds[id] -= take;
+    if (state.seeds[id] <= 0) delete state.seeds[id];
+    return { ok: true, n: take };
+  };
+
   A.dropMaterial = function (state, id, n) {
     const m = G.MATERIAL_BY_ID[id];
     const have = Math.floor(state.materials[id] || 0);

@@ -676,6 +676,36 @@ window.SIM = {};
     check("既不算配对也不算毁锅", sourNeutral.kind === "recipe" && sourNeutral.good === false,
       sourNeutral.kind + "/good=" + sourNeutral.good);
 
+    // 树果数值的硬指标 —— 这两个坑以前都踩过：
+    //   1. 同区域内差 3~7 倍，木子果 / 番荔果 / 草蚕果 / 谜芝果是纯陷阱
+    //   2. 区域 9 最好的（83.3）还不如区域 8 最好的（111.1）
+    // 指标是「每格每小时的收益」：果价 × 产量 ÷ 生长时间
+    const berryDens = (b) => b.basePrice * b.yield / b.growHours;
+    const byRegion = {};
+    G.BERRIES.forEach((b) => { (byRegion[b.region] = byRegion[b.region] || []).push(b); });
+    const regions = Object.keys(byRegion).map(Number).sort((a, b) => a - b);
+    let prevCeil = 0;
+    let worstRatio = 1;
+    let monotone = true;
+    regions.forEach((r) => {
+      const ds = byRegion[r].map(berryDens);
+      const lo = Math.min.apply(null, ds), hi = Math.max.apply(null, ds);
+      worstRatio = Math.min(worstRatio, lo / hi);
+      if (hi <= prevCeil) monotone = false;
+      prevCeil = Math.max(prevCeil, hi);
+    });
+    check("没有「种了不如不种」的陷阱果（同区内最低 / 最高 ≥ 65%）",
+      worstRatio >= 0.65, "最差的一区只有 " + (worstRatio * 100).toFixed(0) + "%");
+    check("越后面的区域天花板越高", monotone);
+    check("产量随区域递增",
+      (function () {
+        const avg = regions.map((r) => byRegion[r].reduce((a, b) => a + b.yield, 0) / byRegion[r].length);
+        for (let i = 1; i < avg.length; i++) if (avg[i] < avg[i - 1]) return false;
+        return true;
+      })());
+    check("种子价还是果价的七成上下",
+      G.BERRIES.every((b) => Math.abs(b.seedCost / b.basePrice - 0.7) < 0.06));
+
     // 特殊糕点：区域 + 锅等级两道门槛
     const sp = fresh();
     sp.maxRegion = 10;
@@ -807,6 +837,23 @@ window.SIM = {};
         const r = G.engine.potUpgrade(potU);
         return r.ok && G.engine.potSlots(potU) > before && G.engine.potStirSecs(potU) < 6;
       })());
+
+    // 种子能卖能丢（以前只能囤着）
+    const sSeed = fresh();
+    sSeed.money = 0;
+    sSeed.seeds = { 1: 9 };
+    const seedBerry = G.BERRY_BY_ID[1];
+    check("种子回收是折损价", G.seedSellPrice(sSeed, seedBerry) < G.seedPrice(sSeed, seedBerry),
+      "回收 ₽" + G.seedSellPrice(sSeed, seedBerry) + " / 买入 ₽" + G.seedPrice(sSeed, seedBerry));
+    const soldSeed = G.engine.sellSeed(sSeed, 1, 4);
+    check("卖种子按颗结算", soldSeed.ok && soldSeed.n === 4 && sSeed.seeds[1] === 5,
+      "剩 " + sSeed.seeds[1]);
+    check("卖种子会进账", sSeed.money === G.seedSellPrice(sSeed, seedBerry) * 4, "₽" + sSeed.money);
+    G.engine.sellSeed(sSeed, 1, 9999);
+    check("卖光之后那一格不留 0", sSeed.seeds[1] === undefined);
+    sSeed.seeds[2] = 3;
+    G.engine.dropSeed(sSeed, 2, 9999);
+    check("种子能直接丢掉", sSeed.seeds[2] === undefined);
 
     // 制品图鉴：做过一次就点亮，按「品类|口味」记
     const sDex = fresh();
