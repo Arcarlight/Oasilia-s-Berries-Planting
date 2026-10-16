@@ -414,6 +414,26 @@ window.G = window.G || {};
 
   function renderShop() {
     let h = "";
+    // 基础食材：阿特拉斯出门会带，但懒得等或者手气差的时候可以直接买，就是贵
+    const staples = G.FINDS_FOR_SALE || [];
+    if (staples.length) {
+      h += `<div class="card"><h4>杂货铺 · 基础食材</h4>
+        <div class="sub">做甜品离不了这几样。阿特拉斯出门通常会带回来，
+        懒得等的话这里也能现买 —— 只是比自己跑一趟贵得多。</div>`;
+      staples.forEach((f) => {
+        const price = G.findBuyPrice(f);
+        const poor = S.money < price;
+        h += `<div class="list-item">
+          <img class="micon" src="assets/find/${f.id}.png" alt="">
+          <span class="grow">${esc(f.name)} <span class="sub">${esc(f.use)}</span></span>
+          <span>库存 ${int(S.finds[f.id] || 0)}</span>
+          <span class="sub">${money(price)}</span>
+          <button class="small" data-act="buyFind" data-p='${attr({ id: f.id, n: 1 })}'${poor ? " disabled" : ""}>买1</button>
+          <button class="small" data-act="buyFind" data-p='${attr({ id: f.id, n: 5 })}'${poor ? " disabled" : ""}>买5</button>
+        </div>`;
+      });
+      h += `</div>`;
+    }
     // 种子
     h += `<div class="card"><h4>种子</h4><div class="sub">区域越往后，树果越贵，也越值钱。</div>`;
     const byRegion = {};
@@ -1319,15 +1339,16 @@ window.G = window.G || {};
     waterAll: () => { const n = G.engine.waterAll(S); if (!n) UI.toast("没有需要浇水的田"); },
     harvestAll: () => { const n = G.engine.harvestAll(S); UI.toast(n ? "收了 " + n + " 个果子" : "还没有成熟的"); },
     sell: () => {
-      const v = G.clickSellValue(S);
-      S.money += v;
-      S.stats.revenueRegion += v;
-      S.stats.revenueTotal += v;
       S.stats.clicks++;
-      G.addLog(S, (G.ATLAS_LINES && G.ATLAS_LINES.click ? G.ATLAS_LINES.click[S.stats.clicks % G.ATLAS_LINES.click.length] : "他叫卖了一声。"), "atlas");
-      UI.toast("+" + money(v));
+      const r = G.engine.hawk(S);
+      if (!r.ok) { UI.toast(r.why); return; }
+      UI.toast("+" + money(r.earned) + "（卖了 " + r.count + " 个）");
     },
     sellBerry: (p) => { const v = G.engine.sellBerry(S, p.id, p.n); if (v) UI.toast("+" + money(v)); },
+    buyFind: (p) => {
+      const r = G.engine.buyFind(S, p.id, p.n);
+      UI.toast(r.ok ? "买了 " + r.count + " 份，花了 " + money(r.price) : r.why);
+    },
 
     // ---- 仓库 ----
     storeSel: (p) => { pick.storeSel = { kind: p.kind, id: p.id }; UI.markDirty(); },

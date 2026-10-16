@@ -370,10 +370,12 @@ window.SIM = {};
     check("关掉后不再自动加工", laterMade === idleMade && s3.craftQueue.length === 0,
       idleMade + " → " + laterMade + "（队列 " + s3.craftQueue.length + "）");
 
-    // 叫卖收益至少是最贵树果的 1.5 倍，不能是废按钮
+    // 叫卖：手上没货就是 0（它靠卖真实库存，不是凭空生钱）；
+    // 有货的时候一次能吆喝动 2 个，进账要明显高于直接卖单价
     const s5 = fresh();
     const cheapBerry = G.bestAvailableBerry(s5);
-    check("叫卖收益 > 生果单价", G.clickSellValue(s5) >= G.berrySellPrice(s5, cheapBerry) * 1.5,
+    s5.berries[cheapBerry.id] = 20;
+    check("叫卖一次抵得上两个生果的钱", G.clickSellValue(s5) >= G.berrySellPrice(s5, cheapBerry) * 2,
       G.clickSellValue(s5) + " vs " + G.berrySellPrice(s5, cheapBerry));
 
     // 帮手铃给槽位
@@ -441,15 +443,41 @@ window.SIM = {};
     G.advance(sBurst, 1);                          // 只过一秒
     check("果子入库不会被瞬间卖光", (sBurst.berries[1] || 0) > 195, sBurst.berries[1]);
 
-    // 叫卖：点一下要真的进钱
+    // 叫卖：要真的卖货，不能凭空生钱
     const sClick = fresh();
     sClick.berries[1] = 10;
     const mBefore = sClick.money;
-    const clicksBefore = sClick.stats.clicks;
-    G.engine /* 走 UI 的 sell 动作同一条路 */;
-    const v = G.clickSellValue(sClick);
-    sClick.money += v; sClick.stats.clicks++;
-    check("叫卖有收益", sClick.money > mBefore && sClick.stats.clicks === clicksBefore + 1, v);
+    const preview = G.clickSellValue(sClick);
+    const hk = G.engine.hawk(sClick);
+    check("叫卖真的卖出了生果", hk.ok && hk.count > 0 && sClick.berries[1] === 10 - hk.count,
+      JSON.stringify({ sold: hk.count, left: sClick.berries[1] }));
+    check("叫卖进账等于预告", hk.earned === preview, hk.earned + " vs " + preview);
+    check("叫卖扣了库存才进钱", sClick.money === mBefore + hk.earned, sClick.money - mBefore);
+    check("卖光了就叫卖不动", (function () {
+      const st = fresh();
+      st.berries = {};
+      return G.engine.hawk(st).ok === false && st.money === 0;
+    })());
+    check("掌力天赋让一次能吆喝更多",
+      (function () {
+        const st = fresh();
+        const before = G.clickSellBatch(st);
+        st.talents.click = 12;
+        return G.clickSellBatch(st) > before;
+      })(), "掌力 → " + G.clickSellBatch((function () { const st = fresh(); st.talents.click = 12; return st; })()) + " 个");
+
+    // 基础食材能在商店买到，香料不行
+    const sBuy = fresh();
+    sBuy.money = 100000;
+    const bf = G.engine.buyFind(sBuy, "flour", 3);
+    check("基础食材能买", bf.ok && sBuy.finds.flour === 3, JSON.stringify(sBuy.finds));
+    check("买食材要花比卖价多得多的钱", bf.price === G.findBuyPrice(G.FIND_BY_ID.flour) * 3, bf.price);
+    check("香料不卖", G.engine.buyFind(sBuy, "moonherb", 1).ok === false);
+    check("钱不够买不了", (function () {
+      const st = fresh();
+      st.money = 1;
+      return G.engine.buyFind(st, "flour", 1).ok === false;
+    })());
 
     // 出远门要花钱
     const sTrip = fresh();

@@ -26,7 +26,7 @@ window.G = window.G || {};
     if (cache && cacheKey === k && now - cacheAt < 250) return cache;
 
     const b = {
-      clickWater: 0, clickSell: 0, growSpeed: 0, yieldAdd: 0, sellBonus: 0,
+      click: 0, clickWater: 0, clickSell: 0, growSpeed: 0, yieldAdd: 0, sellBonus: 0,
       affinity: 0, offline: 0, offlineCap: 0, craftSpeed: 0, craftOutput: 0,
       idleRate: 0, helperSlot: 0, seedDiscount: 0, allBonus: 0,
       moveDiscount: 0, keepMoney: 0, plots: 0, rareSeed: 0, flavorSell: null, flavorBonus: 0
@@ -67,7 +67,8 @@ window.G = window.G || {};
       switch (t.mod) {
         case "growSpeed": b.growSpeed += v; break;
         case "sell": b.sellBonus += v; break;
-        case "click": b.clickSell += v; b.clickWater += v; break;
+        // 掌力：既提高单次叫卖的价钱，也让你一次能吆喝动更多货
+        case "click": b.click += v; b.clickSell += v; b.clickWater += v; break;
         case "offline": b.offline += v; b.offlineCap += 7200 * lv; break;
         case "plots": b.plots += v; break;
         case "seedDiscount": b.seedDiscount += v; break;
@@ -141,16 +142,48 @@ window.G = window.G || {};
     return Math.max(1, Math.floor(G.productSellPrice(state, recipe, berry, null) * 0.85));
   };
 
-  // 点击"叫卖"一次的收益。
-  // 早期没有自动收益，按"手上最贵的树果的 1.5 倍"折算，所以一开始就有用；
-  // 中后期自动收益起来以后，改成约 1/4 秒的产量，点一下仍然划算但不会取代挂机。
-  G.clickSellValue = function (state) {
+  // ── 叫卖 ────────────────────────────────────────────────────────────────
+  // 叫卖是"吆喝一声把手上的货出手"，不是凭空生钱：
+  // 一次卖掉摊上最贵的若干个生果，价钱比自动出货高（主动叫卖有溢价）。
+  // 手上没果子就卖不动 —— 这是它和挂机收益的分工。
+  //   之前它直接 S.money += 一个按进度折算出来的数，不消耗任何库存，
+  //   和"叫卖"这个动作本身对不上。
+  G.CLICK_SELL_PREMIUM = 1.25;    // 主动叫卖比摊位出货贵两成半
+
+  // 一次能吆喝动几个：底 2 个，掌力天赋每级 +1（满级 14 个）
+  G.clickSellBatch = function (state) {
     const b = G.bonuses(state);
-    const berry = G.bestAvailableBerry(state);
-    const early = berry ? G.berrySellPrice(state, berry) * 1.5 : 3;
-    const later = (state.rateEMA || 0) * 0.25;
-    const base = Math.max(3, early, later);
-    return Math.floor(base * (1 + b.clickSell) * (1 + b.allBonus));
+    const lv = Math.max(0, Math.round((b.click || 0) / 0.25));
+    return Math.max(2, 2 + lv);
+  };
+
+  G.clickSellPrice = function (state, berry) {
+    const b = G.bonuses(state);
+    return Math.max(1, Math.floor(
+      G.berrySellPrice(state, berry) * (G.CLICK_SELL_PREMIUM + (b.clickSell || 0)) * (1 + b.allBonus)
+    ));
+  };
+
+  // 叫卖能卖谁：手上最贵的先吆喝出去
+  G.clickSellStock = function (state) {
+    return Object.keys(state.berries || {}).map(Number)
+      .filter((id) => state.berries[id] >= 1 && G.BERRY_BY_ID[id])
+      .sort((a, c) => G.BERRY_BY_ID[c].basePrice - G.BERRY_BY_ID[a].basePrice);
+  };
+
+  // 按钮上显示"点一下能拿多少"：按现在的库存实算，不是估算
+  G.clickSellValue = function (state) {
+    const ids = G.clickSellStock(state);
+    let left = G.clickSellBatch(state);
+    let total = 0;
+    for (let i = 0; i < ids.length && left > 0; i++) {
+      const id = ids[i];
+      const take = Math.min(Math.floor(state.berries[id]), left);
+      if (take <= 0) continue;
+      total += G.clickSellPrice(state, G.BERRY_BY_ID[id]) * take;
+      left -= take;
+    }
+    return total;
   };
 
   // 浇水一次推进的生长比例

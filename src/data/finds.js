@@ -311,6 +311,15 @@ window.G = window.G || {};
   // 锅最多 12 格，所以前缀也只排到 12
   G.POT_PREFIX = POT_PREFIX;
 
+  // 基础食材（面粉 / 哞哞鲜奶 / 黄油 / 砂糖）也能在杂货铺买到，只是贵得多 ——
+  // 给"懒得等阿特拉斯"或者手气差的人一条后路。
+  // 香料不卖：那是跑一趟才有的东西，能买就没意义了。
+  G.FIND_BUY_MARKUP = 6;
+  G.findBuyPrice = function (f) {
+    return Math.round((f.price || 0) * G.FIND_BUY_MARKUP);
+  };
+  G.FINDS_FOR_SALE = FINDS.filter((f) => f.tier === "staple");
+
   // 出门带回来的概率：底料常见，香料看运气
   G.FIND_DROP = { stapleChance: 0.6, rareChance: 0.22 };
 })();

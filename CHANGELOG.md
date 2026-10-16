@@ -8,6 +8,30 @@
 
 ---
 
+## 0.8.3 · 叫卖改成真的卖货，食材能买了
+
+### 叫卖不再凭空生钱
+原来 `sell` 动作是 `S.money += G.clickSellValue(S)` —— 直接进账，不消耗任何库存。
+数值是按"手上最贵的树果的 1.5 倍"或者"1/4 秒的挂机产量"折算的，所以它永远有钱赚，
+哪怕摊上空的。
+
+改成 `A.hawk(state)`：一次把摊上最贵的 `G.clickSellBatch(state)` 个生果吆喝出去，
+单价 `berrySellPrice × 1.25`（主动叫卖比自动出货贵两成半）+ 天赋/商铺加成。
+手上没货就返回 `{ok:false, why:"摊上没货，叫卖也没人买"}`。
+`G.clickSellValue` 也改成按真实库存实算，按钮上那个金额不会再虚高。
+
+### 掌力天赋其实一直没接上
+`case "click"` 只写了 `b.clickSell += v; b.clickWater += v;`，但 bonuses 对象里
+**根本没有 `click` 这个字段** —— 我新写的 `clickSellBatch` 读它读到的是 undefined，
+批次永远卡在 2。现在补上 `b.click`，掌力每级 = 一次多吆喝 1 个（底 2，满级 14）。
+
+### 基础食材进杂货铺
+`G.FINDS_FOR_SALE`（tier === "staple" 的四种）+ `G.findBuyPrice` = 卖价 ×6，
+商店页多一张「杂货铺 · 基础食材」卡片。
+**香料不卖** —— 那是跑一趟才有的东西，能买就没意义了。
+
+---
+
 ## 0.8.2 · 三个 bug
 
 ### 叫卖点了没反应

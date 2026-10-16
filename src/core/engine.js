@@ -804,6 +804,50 @@ window.G = window.G || {};
     return { ok: true };
   };
 
+  // 在杂货铺买基础食材（面粉 / 哞哞鲜奶 / 黄油 / 砂糖）。比跑一趟贵得多，图个方便。
+  A.buyFind = function (state, id, count) {
+    const f = G.FIND_BY_ID[id];
+    if (!f || (f.tier || "staple") !== "staple") return { ok: false, why: "这个不卖" };
+    const n = Math.max(1, Math.floor(count || 1));
+    const price = G.findBuyPrice(f) * n;
+    if (state.money < price) return { ok: false, why: "要 ₽" + G.fmt(price) + "，钱不够" };
+    state.money -= price;
+    state.finds[id] = (state.finds[id] || 0) + n;
+    return { ok: true, count: n, price: price };
+  };
+
+  // 叫卖：吆喝一声，把摊上最贵的几个生果出手。
+  // 价钱比自动出货高两成半（主动叫卖有溢价），但真的要从库存里扣。
+  A.hawk = function (state) {
+    const ids = G.clickSellStock(state);
+    if (!ids.length) return { ok: false, why: "摊上没货，叫卖也没人买" };
+    let left = G.clickSellBatch(state);
+    let earned = 0;
+    let sold = 0;
+    ids.forEach((id) => {
+      if (left <= 0) return;
+      const have = Math.floor(state.berries[id] || 0);
+      const take = Math.min(have, left);
+      if (take <= 0) return;
+      const price = G.clickSellPrice(state, G.BERRY_BY_ID[id]) * take;
+      state.berries[id] = have - take;
+      if (state.berries[id] <= 0) delete state.berries[id];
+      earned += price;
+      sold += take;
+      left -= take;
+    });
+    if (!sold) return { ok: false, why: "摊上没货，叫卖也没人买" };
+    state.money += earned;
+    state.stats.sold += sold;
+    state.stats.revenueRegion += earned;
+    state.stats.revenueTotal += earned;
+    A.checkUnlocks(state);
+    const lines = (G.ATLAS_LINES && G.ATLAS_LINES.click) || [];
+    const line = lines.length ? lines[state.stats.clicks % lines.length] : "他叫卖了一声。";
+    G.addLog(state, line + "（卖了 " + sold + " 个，拿到 ₽" + G.fmt(earned) + "）", "atlas");
+    return { ok: true, earned: earned, count: sold };
+  };
+
   // 仓库用：各类东西的回收价
   A.materialSellPrice = function (state, m) { return Math.round(m.price * 0.6); };
 
