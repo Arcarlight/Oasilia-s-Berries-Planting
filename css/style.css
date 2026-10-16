@@ -169,6 +169,51 @@ button, .link, select, input, .plot, .dex-cell, summary, label {
   }
 }
 
+/* ---------- Windows 要放大一档 ----------
+   上面那套是按 16 CSS 像素画的：macOS 是 2 倍屏，16 CSS px = 32 设备像素，
+   正好和系统箭头一样大。但 Windows 的系统光标本来就是 32×32 设备像素，
+   在 100% 缩放下 16 CSS px 只有它一半，看着就"奇小无比"。
+
+   解法是把 2 倍图当 1 倍用（32×32 图 → 32 CSS 像素），2x/3x 槽位补 96/144……
+   —— 不用补，64 当 2x、96 当 3x 正好。热点也跟着乘 2。
+
+   用 JS 在 <html> 上打 os-win 标记而不是靠 @media 分辨率：Windows 200% 缩放
+   和 macOS Retina 都是 2dppx，光看分辨率分不出来。 */
+.os-win, .os-win body, .os-win .card, .os-win .panel, .os-win nav,
+.os-win .log, .os-win p, .os-win span, .os-win div {
+  cursor: url("../assets/ui/cursor-hand-2x.png") 12 2, default;
+}
+.os-win button, .os-win .link, .os-win select, .os-win input,
+.os-win .plot, .os-win .dex-cell, .os-win summary, .os-win label {
+  cursor: url("../assets/ui/cursor-point-2x.png") 6 0, pointer;
+}
+.os-win #btnWaterAll, .os-win .plot:not(.ripe) {
+  cursor: url("../assets/ui/cursor-water-2x.png") 16 4, pointer;
+}
+
+@supports (cursor: image-set(url("a.png") 1x) 0 0, auto) {
+  .os-win, .os-win body, .os-win .card, .os-win .panel, .os-win nav,
+  .os-win .log, .os-win p, .os-win span, .os-win div {
+    cursor: image-set(
+      url("../assets/ui/cursor-hand-2x.png") 1x,
+      url("../assets/ui/cursor-hand-4x.png") 2x,
+      url("../assets/ui/cursor-hand-6x.png") 3x) 12 2, default;
+  }
+  .os-win button, .os-win .link, .os-win select, .os-win input,
+  .os-win .plot, .os-win .dex-cell, .os-win summary, .os-win label {
+    cursor: image-set(
+      url("../assets/ui/cursor-point-2x.png") 1x,
+      url("../assets/ui/cursor-point-4x.png") 2x,
+      url("../assets/ui/cursor-point-6x.png") 3x) 6 0, pointer;
+  }
+  .os-win #btnWaterAll, .os-win .plot:not(.ripe) {
+    cursor: image-set(
+      url("../assets/ui/cursor-water-2x.png") 1x,
+      url("../assets/ui/cursor-water-4x.png") 2x,
+      url("../assets/ui/cursor-water-6x.png") 3x) 16 4, pointer;
+  }
+}
+
 /* ---------- 滚动条（默认样式跟像素风不搭） ---------- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: #141a0f; }

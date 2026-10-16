@@ -289,14 +289,20 @@
       const btn = document.querySelector("#tabs button");
       const btnCur = btn ? getComputedStyle(btn).cursor : "?";
       // 平时=hand，可点击=point，浇水=water
-      const curOk = cur.indexOf("cursor-hand") >= 0
-                 && btnCur.indexOf("cursor-point") >= 0
+      // 光标尺寸要按系统给：Windows 用 32 那套（基准图是 -2x），别的一律 16 那套。
+      // Windows 的系统光标是 32×32 设备像素，给它 16 CSS 像素看着只有一半大。
+      const isWin = document.documentElement.classList.contains("os-win");
+      const expectHand = isWin ? "cursor-hand-2x.png" : "cursor-hand.png";
+      const expectPoint = isWin ? "cursor-point-2x.png" : "cursor-point.png";
+      const curOk = cur.indexOf(expectHand) >= 0
+                 && btnCur.indexOf(expectPoint) >= 0
                  && cur.indexOf("2x") >= 0;
       const pick2x = cur.indexOf("2x") >= 0;
       const dead = Object.keys(deadActs);
       pre.textContent = (bad.length ? "TABCHECK FAIL\n" + bad.join("\n") : "TABCHECK OK")
         + (dead.length ? "\nACTCHECK FAIL 这几个按钮没实现：\n  " + dead.join("\n  ") : "\nACTCHECK OK")
-        + "\nCURSOR " + (curOk ? "OK" : "缺失")
+        + "\nCURSOR " + (curOk ? "OK" : "缺失（基准图不对）")
+        + " 系统=" + (isWin ? "Windows(32 CSS 像素)" : "其他(16 CSS 像素)")
         + " dpr=" + window.devicePixelRatio
         + " 用到2倍图=" + (pick2x ? "是" : "否")
         + "\n  body=" + cur.replace(/file:[^)]*\//g, "").slice(0, 110)

@@ -99,6 +99,14 @@
       }
     }
 
+    // 光标尺寸按系统惯例给：Windows 的系统光标是 32×32 设备像素，
+    // 我们那套是按 16 CSS 像素画的（macOS 2 倍屏下正好 32 设备像素）。
+    // 光靠 @media 分辨率分不出来 —— Windows 200% 和 macOS Retina 都是 2dppx。
+    if (/Windows|Win32|Win64/i.test(navigator.userAgent || "")) {
+      document.documentElement.classList.add("os-win");
+    }
+
+
     G.UI.init(state);
     if (fresh) welcome(state);
 
