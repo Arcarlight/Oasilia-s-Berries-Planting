@@ -23,9 +23,25 @@ window.SIM = {};
     eng.harvestAll(state);
 
     // 2. 加工台尽量塞满（用最值钱的配方配最值钱的树果）
-    // 按「每秒收益」而不是裸倍率排：有些常客的解锁条件是累计加工次数，
-    // 只挑最高倍率会把加工次数拖垮，反而是慢的。
-    const rate = (r) => r.mult * r.needCount / r.time;
+    // 加工台是按「次数」算进度的，而不少常客的解锁条件正是累计加工 N 次
+    // （区域 9/10 要 2.6万 ~ 9万 次）。长配方（特殊糕点要 100~160 秒）每秒收益
+    // 不低，但会占着工位把次数进度拖垮 —— 真玩家这时候会先做快的。
+    //
+    // 关键是"只盯当前区域那道门槛"：盯全地图的会被最远的 9 万次拖住，
+    // 一直做小果酱、收入塌掉（踩过这个坑）。
+    const gate = (function () {
+      let need = 0;
+      eng.regionRegulars(state.region).forEach((rg) => {
+        const u = rg.unlock || {};
+        if (u.type === "crafted" && !eng.regState(state, rg.dex).unlocked) {
+          need = Math.max(need, u.value);
+        }
+      });
+      return need;
+    })();
+    const chasing = gate > 0 && (state.stats.crafted || 0) < gate;
+    // 平时按「每秒收益」排；正在追当前区域的次数门槛时改挑快的
+    const rate = (r) => (chasing ? 1 / r.time : r.mult * r.needCount / r.time);
     const recipes = eng.unlockedRecipes(state).sort((x, y) => rate(y) - rate(x));
     for (let i = 0; i < recipes.length; i++) {
       if (state.craftQueue.length >= eng.craftSlots(state)) break;
@@ -94,11 +110,16 @@ window.SIM = {};
           const combo = G.RESEARCH_COMBOS[c];
           if ((state.maxRegion || 1) < combo.region) continue;
           // 这一组底料手上有齐吗
+          // 同一个素材可以在组合里出现多次（特殊糕点就是「两份 + 两份」），
+          // 所以要按用量数，不能简单地"用过的就不再用"
           const pick = [];
+          const used = {};
           for (let r = 0; r < combo.need.length; r++) {
             const role = combo.need[r];
-            const f = ownedFind.filter((id) => G.FIND_BY_ID[id].role === role && pick.indexOf(id) < 0)[0];
+            const f = ownedFind.filter((id) =>
+              G.FIND_BY_ID[id].role === role && (state.finds[id] || 0) > (used[id] || 0))[0];
             if (!f) break;
+            used[f] = (used[f] || 0) + 1;
             pick.push(f);
           }
           if (pick.length < combo.need.length) continue;
@@ -117,6 +138,12 @@ window.SIM = {};
           break;
         }
       }
+    }
+
+    // 4.425 有钱就换锅：格子多了才下得了特殊糕点（两份 + 两份的底料）
+    if (state.pot.level < G.POT_LEVELS.length && !saving) {
+      const nextLv = G.POT_LEVELS[state.pot.level];
+      if (state.money > nextLv.cost * 5) eng.potUpgrade(state);
     }
 
     // 4.43 锅里有结果就收下（记下做法），别让它一直挂着
@@ -535,7 +562,8 @@ window.SIM = {};
       G.FINDS.filter((f) => f.role === "spice").length);
     check("研发专属品类不在商店里",
       G.RECIPES.filter((r) => r.researchOnly).length === 0 &&
-      G.RECIPE_CATS.filter((c) => c.researchOnly).length === 4);
+      G.RECIPE_CATS.filter((c) => c.researchOnly).length === 10,
+      G.RECIPE_CATS.filter((c) => c.researchOnly).length + " 个研发专属（4 个甜品 + 6 个特殊糕点）");
 
     // 出门会带素材回来
     const st1 = fresh();
@@ -625,8 +653,13 @@ window.SIM = {};
     check("面粉+黄油+砂糖 → 曲奇", cookie.kind === "recipe" && cookie.combo.cat === "cookie", cookie.kind);
     const zero = G.evaluateResearch(rState, ["flour"], "辣");
     check("只放一样底料拦下来", zero.kind === "invalid", zero.kind);
-    const two2 = G.evaluateResearch(rState, ["flour", "butter", "sugar", "moomoo"], "辣");
-    check("底料超过三样拦下来", two2.kind === "invalid", two2.kind);
+    // 特殊糕点要下 4 样底料（两份 + 两份），所以上限放宽到四样；
+    // 五样才算"放太杂"
+    rState.pot.level = 2;   // 特殊糕点要 5 格起的锅
+    const four2 = G.evaluateResearch(rState, ["flour", "flour", "moomoo", "moomoo"], "辣");
+    check("两份+两份的底料能配成特殊糕点", four2.kind !== "invalid", four2.kind + "/" + (four2.combo || {}).cat);
+    const five2 = G.evaluateResearch(rState, ["flour", "flour", "moomoo", "butter", "sugar"], "辣");
+    check("底料超过四样拦下来", five2.kind === "invalid", five2.kind);
     const twoSpice = G.evaluateResearch(rState, ["flour", "moomoo", "cinderpepper", "saltbloom"], "辣");
     check("两种香料拦下来", twoSpice.kind === "invalid", twoSpice.kind);
 
@@ -640,6 +673,32 @@ window.SIM = {};
     const sourNeutral = G.evaluateResearch(rState, ["sugar", "cinderpepper"], "酸");
     check("既不算配对也不算毁锅", sourNeutral.kind === "recipe" && sourNeutral.good === false,
       sourNeutral.kind + "/good=" + sourNeutral.good);
+
+    // 特殊糕点：区域 + 锅等级两道门槛
+    const sp = fresh();
+    sp.maxRegion = 10;
+    sp.money = 1e12;
+    sp.finds = { flour: 20, moomoo: 20, butter: 20, sugar: 20 };
+    const layerAt = (lv) => {
+      sp.pot.level = lv;
+      return G.evaluateResearch(sp, ["flour", "flour", "moomoo", "moomoo"], "甜");
+    };
+    check("4 格的锅下不了特殊糕点（要 5 格起）",
+      layerAt(1).kind === "invalid" && /锅/.test(layerAt(1).why), layerAt(1).why);
+    check("换成 5 格的锅就能下了", layerAt(2).kind === "recipe" && layerAt(2).combo.cat === "layer",
+      layerAt(2).kind);
+    sp.maxRegion = 4;
+    sp.pot.level = 5;
+    check("区域不够照样不行", G.evaluateResearch(sp, ["flour", "flour", "moomoo", "moomoo"], "甜").kind === "invalid");
+    sp.maxRegion = 10;
+    check("拿破仑要 10 格的锅",
+      (function () {
+        sp.pot.level = 4;
+        const no = G.evaluateResearch(sp, ["moomoo", "moomoo", "sugar", "sugar"], "甜");
+        sp.pot.level = 5;
+        const yes = G.evaluateResearch(sp, ["moomoo", "moomoo", "sugar", "sugar"], "甜");
+        return no.kind === "invalid" && yes.kind === "recipe";
+      })());
 
     // 大锅：丢料 → 搅拌 → 出锅（成品直接进仓库，配方要不要记得自己决定）
     const potS = fresh();

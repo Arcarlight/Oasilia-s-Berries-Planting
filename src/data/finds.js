@@ -95,7 +95,23 @@ window.G = window.G || {};
     { need: ["sweet"], cat: "candy", region: 7, requireSpice: true, hint: "砂糖 + 一种香料  →  糖果" },
     { need: ["base", "liquid", "sweet"], cat: "roll", region: 8, hint: "面粉 + 鲜奶 + 砂糖  →  瑞士卷" },
     { need: ["base", "fat", "sweet"], cat: "cookie", region: 9, hint: "面粉 + 黄油 + 砂糖  →  曲奇" },
-    { need: ["base", "liquid", "fat"], cat: "bread", region: 10, hint: "面粉 + 鲜奶 + 黄油  →  面包" }
+    { need: ["base", "liquid", "fat"], cat: "bread", region: 10, hint: "面粉 + 鲜奶 + 黄油  →  面包" },
+
+    // ── 特殊糕点：底料要「两份 + 两份」，比普通配方费一倍料 ──
+    // 所以有两道门槛：区域要走到，锅也得够大（4 样底料 + 至少一颗树果 = 5 格起）。
+    // 起始的锅只有 4 格，想下这个手就得先换锅。
+    { need: ["base", "base", "liquid", "liquid"], cat: "layer", region: 5, potLevel: 2,
+      hint: "面粉×2 + 鲜奶×2  →  千层酥" },
+    { need: ["base", "base", "sweet", "sweet"], cat: "blackforest", region: 6, potLevel: 2,
+      hint: "面粉×2 + 砂糖×2  →  黑森林" },
+    { need: ["base", "base", "fat", "fat"], cat: "spiral", region: 7, potLevel: 3,
+      hint: "面粉×2 + 黄油×2  →  螺旋卷" },
+    { need: ["liquid", "liquid", "fat", "fat"], cat: "milkbun", region: 8, potLevel: 3,
+      hint: "鲜奶×2 + 黄油×2  →  奶香圆包" },
+    { need: ["fat", "fat", "sweet", "sweet"], cat: "croissant", region: 9, potLevel: 4,
+      hint: "黄油×2 + 砂糖×2  →  可颂" },
+    { need: ["liquid", "liquid", "sweet", "sweet"], cat: "napoleon", region: 10, potLevel: 5,
+      hint: "鲜奶×2 + 砂糖×2  →  拿破仑" }
   ];
 
   // 废品：搭配失败剩下的那一坨。能卖，但基本不值钱。
@@ -220,7 +236,8 @@ window.G = window.G || {};
     const spices = list.filter((f) => f.role === "spice");
 
     if (!cores.length && !spices.length) return { kind: "invalid", why: "一样都没放。" };
-    if (cores.length > 3) return { kind: "invalid", why: "底料放太杂了，先减到三样以内。" };
+    // 特殊糕点要下 4 样底料（两份 + 两份），所以上限放到四样
+    if (cores.length > 4) return { kind: "invalid", why: "底料放太杂了，先减到四样以内。" };
     if (spices.length > 1) return { kind: "invalid", why: "两种香料一起下，味道会互相打架。" };
 
     const spice = spices[0] || null;
@@ -239,6 +256,14 @@ window.G = window.G || {};
       return {
         kind: "invalid", combo: combo, spice: spice,
         why: "这个搭配还太超前了（要走到区域 " + combo.region + " 才琢磨得出来）。"
+      };
+    }
+    // 特殊糕点还要求锅够大：4 样底料加一颗树果，起始那口 4 格的锅根本放不下
+    if (combo.potLevel && state && ((state.pot && state.pot.level) || 1) < combo.potLevel) {
+      const need = G.potLevel(combo.potLevel);
+      return {
+        kind: "invalid", combo: combo, spice: spice,
+        why: "锅还太小了 —— 这个搭配至少要「" + need.name + "」（" + need.slots + " 格）。去换锅。"
       };
     }
     if (spice && (spice.bad || []).indexOf(flavor) >= 0) {

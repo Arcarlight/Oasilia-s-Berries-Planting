@@ -24,7 +24,17 @@ window.G = window.G || {};
     { id: "pudding", name: "布丁", mult: 7.4, time: 70, region: 7, unit: "盅", icon: "pudding", researchOnly: true },
     { id: "cookie", name: "曲奇", mult: 8.8, time: 84, region: 8, unit: "袋", icon: "cookie", researchOnly: true },
     { id: "candy", name: "糖果", mult: 9.8, time: 60, region: 8, unit: "罐", icon: "candy", researchOnly: true },
-    { id: "bread", name: "面包", mult: 11.5, time: 124, region: 10, unit: "个", icon: "bread", researchOnly: true }
+    { id: "bread", name: "面包", mult: 11.5, time: 124, region: 10, unit: "个", icon: "bread", researchOnly: true },
+
+    // ── 特殊糕点 ──
+    // 要往锅里下「两份 + 两份」的底料才做得出来（比普通配方费一倍料），
+    // 所以倍率也高一档。剩下的槽位丢树果定味道，和别的品类一样。
+    { id: "layer", name: "千层酥", mult: 9.2, time: 72, region: 5, unit: "块", icon: "layer", researchOnly: true },
+    { id: "blackforest", name: "黑森林", mult: 10.0, time: 80, region: 6, unit: "角", icon: "blackforest", researchOnly: true },
+    { id: "spiral", name: "螺旋卷", mult: 10.8, time: 88, region: 7, unit: "条", icon: "spiral", researchOnly: true },
+    { id: "milkbun", name: "奶香圆包", mult: 11.6, time: 96, region: 8, unit: "个", icon: "milkbun", researchOnly: true },
+    { id: "croissant", name: "可颂", mult: 12.4, time: 104, region: 9, unit: "只", icon: "croissant", researchOnly: true },
+    { id: "napoleon", name: "拿破仑", mult: 13.2, time: 112, region: 10, unit: "份", icon: "napoleon", researchOnly: true }
   ];
 
   const recipes = [];
@@ -191,6 +201,12 @@ window.G = window.G || {};
     if (cat === "cookie") return "assets/item/cookie.png";
     if (cat === "candy") return "assets/item/candy.png";
     if (cat === "bread") return "assets/item/bread.png";
+    if (cat === "layer") return "assets/item/layer.png";
+    if (cat === "blackforest") return "assets/item/blackforest.png";
+    if (cat === "spiral") return "assets/item/spiral.png";
+    if (cat === "milkbun") return "assets/item/milkbun.png";
+    if (cat === "croissant") return "assets/item/croissant.png";
+    if (cat === "napoleon") return "assets/item/napoleon.png";
     return "assets/item/jam.png";
   };
 

@@ -752,8 +752,12 @@ window.G = window.G || {};
       <div class="card"><h4>大锅的搭配表</h4>
       <div class="sub">锅里的底料组合是固定的一张表，得自己试出来（或者看这里）：</div>
       <table class="simple">
-        ${(G.RESEARCH_COMBOS || []).map((c) => `<tr><td>${esc(c.hint)}</td><td class="sub">区域 ${c.region} 解锁</td></tr>`).join("")}
+        ${(G.RESEARCH_COMBOS || []).map((c) => `<tr><td>${esc(c.hint)}</td>
+          <td class="sub">区域 ${c.region}${c.potLevel ? "　要" + G.potLevel(c.potLevel).slots + "格以上的锅" : ""}</td></tr>`).join("")}
       </table>
+      <div class="sub" style="margin-top:6px">底下那六款特殊糕点（千层酥 / 黑森林 / 螺旋卷 / 奶香圆包 / 可颂 / 拿破仑）
+      要往锅里下<b>两份 + 两份</b>的底料，比普通配方费一倍料，所以价钱也高一档 ——
+      但起始那口 4 格的锅根本放不下，得先换锅。</div>
       <div class="sub" style="margin-top:6px">香料（月见草籽 / 岩盐花 / 火口椒 / 铁壳果 / 霜苔 / 暮色李）是可选的：
       配上对的味道会多提一档，配错了整锅就废了。每个香料适合和不适合什么味道，在${go("store", "仓库")}里能看到。</div>
       <div class="sub" style="margin-top:4px">出锅的成品会直接进仓库；选「记下做法」之后，配方才会出现在${go("kitchen", "加工")}页，

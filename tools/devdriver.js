@@ -33,6 +33,48 @@
     if (p.tab) G.UI.tab = p.tab;
     if (p.act === "overlay") { G.UI.openSettings(); }
 
+    // ── 先把状态摆好，再点按钮 ──
+    // 顺序很重要：像 potlevel 这种必须赶在 #cells 之前，
+    // 否则会拿"还没升级的锅"去点，格子数对不上（踩过一次）。
+
+    // #tripwant=wood:2,clay:1：勾上出行清单，用来验证报价
+    if (p.tripwant) {
+      S._tripWant = {};
+      String(p.tripwant).split(",").forEach((kv) => {
+        const parts = kv.split(":");
+        if (parts[0]) S._tripWant[parts[0]] = parseInt(parts[1], 10) || 1;
+      });
+      G.UI.tab = "atlas";
+      G.UI.forceRender();
+    }
+
+    // #givefinds=1：把四种底料补到 50 份，锅的验收才稳定（不然会被机器人用光）
+    if (p.givefinds) {
+      (G.FINDS || []).forEach((f) => { S.finds[f.id] = Math.max(S.finds[f.id] || 0, 50); });
+      G.UI.forceRender();
+    }
+
+    // #potlevel=N：直接把锅升到 N 级，用来验证特殊糕点的门槛
+    if (p.potlevel) {
+      S.pot.level = Math.max(1, Math.min(G.POT_LEVELS.length, parseInt(p.potlevel, 10) || 1));
+      S.money = Math.max(S.money, 1e9);
+      G.UI.forceRender();
+    }
+
+    // #giveprod=1：直接塞几件甜品进仓库，方便看味道雷达图
+    // （正常玩的时候成品很快就会被常客买走，验收时等不到）
+    if (p.giveprod) {
+      const combos = [[ "candy", "辣", "cinderpepper", true, 6 ], [ "cake", "甜", null, false, 3 ]];
+      combos.forEach((c) => {
+        const r = G.makeResearchRecipe(c[0], c[1], c[2], c[3], c[4]);
+        S.recipes[r.id] = true;
+        S.products[G.productKey(r.id, 1)] = 3;
+      });
+      G.UI.forceRender();
+    }
+
+    // ── 下面是模拟操作 ──
+
     // #cells=0,10,11：依次点几个格子（仓库/研发的格子墙）。
     // 研发那边就是"往锅里丢食材"，用来验证预告和出锅。
     if (p.cells !== undefined) {
@@ -55,18 +97,6 @@
         G.UI.forceRender();
       });
     }
-    // #giveprod=1：直接塞几件甜品进仓库，方便看味道雷达图
-    // （正常玩的时候成品很快就会被常客买走，验收时等不到）
-    if (p.giveprod) {
-      const combos = [[ "candy", "辣", "cinderpepper", true, 6 ], [ "cake", "甜", null, false, 3 ]];
-      combos.forEach((c) => {
-        const r = G.makeResearchRecipe(c[0], c[1], c[2], c[3], c[4]);
-        S.recipes[r.id] = true;
-        S.products[G.productKey(r.id, 1)] = 3;
-      });
-      G.UI.forceRender();
-    }
-
     // #sel=product：在仓库里选中某一类的第一格（find/material/berry/product/waste）
     if (p.sel) {
       G.UI.forceRender();
@@ -119,17 +149,6 @@
         if (a && !have[a]) bad[a] = true;
       });
       return Object.keys(bad);
-    }
-
-    // #tripwant=wood:2,clay:1：勾上出行清单，用来验证报价
-    if (p.tripwant) {
-      S._tripWant = {};
-      String(p.tripwant).split(",").forEach((kv) => {
-        const parts = kv.split(":");
-        if (parts[0]) S._tripWant[parts[0]] = parseInt(parts[1], 10) || 1;
-      });
-      G.UI.tab = "atlas";
-      G.UI.forceRender();
     }
 
     // #check=trip：造一趟完整的出行，验证"他回来了"有没有汇总、有没有提示
