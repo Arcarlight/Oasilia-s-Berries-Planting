@@ -174,12 +174,15 @@ window.G = window.G || {};
     const cat = recipe.cat;
     if (cat === "cube") return "assets/item/cube_" + (recipe.flavor === "混合" ? "辣" : recipe.flavor) + ".png";
     if (cat === "poffin") return "assets/item/poffin_" + (recipe.flavor === "混合" ? "甜" : recipe.flavor) + ".png";
-    // 果酱按口味换罐身颜色（同样是 化け猫缶 的罐子，只改了色相），
-    // 不然五个口味共用一张「甜甜蜜」，全靠右下角那颗树果区分，太偷懒了
-    if (cat === "jam") return "assets/item/jam_" + (recipe.flavor === "混合" ? "辣" : recipe.flavor) + ".png";
-    if (cat === "juice") return "assets/item/juice.png";
-    if (cat === "pie") return "assets/item/pie.png";
-    if (cat === "wine") return "assets/item/wine.png";
+    // 这四类按口味换图：底都是 化け猫缶 的图标，只把"该变色的那部分"换了色相
+    //  果酱 → 罐身   果汁 → 杯里的液体   果酒 → 瓶身   树果派 → 馅和果子
+    // 以前五个口味共用一张百科的占位图，全靠右下角那颗树果区分，太偷懒了。
+    // 换色由 tools/recolor_products.py 生成。
+    const fl = recipe.flavor === "混合" ? "辣" : recipe.flavor;
+    if (cat === "jam") return "assets/item/jam_" + fl + ".png";
+    if (cat === "juice") return "assets/item/juice_" + fl + ".png";
+    if (cat === "pie") return "assets/item/pie_" + fl + ".png";
+    if (cat === "wine") return "assets/item/wine_" + fl + ".png";
     if (cat === "cake") return "assets/item/cake.png";
     if (cat === "tart") return "assets/item/tart.png";
     if (cat === "roll") return "assets/item/roll.png";

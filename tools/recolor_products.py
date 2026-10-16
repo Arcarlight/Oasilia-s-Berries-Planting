@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""把 化け猫缶 的罐子按口味换色，生成五个果酱图标。
+"""把 化け猫缶 的图标按口味换色，给果酱 / 果汁 / 果酒 / 树果派各出五张图。
 
 原来五个口味共用一张百科的「甜甜蜜」，只靠右下角那颗树果区分，太偷懒了。
 这个脚本拿一个罐子当底，转 HSV 之后只换"果酱本体"的色相：
@@ -14,7 +14,7 @@
     "$DSH_PYTHON" tools/recolor_jam.py /tmp/neko [罐子编号]
     # 例如：
     # /Users/<你>/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/python/bin/python3 \
-    #     tools/recolor_jam.py /tmp/neko
+    #     tools/recolor_products.py /tmp/neko
 
 化け猫缶 的图标是 24×24 GIF，源文件在 /tmp/neko 之类的临时目录里，不随仓库走 ——
 要重跑得自己重新下一份（站点：http://neko.moo.jp/BS/ ，图标页 /BS/main/3/5823.htm）。
@@ -28,9 +28,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "assets" / "item"
 
-# 用哪个罐子当底。找法是：把 24×24 的图标全渲染出来看一眼，
-# #0284 那个罐身颜色最容易被色相替换吃掉，换完五个色都清楚。
-BASE_INDEX = 284
+# 每一类用哪个图标当底。找法是：把 24×24 的图标全渲染出来，对每一类挑
+# 「该变色的那部分能被色相替换吃到、不该变的（杯子/酥皮/盖子）留得住」的那个。
+#
+#   果酱 #0284  罐身整块都能吃色
+#   果汁 #0394  只有杯里的液体吃色，杯子本身是低饱和的，留住了
+#   果酒 #0329  瓶身和标签跟着换
+#   树果派 #0272 圆扁的果子酥。注意 #0277 是牛排不是派（看走眼过一次），
+#                  #0271 是带盘子的果塔、已经被「挞」占用，所以派只能挑这个
+TARGETS = [
+    ("jam", 284),
+    ("juice", 394),
+    ("wine", 329),
+    ("pie", 272),
+]
 
 # 五个口味的主题色，和 src/data/products.js 里的 FLAVOR_COLOR 保持一致
 FLAVORS = [("辣", "#e05635"), ("涩", "#714fda"), ("甜", "#ff9861"), ("苦", "#77d2e2"), ("酸", "#e9d93f")]
@@ -71,14 +82,17 @@ def main():
     if not files:
         print("在那个目录里没找到 24×24 的图标")
         return 1
-    idx = int(sys.argv[2]) if len(sys.argv) > 2 else BASE_INDEX
-    base = Image.open(files[idx]).convert("RGBA")
-    print("底图：%s（#%d）" % (os.path.basename(files[idx]), idx))
+    only = sys.argv[2] if len(sys.argv) > 2 else None
     OUT.mkdir(parents=True, exist_ok=True)
-    for flavor, color in FLAVORS:
-        path = OUT / ("jam_%s.png" % flavor)
-        recolor(base, color).save(path)
-        print("  %s  ← %s" % (path.name, color))
+    for cat, idx in TARGETS:
+        if only and only != cat:
+            continue
+        base = Image.open(files[idx]).convert("RGBA")
+        print("%s ← #%d %s" % (cat, idx, os.path.basename(files[idx])))
+        for flavor, color in FLAVORS:
+            path = OUT / ("%s_%s.png" % (cat, flavor))
+            recolor(base, color).save(path)
+            print("    %s  ← %s" % (path.name, color))
     return 0
 
 
