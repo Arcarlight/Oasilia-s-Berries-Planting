@@ -153,6 +153,20 @@
       if (e.code === "KeyH") document.getElementById("btnHarvestAll").click();
       if (e.code === "KeyW") document.getElementById("btnWaterAll").click();
       if (e.code === "Space") { e.preventDefault(); document.getElementById("btnSell").click(); }
+      // 数字键 1~9 / 0 直接切页签
+      if (/^Digit[0-9]$/.test(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const n = +e.code.slice(5);
+        const idx = n === 0 ? 9 : n - 1;
+        const t = G.UI.tabList()[idx];
+        if (t) { G.UI.tab = t.id; G.UI.forceRender(); }
+      }
+      // P：一键播种。这里用的是"贵的优先"的顺序，不是列表那个（列表按味道归类）
+      if (e.code === "KeyP") {
+        const order = G.UI.seedPlantOrder();
+        const n = G.engine.plantAllInOrder(S, order);
+        G.UI.toast(n ? "种下 " + n + " 颗（贵的先）" : (order.length ? "地都占满了" : "手上没种子"));
+        G.UI.forceRender();
+      }
     });
 
     lastFrame = performance.now();

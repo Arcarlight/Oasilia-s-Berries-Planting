@@ -114,22 +114,60 @@ window.G = window.G || {};
     $("uiPlotInfo").textContent = "（" + S.plots.length + "/" + (S.plots.length + (cap - bought)) + " 块，成熟 " + ripe + "）";
   }
 
+  // 种子那栏的排序：同一种味道放一起，味道内部按浓郁度从高到低。
+  // 所以「从上往下」就是「该先种哪个」—— 一键播种也照这个顺序。
+  function seedOrder() {
+    const ids = Object.keys(S.seeds).filter((id) => S.seeds[id] > 0).map(Number);
+    const fi = (b) => {
+      const i = G.FLAVORS_5.indexOf(b.flavor);
+      return i < 0 ? 99 : i;
+    };
+    return ids.sort((a, b) => {
+      const ba = G.BERRY_BY_ID[a], bb = G.BERRY_BY_ID[b];
+      if (fi(ba) !== fi(bb)) return fi(ba) - fi(bb);
+      const da = G.berryFlavorScore(ba), db = G.berryFlavorScore(bb);
+      if (da !== db) return db - da;              // 浓的排前面
+      if (ba.basePrice !== bb.basePrice) return bb.basePrice - ba.basePrice;
+      return a - b;
+    });
+  }
+  // 一键播种的顺序：和列表不一样 —— 列表是"看着方便"（同味道归类），
+  // 播种是"收益优先"，所以直接按果价从高到低，不管味道。
+  function seedPlantOrder() {
+    return Object.keys(S.seeds).filter((id) => S.seeds[id] > 0).map(Number)
+      .sort((a, b) => {
+        const ba = G.BERRY_BY_ID[a], bb = G.BERRY_BY_ID[b];
+        if (ba.basePrice !== bb.basePrice) return bb.basePrice - ba.basePrice;
+        const da = G.berryFlavorScore(ba), db = G.berryFlavorScore(bb);
+        if (da !== db) return db - da;
+        return a - b;
+      });
+  }
+  UI.seedOrder = seedOrder;
+  UI.seedPlantOrder = seedPlantOrder;
+  UI.tabList = function () { return TABS; };
+
   function renderSeedPicker() {
     const box = $("uiSeedPicker");
-    const ids = Object.keys(S.seeds).filter((id) => S.seeds[id] > 0)
-      .map(Number).sort((a, b) => G.BERRY_BY_ID[a].tier - G.BERRY_BY_ID[b].tier || a - b);
+    const ids = seedOrder();
     if (!ids.length) {
       morph(box, `<div class="sub">没有种子了。去${go("shop", "商店")}买一些，或者让${go("atlas", "阿特拉斯")}出门碰碰运气。</div>`);
       return;
     }
     if (!pick.seed || !(S.seeds[pick.seed] > 0)) pick.seed = ids[0];
-    const seedHtml = `<div class="sub" style="margin-bottom:4px">手上的种子（点一下选中，再点空地播种）</div>` +
+    const seedHtml = `<div class="sub" style="margin-bottom:4px">手上的种子（点一下选中，再点空地播种）
+      <br>按 <b>P</b> 一键种下：<b>贵的优先</b>，和下面这个看着方便的顺序不一样。</div>` +
       ids.map((id) => {
         const b = G.BERRY_BY_ID[id];
         const on = pick.seed === id ? "style=\"outline:2px solid var(--gold)\"" : "";
+        // 这里列的是「种子」，所以用种子袋的图（布袋 + 右下角一颗树果），
+        // 而不是树果本身；名字后面缀一个正常颜色的「种子」，一眼知道拿的是什么。
         return `<div class="row" ${on}>
-          <img src="${b.icon}" alt="">
-          <span class="nm flavor-${b.flavor}">${esc(b.zh)} <span class="tag ftag flavor-${b.flavor}">${b.flavor}</span></span>
+          <span class="picon seed-icon">
+            <img class="pbase" src="${seedBagImg(b)}" alt="">
+            <img class="pberry" src="${b.icon}" alt="${esc(b.zh)}"></span>
+          <span class="nm flavor-${b.flavor}">${esc(b.zh)}<span class="seedword">种子</span>
+            <span class="ftier small flavor-${b.flavor}">${esc(G.berryFlavorTier(b))}</span></span>
           <span class="sub">×${S.seeds[id]}</span>
           <button class="small" data-act="seed" data-p='${attr({ b: id })}'>选中</button>
           <button class="small" data-act="plantAll" data-p='${attr({ b: id })}'>全种</button>
@@ -170,7 +208,8 @@ window.G = window.G || {};
       const price = G.berrySellPrice(S, b);
       h += `<div class="list-item">
         <img src="${b.icon}" alt="">
-        <span class="grow flavor-${b.flavor}">${esc(b.zh)} <span class="tag ftag flavor-${b.flavor}">${b.flavor}</span></span>
+        <span class="grow flavor-${b.flavor}">${esc(b.zh)}
+          <span class="ftier small flavor-${b.flavor}">${esc(G.berryFlavorTier(b))}</span></span>
         <span>×${int(S.berries[id])}</span>
         <span class="sub">单价 ${money(price)}</span>
         <button class="small" data-act="sellBerry" data-p='${attr({ id: +id, n: 1 })}'>卖1</button>
@@ -1247,8 +1286,10 @@ window.G = window.G || {};
 
   function renderTabs() {
     // 也用合入：点标签页时会触发重绘，整块替换会让鼠标下的那个标签闪一下
-    morph($("tabs"), TABS.map((t) =>
-      `<button data-act="tab" data-p='${attr({ t: t.id })}' class="${UI.tab === t.id ? "on" : ""}" title="${t.name}">${icon("tab-" + t.id, "ico-tab")}${t.name}</button>`
+    morph($("tabs"), TABS.map((t, i) =>
+      `<button data-act="tab" data-p='${attr({ t: t.id })}' class="${UI.tab === t.id ? "on" : ""}"
+        title="${t.name}（按 ${i + 1 <= 9 ? i + 1 : 0} 直接跳过来）">${i < 9
+          ? `<span class="tabnum">${i + 1}</span>` : `<span class="tabnum">0</span>`}${icon("tab-" + t.id, "ico-tab")}${t.name}</button>`
     ).join(""));
   }
 
@@ -1410,9 +1451,28 @@ window.G = window.G || {};
     UI.toast(r.summary);
   }
 
+  // 解锁新常客也要弹一下 —— 以前只写进右边的日志，很容易漏掉
+  let lastRegs = null;
+  function checkNewRegulars() {
+    const now = {};
+    (G.REGULARS || []).forEach((r) => {
+      if (G.engine.regState(S, r.dex).unlocked) now[r.dex] = true;
+    });
+    const ids = Object.keys(now);
+    // 第一次只是记下现状（读档、离线结算解锁的不补弹，免得一进游戏糊一屏）
+    if (lastRegs === null) { lastRegs = now; return; }
+    const fresh = ids.filter((d) => !lastRegs[d]);
+    lastRegs = now;
+    fresh.forEach((d) => {
+      const r = (G.REGULARS || []).filter((x) => String(x.dex) === String(d))[0];
+      if (r) UI.toast("新常客：" + r.name + "（" + r.title + "）");
+    });
+  }
+
   UI.frame = function () {
     const now = G.now(S);
     checkTripReport();
+    checkNewRegulars();
     const ps = S.plots.map((p) => (p.berry || 0) + ":" + (p.ripe ? "R" : Math.round(p.grown * 25))).join(",")
       + "|" + S.plots.length + "|" + S.money;
     if (ps !== sigPlots) { sigPlots = ps; renderPlots(); }
@@ -1988,6 +2048,7 @@ window.G = window.G || {};
   UI.replaceState = function (s) {
     S = s;
     UI.state = s;
+    lastRegs = null;      // 换了存档，常客名单缓存作废
     if (G.onStateReplace) G.onStateReplace(s);
   };
 

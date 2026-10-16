@@ -814,6 +814,25 @@ window.G = window.G || {};
     return { ok: true, got: got, n: take };
   };
 
+  // 一键播种：按给定顺序，从空地开始把手上所有种子种下去。
+  // 顺序由界面给（那栏从上往下就是"该先种哪个"），贵的排前面。
+  A.plantAllInOrder = function (state, ids) {
+    let n = 0;
+    for (let i = 0; i < (ids || []).length; i++) {
+      const id = ids[i];
+      while ((state.seeds[id] || 0) > 0) {
+        let slot = -1;
+        for (let j = 0; j < state.plots.length; j++) {
+          if (!state.plots[j].berry) { slot = j; break; }
+        }
+        if (slot < 0) return n;
+        A.plant(state, slot, id);
+        n++;
+      }
+    }
+    return n;
+  };
+
   A.dropSeed = function (state, id, n) {
     const have = state.seeds[id] || 0;
     const take = Math.min(have, n || 1);

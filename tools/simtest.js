@@ -838,6 +838,43 @@ window.SIM = {};
         return r.ok && G.engine.potSlots(potU) > before && G.engine.potStirSecs(potU) < 6;
       })());
 
+    // 一键播种（按 P）：照给定顺序来，顺序就是种子栏从上往下
+    const sPlant = fresh();
+    sPlant.plots.forEach((pl) => { pl.berry = null; pl.grown = 0; pl.ripe = false; });
+    sPlant.seeds = { 1: 2, 20: 1 };
+    const slots = sPlant.plots.length;
+    const planted = G.engine.plantAllInOrder(sPlant, [20, 1]);
+    check("一键播种按给定顺序种", planted === 3 &&
+      sPlant.plots[0].berry === 20 && sPlant.plots[1].berry === 1 && sPlant.plots[2].berry === 1,
+      sPlant.plots.slice(0, 3).map((p) => p.berry).join(","));
+    check("种子扣掉了", !sPlant.seeds[20] && !sPlant.seeds[1]);
+    check("地满了就停手", (function () {
+      const s2 = fresh();
+      s2.plots.forEach((pl) => { pl.berry = 1; });
+      s2.seeds = { 2: 5 };
+      return G.engine.plantAllInOrder(s2, [2]) === 0 && (s2.seeds[2] === 5);
+    })());
+    check("没种子就什么都不做", (function () {
+      const s3 = fresh();
+      s3.seeds = {};                     // newState 会送 3 颗初始种子，先清掉
+      return G.engine.plantAllInOrder(s3, [1]) === 0;
+    })());
+    check("种子栏顺序：同味道挨着、浓郁度降序", (function () {
+      const st = fresh();
+      G.BERRIES.forEach((b) => { st.seeds[b.id] = 1; });
+      const fi = (b) => { const i = G.FLAVORS_5.indexOf(b.flavor); return i < 0 ? 99 : i; };
+      const order = Object.keys(st.seeds).map(Number).sort((a, b) => {
+        const ba = G.BERRY_BY_ID[a], bb = G.BERRY_BY_ID[b];
+        if (fi(ba) !== fi(bb)) return fi(ba) - fi(bb);
+        return G.berryFlavorScore(bb) - G.berryFlavorScore(ba) || a - b;
+      });
+      for (let i = 1; i < order.length; i++) {
+        const a = G.BERRY_BY_ID[order[i - 1]], b = G.BERRY_BY_ID[order[i]];
+        if (a.flavor === b.flavor && G.berryFlavorScore(a) < G.berryFlavorScore(b)) return false;
+      }
+      return order.length === G.BERRIES.length && slots > 0;
+    })());
+
     // 味道浓度：果子越贵越浓，浓度影响售价和常客加成
     // （以前 flavorProfile 只在界面上画个雷达图，一点数值都不影响）
     const cheap = G.BERRIES.slice().sort((a, b) => a.basePrice - b.basePrice)[0];

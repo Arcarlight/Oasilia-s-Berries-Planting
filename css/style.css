@@ -740,3 +740,24 @@ label .micon { margin-right: 4px; }
 }
 .ftier.small { font-size: 12px; -webkit-text-stroke: 2.6px #10150c; }
 .ftier-无味 { color: #8b917f; }
+
+/* 「手上的种子」那栏：图标是种子袋（布袋+角上一颗树果），
+   名字后面缀的「种子」用正常文字色 —— 不带味道色，免得和味道标签混。 */
+.seed-icon { width: 26px; height: 26px; flex: 0 0 26px; }
+.seed-icon .pbase, .seed-icon .pberry { position: absolute; }
+.seedword { color: var(--ink); font-size: 12px; margin-left: 3px; opacity: .85; }
+/* 浓郁度也套个框，和味道标签并排看着整齐。只在这一栏加，别处保持描边字。 */
+.seed-picker .ftier {
+  display: inline-block; border: 1px solid currentColor;
+  padding: 0 5px; margin-left: 4px; line-height: 1.6;
+  -webkit-text-stroke: 0;      /* 套了框就不用再描边，不然字发糊 */
+  text-shadow: none;
+}
+
+/* 页签上的数字提示（键盘 1~9 / 0 可以直接跳） */
+#tabs .tabnum {
+  display: inline-block; min-width: 12px; margin-right: 3px;
+  font-size: 10px; line-height: 14px; text-align: center;
+  color: var(--dim); border: 1px solid var(--line2); border-radius: var(--px);
+}
+#tabs button.on .tabnum { color: var(--gold); border-color: var(--gold); }

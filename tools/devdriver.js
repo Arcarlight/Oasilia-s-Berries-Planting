@@ -54,6 +54,14 @@
       G.UI.forceRender();
     }
 
+    // #giveseeds=1：每种已解锁的树果给 5 颗种子，方便看种子选择器
+    if (p.giveseeds) {
+      (G.BERRIES || []).forEach((b) => {
+        if (b.region <= S.maxRegion) S.seeds[b.id] = Math.max(S.seeds[b.id] || 0, 5);
+      });
+      G.UI.forceRender();
+    }
+
     // #potlevel=N：直接把锅升到 N 级，用来验证特殊糕点的门槛
     if (p.potlevel) {
       S.pot.level = Math.max(1, Math.min(G.POT_LEVELS.length, parseInt(p.potlevel, 10) || 1));
@@ -149,6 +157,130 @@
         if (a && !have[a]) bad[a] = true;
       });
       return Object.keys(bad);
+    }
+
+    // #check=regtoast：解锁新常客要弹提示
+    if (p.check === "regtoast") {
+      const out = [];
+      try {
+        const locked = (G.REGULARS || []).filter((r) => !G.engine.regState(S, r.dex).unlocked);
+        out.push("现在锁着的常客：" + locked.length + " 个");
+        if (!locked.length) out.push("（全解锁了，换个 hours 再跑）");
+        else {
+          const target = locked[0];
+          // headless 下 rAF 不跑，UI.frame 可能一次都没执行过，
+          // 而 checkNewRegulars 第一次只记现状不弹 —— 所以先手动跑一帧打底。
+          G.UI.frame();
+          G.UI.frame();
+          const before = document.querySelectorAll("#toastWrap .toast").length;
+          // 直接把他标成已解锁，然后跑一帧
+          G.engine.regState(S, target.dex).unlocked = true;
+          G.UI.frame();
+          const toasts = [].slice.call(document.querySelectorAll("#toastWrap .toast"))
+            .map((x) => x.textContent);
+          const hit = toasts.filter((x) => x.indexOf(target.name) >= 0);
+          out.push("解锁「" + target.name + "（" + target.title + "）」之后：" +
+            (hit.length ? "弹了 ✓ → " + hit[0] : "没弹 ✗"));
+          out.push("日志里也有：" + (S.log.some((l) => String(l.t).indexOf("新常客") >= 0) ? "是" : "否（要等 checkUnlocks 跑一次）"));
+          out.push("（弹窗数 " + before + " → " + toasts.length + "）");
+        }
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "regtoastcheck";
+      pre.textContent = "REGTOASTCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
+    // #check=tabkeys：数字键 1~9 / 0 切页签
+    if (p.check === "tabkeys") {
+      const out = [];
+      try {
+        const list = G.UI.tabList();
+        out.push("页签共 " + list.length + " 个");
+        let ok = true;
+        for (let i = 0; i < list.length; i++) {
+          const code = i === 9 ? "Digit0" : "Digit" + (i + 1);
+          document.dispatchEvent(new KeyboardEvent("keydown", { code: code, bubbles: true }));
+          G.UI.frame();
+          if (G.UI.tab !== list[i].id) { ok = false; out.push("  " + code + " 应该切到 " + list[i].name + "，实际 " + G.UI.tab); }
+        }
+        out.push(ok ? "1~9 / 0 全部对得上 ✓" : "有对不上的 ✗");
+        // 输入框里按数字不该切页签
+        G.UI.tab = list[0].id;
+        const inp = document.createElement("input");
+        document.body.appendChild(inp);
+        inp.focus();
+        inp.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit5", bubbles: true }));
+        G.UI.frame();
+        out.push("在输入框里按数字不切页签：" + (G.UI.tab === list[0].id ? "是 ✓" : "否 ✗"));
+        inp.remove();
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "tabkeycheck";
+      pre.textContent = "TABKEYCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
+    // #check=plantp：按 P 一键播种，顺序要跟着种子栏从上往下（贵的先）
+    if (p.check === "plantp") {
+      const out = [];
+      try {
+        // 清空田地，每种已解锁的果子给 3 颗种子
+        S.plots.forEach((pl) => { pl.berry = null; pl.grown = 0; pl.ripe = false; });
+        S.seeds = {};
+        (G.BERRIES || []).forEach((b) => {
+          if (b.region <= S.maxRegion) S.seeds[b.id] = 3;
+        });
+        G.UI.forceRender();
+
+        const listOrder = G.UI.seedOrder();
+        const order = G.UI.seedPlantOrder();
+        out.push("列表顺序（前 6 个）：" + listOrder.slice(0, 6).map((id) => {
+          const b = G.BERRY_BY_ID[id];
+          return b.zh + "[" + G.berryFlavorTier(b) + "]";
+        }).join(" "));
+
+        out.push("播种顺序（前 6 个）：" + order.slice(0, 6).map((id) => {
+          const b = G.BERRY_BY_ID[id];
+          return b.zh + "₽" + b.basePrice;
+        }).join(" "));
+        out.push("播种顺序是按果价降序：" + (order.every((id, i) => i === 0 ||
+          G.BERRY_BY_ID[order[i - 1]].basePrice >= G.BERRY_BY_ID[id].basePrice) ? "是 ✓" : "否 ✗"));
+
+        // 同一个味道是不是挨在一起、浓郁度降序
+        let grouped = true;
+        const seen = [];
+        listOrder.forEach((id) => {
+          const f = G.BERRY_BY_ID[id].flavor;
+          if (seen.indexOf(f) < 0) seen.push(f);
+          else if (seen[seen.length - 1] !== f) grouped = false;
+        });
+        out.push("同味道挨在一起：" + (grouped ? "是 ✓" : "否 ✗"));
+
+        let desc = true;
+        for (let i = 1; i < listOrder.length; i++) {
+          const a = G.BERRY_BY_ID[listOrder[i - 1]], b = G.BERRY_BY_ID[listOrder[i]];
+          if (a.flavor === b.flavor && G.berryFlavorScore(a) < G.berryFlavorScore(b)) desc = false;
+        }
+        out.push("列表里同味道内浓郁度降序：" + (desc ? "是 ✓" : "否 ✗"));
+
+        // 按 P
+        const emptyBefore = S.plots.filter((pl) => !pl.berry).length;
+        document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyP", bubbles: true }));
+        G.UI.frame();
+        const planted = S.plots.filter((pl) => pl.berry).map((pl) => pl.berry);
+        out.push("空地 " + emptyBefore + " 块，按 P 之后种下 " + planted.length + " 块");
+        // 种下去的顺序应该和种子栏顺序一致
+        const want = [];
+        order.forEach((id) => { const n = 3; for (let k = 0; k < n; k++) want.push(id); });
+        const okOrder = planted.every((id, i) => id === want[i]);
+        out.push("播种顺序跟着「贵的优先」：" + (okOrder ? "是 ✓" : "否 ✗"));
+        out.push("第一块地种的是：" + (planted[0] !== undefined ? G.BERRY_BY_ID[planted[0]].zh : "（没种）"));
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "plantcheck";
+      pre.textContent = "PLANTCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
     }
 
     // #check=reset：重新开始之后，刷新不该把旧数据带回来。
