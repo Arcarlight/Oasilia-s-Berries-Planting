@@ -665,13 +665,18 @@ window.G = window.G || {};
     const known = Object.keys(S.dex).length;
     let h = `<div class="card"><h4>${icon("tab-dex", "ico-h")}树果图鉴 ${known}/${G.BERRIES.length}</h4>
       <div class="sub">见过就点亮。种过、买过种子、或者阿特拉斯带回来的都算。</div>
-      <div class="sub">越贵区域的果子味道越浓（最高 ×2.4），做出来的甜品卖价更高、交给对口的常客加成也更多。</div></div>`;
+      <div class="sub">下面那个彩色的词是<b>原味浓度</b>：果子越贵味道越浓（最贵的一档 ×2.4），
+      做出来的甜品卖价更高、交给对口的常客加成也更多。<br>
+      分五档：<span class="ftier small flavor-甜">清甜</span>（最淡，只有这档带具体味道）
+      → 芬芳 → 浓郁 → <span class="ftier small flavor-甜">厚重</span>。
+      做成甜品后浓度还会涨 —— 锅里料越多越浓。</div></div>`;
     h += `<div class="dex-grid">`;
     G.BERRIES.forEach((b) => {
       const seen = S.dex[b.id];
-      h += `<div class="dex-cell ${seen ? "" : "unknown"}" title="${esc(seen ? b.zh + "　" + b.flavor + "　" + b.firmnessCn + "　生长" + b.growHours + "h　果₽" + b.basePrice : "你还没见过这种树果")}">
+      const score = G.berryFlavorScore(b);
+      h += `<div class="dex-cell ${seen ? "" : "unknown"}" title="${esc(seen ? b.zh + "　" + b.flavor + "味　" + b.firmnessCn + "　生长" + b.growHours + "h　果₽" + b.basePrice + "　原味浓度 " + G.berryFlavorTier(b) + "（×" + G.berryFlavorPower(b).toFixed(2) + "）" : "你还没见过这种树果")}">
         <img src="${b.icon}" alt=""><div>${seen ? esc(b.zh) : "？？？"}</div>
-        ${seen ? `<div class="flavor-${b.flavor}">${b.flavor}</div>` : ""}
+        ${seen ? `<div class="ftier small flavor-${b.flavor}">${esc(G.berryFlavorTier(b))}</div>` : ""}
       </div>`;
     });
     h += `</div>`;
@@ -837,8 +842,12 @@ window.G = window.G || {};
       if (!b) return null;
       return {
         kind: kind, id: +id, n: S.berries[id] || 0, name: b.zh, img: b.icon,
-        desc: b.effect ? "吃下去能" + b.effect + "。" : "", note: "硬度：" + (b.firmnessCn || "—"),
+        desc: b.effect ? "吃下去能" + b.effect + "。" : "",
+        note: "硬度：" + (b.firmnessCn || "—") + "。",
         price: G.berrySellPrice(S, b), priceLabel: "单价", tags: [b.flavor],
+        flavorPeak: G.berryFlavorScore(b), flavorTag: b.flavor,
+        flavorLabel: "原味浓度", flavorText: "×" + G.berryFlavorPower(b).toFixed(2) +
+          "　做成甜品后还会更浓（锅里料越多越浓）",
         actions: [["sellBerry", "卖1", { id: +id, n: 1 }], ["sellBerry", "卖光", { id: +id, n: 9999 }]]
       };
     }
@@ -850,6 +859,8 @@ window.G = window.G || {};
         desc: "种下去长成" + b.zh + "，大约 " + b.growHours + " 小时。",
         note: "回收只给四成价。收获时回种的那些是白来的，卖掉算白赚；花钱买的再卖就亏了。",
         price: G.seedSellPrice(S, b), priceLabel: "回收价（折损）", tags: [b.flavor],
+        flavorPeak: G.berryFlavorScore(b), flavorTag: b.flavor,
+        flavorLabel: "长出来是", flavorText: "×" + G.berryFlavorPower(b).toFixed(2) + " 浓度",
         actions: [["sellSeed", "卖1", { id: +id, n: 1 }], ["sellSeed", "卖光", { id: +id, n: 9999 }],
                   ["dropSeed", "丢", { id: +id }, "danger"]]
       };
@@ -953,6 +964,12 @@ window.G = window.G || {};
     });
     h += `</div></div>`;
     if (e.desc) h += `<div class="sub wh-desc">${esc(e.desc)}</div>`;
+    // 味道浓度：树果和制品都显示，用同一个档位名，方向一致
+    if (e.flavorPeak !== undefined) {
+      const cls = e.flavorPeak > 0 ? "flavor-" + e.flavorTag : "ftier-无味";
+      h += `<div class="radar-verdict"><span class="ftier ${cls}">${esc(G.flavorTier(e.flavorPeak, e.flavorTag))}</span>
+        <span style="margin-left:6px">${esc(e.flavorLabel || "味道浓度")} ${e.flavorPeak / 100 >= 0 ? "" : ""}${e.flavorText || e.flavorPeak}</span></div>`;
+    }
     if (e.note) h += `<div class="sub wh-note">${esc(e.note)}</div>`;
     // 甜品：画一张五边形味道图，配一句吐槽
     if (e.kind === "product" && e.recipe && e.berry) {

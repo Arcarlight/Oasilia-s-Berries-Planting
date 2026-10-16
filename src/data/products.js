@@ -160,6 +160,17 @@ window.G = window.G || {};
     return 1 + 1.4 * Math.max(0, Math.min(1, t));
   };
 
+  // 树果自己的浓度分（0~100）—— 光看果子就能判断它浓不浓，不用先做成甜品。
+  // 和制品那套用同一组档位名，方向也一致：果子越浓，做出来越浓。
+  G.berryFlavorScore = function (berry) {
+    const pw = G.berryFlavorPower(berry);
+    if (!pw) return 0;
+    return Math.round(18 + ((pw - 1) / 1.4) * 78);   // ×1.0 → 18，×2.4 → 96
+  };
+  G.berryFlavorTier = function (berry) {
+    return G.flavorTier(G.berryFlavorScore(berry), berry ? berry.flavor : "");
+  };
+
   // 浓度：取味道画像里最高的那一角（0~100）。售价和常客加成都看它。
   G.flavorIntensity = function (recipe, berry) {
     const prof = G.flavorProfile(recipe, berry);
