@@ -716,6 +716,42 @@
     }
 
 
+    // #check=help：说明自动收进「?」的覆盖情况
+    if (p.check === "help") {
+      const out = [];
+      try {
+        const tabs = (G.UI.tabList ? G.UI.tabList() : []).map((t) => t.id);
+        let totalCards = 0, totalHelp = 0;
+        const bad = [];
+        tabs.forEach((t) => {
+          G.UI.tab = t;
+          G.UI.forceRender();
+          const body = document.getElementById("tabBody");
+          const cards = body.querySelectorAll(".card");
+          const helps = body.querySelectorAll(".help");
+          totalCards += cards.length; totalHelp += helps.length;
+          if (helps.length) {
+            const tip = helps[0].querySelector(".htip");
+            out.push(t + "：" + cards.length + " 卡 / " + helps.length + " 个?　例：" +
+              (tip ? tip.textContent.trim().slice(0, 34) : ""));
+          } else {
+            out.push(t + "：" + cards.length + " 卡 / 0 个?");
+          }
+          // 逐条检查：有没有把数据行搬进说明
+          body.querySelectorAll(".help .htip").forEach((h) => {
+            const txt = h.textContent.trim();
+            if (/^(库存|持有|还差|当前|共)/.test(txt) || /^\d/.test(txt)) bad.push(t + ":" + txt.slice(0, 24));
+          });
+        });
+        out.push("—— 合计 " + totalCards + " 张卡，" + totalHelp + " 个「?」");
+        out.push("疑似误搬的数据行：" + (bad.length ? bad.join(" | ") : "无 ✓"));
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "helpcheck";
+      pre.textContent = "HELPCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
     // #check=filter：口味筛选能同时选两个
     if (p.check === "filter") {
       const out = [];

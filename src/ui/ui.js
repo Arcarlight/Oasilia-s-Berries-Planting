@@ -1518,6 +1518,54 @@ window.G = window.G || {};
 
   UI.morph = morph;          // 暴露出来给自检用
 
+  // ── 把卡片里那段"说明性"文字收进右上角的「?」──────────────────────────
+  // 为什么要自动做：全站十几个页面、几十张卡，逐张手改容易漏也容易带出格式错。
+  // 这里是纯字符串 → DOM → 字符串的确定性变换（同样输入出同样结果），
+  // 所以 morph 的就地合入不会被它弄乱。
+  //
+  // 只搬"像说明的"那一行：
+  //   · 有一段完整的话（含句号）、长度 ≥18；
+  //   · 不是数据行（库存/还差/当前/共/×/₽ 这类开头）；
+  //   · 里面没有按钮、下拉、输入框。
+  // 卡里已经有 .help 的跳过（手写过的优先）。
+  function proseLike(el) {
+    const t = (el.textContent || "").trim();
+    if (t.length < 18 || t.indexOf("。") < 0) return false;
+    if (/^(库存|持有|还差|当前|已|共|本区|这一趟|第|×|₽)/.test(t)) return false;
+    if (el.querySelector("button,select,input,a,table")) return false;
+    return true;
+  }
+
+  function helpfy(html) {
+    if (!html || html.indexOf('class="card"') < 0) return html;
+    const box = document.createElement("div");
+    box.innerHTML = html;
+    const cards = box.querySelectorAll(".card");
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      if (card.querySelector(".help")) continue;      // 手写过的别动
+      const h4 = card.querySelector("h4");
+      if (!h4) continue;
+      const subs = card.querySelectorAll(":scope > .sub");
+      let target = null;
+      for (let j = 0; j < subs.length; j++) {
+        if (proseLike(subs[j])) { target = subs[j]; break; }
+      }
+      if (!target) continue;
+      const help = document.createElement("span");
+      help.className = "help";
+      help.innerHTML = '<img class="hico" src="assets/ui/help.png"' +
+        ' srcset="assets/ui/help-2x.png 2x, assets/ui/help-3x.png 3x" alt="?">' +
+        '<span class="htip"></span>';
+      help.querySelector(".htip").appendChild(target.cloneNode(true));
+      h4.appendChild(help);
+      target.parentNode.removeChild(target);
+      UI.helpCount = (UI.helpCount || 0) + 1;
+    }
+    return box.innerHTML;
+  }
+  UI.helpfy = helpfy;
+
   function renderTabBody(force) {
     // 节流用真实时间，不用游戏时钟：以后加变速也不会让界面跟着狂刷
     const now = performance.now();
@@ -1541,6 +1589,8 @@ window.G = window.G || {};
         <pre style="white-space:pre-wrap;font-size:12px;color:#9fa286">${esc((e && e.stack) || "")}</pre>
         <div class="sub">存档没坏，切到别的页签还能继续玩。</div></div>`;
     }
+    // 说明性文字统一收进「?」（确定性的，不会影响下面的"内容没变"判断）
+    html = helpfy(html);
     // 内容没变就别动 DOM：innerHTML 会把按钮节点整个销毁重造，
     // 鼠标悬停时会导致 hover 状态反复丢失（一闪一闪），手机上的原生下拉也会被关掉。
     if (html === lastHtml && !UI.lastError) {
