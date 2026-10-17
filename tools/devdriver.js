@@ -830,6 +830,73 @@
       document.body.appendChild(pre);
     }
 
+    // #check=affinity：好感给什么、满级专属订单、卖货默认挑对味常客
+    if (p.check === "affinity") {
+      const out = [];
+      try {
+        for (let a = 0; a <= G.AFF_MAX; a++) {
+          out.push("好感 " + a + "/5：" + G.affinityEffects(a).text);
+        }
+        // 摆一份商品，看仓库页的下拉默认挑了谁
+        const reg = G.engine.regionRegulars(S.region)[0];
+        G.engine.regState(S, reg.dex).unlocked = true;
+        const rec = G.RECIPES.filter((r) => r.flavor === reg.flavor && !r.research)[0];
+        const berry = G.BERRIES.filter((b) => b.flavor === reg.flavor)[0];
+        S.recipes[rec.id] = true;
+        const key = rec.id + "|" + berry.id;
+        // 只留这一份商品，避免列表里别的货把"第一行"占掉（这检查要看的就是默认选中项）
+        S.products = {};
+        S.products[key] = 10;
+        G.UI.tab = "market";
+        G.UI.forceRender();
+        const sel = document.querySelector('[data-act="picksell"]');
+        const picked = sel ? sel.options[sel.selectedIndex] : null;
+        out.push("仓库页下拉默认：" + (picked ? picked.textContent.trim() : "没找到下拉") +
+          (picked && +picked.value === reg.dex ? " ✓ 自动挑了对味常客" : " ✗ 没自动挑"));
+        const st0 = G.engine.regState(S, reg.dex);
+        const shown = document.querySelector('#tabBody [data-act="sellProduct"]');
+        const row = shown ? shown.closest(".list-item") : null;
+        const goldEl = row ? row.querySelector(".gold") : null;
+        out.push("显示单价：" + (goldEl ? goldEl.textContent.trim() : "?") +
+          "　市场 " + G.marketPrice(S, rec, berry) +
+          "　交给他 " + G.productSellPrice(S, rec, berry, { aff: st0.aff, flavor: reg.flavor, dislike: reg.dislike }));
+        // 真的点一下「卖1」
+        const prog = (x) => x.aff * 1000 + (x.exp || 0);
+        const m0 = S.money, e0 = prog(st0), a0 = st0.aff, x0 = st0.exp;
+        if (shown) shown.click();
+        else G.engine.sellProduct(S, key, 1, reg.dex);
+        const st1 = G.engine.regState(S, reg.dex);
+        out.push("点卖1之后：钱 " + m0 + " → " + S.money + "　好感 " + a0 + "级" + x0.toFixed(1) + " → " +
+          st1.aff + "级" + st1.exp.toFixed(1) + (S.money > m0 && prog(st1) > e0 ? " ✓" : " ✗"));
+        // 好感满级 → 专属订单
+        G.engine.regionRegulars(S.region).forEach((r) => {
+          const x = G.engine.regState(S, r.dex);
+          x.unlocked = true; x.aff = G.AFF_MAX; x.lastSpecialAt = 0; x.exp = 0;
+        });
+        let sp = null;
+        for (let i = 0; i < 1500 && !sp; i++) {
+          S.clock += 1000;
+          G.engine.trySpawnOrders(S);
+          sp = (S.specialOrders || {})[reg.dex];
+        }
+        out.push("满级专属订单：" + (sp ? (sp.count + " 份" + sp.flavor + "味，赏金 ₽" + G.fmt(sp.reward) +
+          "，限 " + Math.round((sp.expires - S.clock) / 1000) + " 秒 ✓") : "✗ 没生成"));
+        G.UI.tab = "regulars";
+        G.UI.forceRender();
+        const body = document.getElementById("tabBody").textContent;
+        out.push("常客页写出好感收益：" + (/收购价 \+/.test(body) ? "✓" : "✗"));
+        out.push("常客页有专属订单：" + (/专属订单/.test(body) ? "✓" : "✗"));
+        G.UI.tab = "market";
+        G.UI.forceRender();
+        out.push("页面运行期报错数：" + ((window.__errors || []).length) +
+          "　helpfy 出错：" + (G.UI.helpError || "无"));
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "affcheck";
+      pre.textContent = "AFFCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
     // #check=help：说明自动收进「?」的覆盖情况
     if (p.check === "help") {
       const out = [];

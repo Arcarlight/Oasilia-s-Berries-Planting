@@ -198,7 +198,7 @@ window.G = window.G || {};
     h += `<div class="row2" style="margin-bottom:8px">
       <button data-act="sellAllBerries">生果全部卖出</button>
       <button data-act="sellAllProducts">商品全部卖出</button>
-      <span class="sub">直接卖便宜，交给常客贵。喜欢对应口味的常客会多给 50%。</span>
+      <span class="sub">直接卖便宜，交给常客贵：对味多给五成，好感每级再多 12%。下面会自动帮你挑对味的那位。</span>
     </div>`;
 
     h += `<div class="card"><h4>生果</h4>`;
@@ -228,13 +228,27 @@ window.G = window.G || {};
       const v = sub ? G.mixedValue(r, b, sub) : G.productValue(r, b);
       const pname = sub ? G.mixedName(r, b, sub) : G.productName(r, b);
       const ftag = sub ? (G.mixTag(b, sub) || r.flavor) : r.flavor;
+      // 这份东西对哪几种口味来说算"对味"（混合的两种都算）
+      const likes = sub ? [r.flavor, sub.flavor] : [r.flavor];
+      const candidates = regs.filter((rg) => likes.indexOf(rg.flavor) >= 0)
+        .sort((a, b2) => G.engine.regState(S, b2.dex).aff - G.engine.regState(S, a.dex).aff);
+      // 没手动选过就自动挑「对味且好感最高」的那位。
+      // 以前默认是市场价：玩家不点下拉就一分好感拿不到，也白白少赚常客那四成差价。
+      // picked = null 表示玩家自己选了市场价（要尊重）；老区域留下的 dex 现在不在本区，当没选过。
+      const picked = Object.prototype.hasOwnProperty.call(pick.regularFor, k) ? pick.regularFor[k] : undefined;
+      const valid = (picked === null || regs.some((rg) => rg.dex === picked)) ? picked : undefined;
+      const target = (valid === undefined) ? (candidates.length ? candidates[0].dex : null) : valid;
       const sellTo = regs.length
         ? `<select data-act="picksell" data-p='${attr({ k: k })}'>
-             <option value="">随便谁（市场价）</option>
-             ${regs.map((rg) => `<option value="${rg.dex}" ${pick.regularFor[k] === rg.dex ? "selected" : ""}>${esc(rg.name)}（喜${rg.flavor}）</option>`).join("")}
+             <option value="" ${target === null ? "selected" : ""}>随便谁（市场价）</option>
+             ${regs.map((rg) => {
+               const ra = G.engine.regState(S, rg.dex).aff;
+               const hit = likes.indexOf(rg.flavor) >= 0;
+               return `<option value="${rg.dex}" ${target === rg.dex ? "selected" : ""}>` +
+                 `${esc(rg.name)}（${hit ? "喜" + rg.flavor : rg.flavor + "，不对味"}${ra ? "，好感" + ra + " +" + (ra * 12) + "%" : ""}）</option>`;
+             }).join("")}
            </select>`
         : `<span class="sub">还没有常客</span>`;
-      const target = pick.regularFor[k] || null;
       const regArg = target
         ? { aff: G.engine.regState(S, target).aff, flavor: G.engine.regularByDex(target).flavor, dislike: G.engine.regularByDex(target).dislike }
         : null;
@@ -242,14 +256,19 @@ window.G = window.G || {};
         ? (regArg ? G.mixedSellPrice(S, r, b, sub, regArg) : G.mixedMarketPrice(S, r, b, sub))
         : (regArg ? G.productSellPrice(S, r, b, regArg) : G.marketPrice(S, r, b));
       const mshare = sub ? (G.mixSplit(G.craftNeedCount(S, r)).main / Math.max(1, G.craftNeedCount(S, r))) : 0.5;
+      const priceTip = regArg
+        ? "交给" + G.engine.regularByDex(target).name + "：口味加成 " +
+          (sub ? G.mixedFlavorMult(regArg, b, sub, Math.max(G.flavorIntensity(r, b), G.flavorIntensity(r, sub))) : G.flavorMult(r.flavor, regArg, G.flavorIntensity(r, b))).toFixed(2) +
+          " × 好感 " + G.affinityEffects(regArg.aff).priceMult.toFixed(2)
+        : "市场价（不走常客，不涨好感）";
       h += `<div class="list-item">
         ${G.productIcon(r, b, sub, mshare)}
         <span class="grow" title="${esc(pname)}">${esc(pname)}
           <span class="flavor-${b.flavor}">[${esc(ftag)}]</span></span>
         <span>×${int(S.products[k])}</span>
-        <span class="sub">基础 ₽${G.fmt(v)}</span>
+        <span class="sub" title="一份的基础价值">基础 ₽${G.fmt(v)}</span>
         ${sellTo}
-        <span class="gold">${money(price)}</span>
+        <span class="gold" title="${esc(priceTip)}">${money(price)}</span>
         <button class="small" data-act="sellProduct" data-p='${attr({ k: k, n: 1, dex: target })}'>卖1</button>
         <button class="small" data-act="sellProduct" data-p='${attr({ k: k, n: 9999, dex: target })}'>全卖</button>
       </div>`;
@@ -431,6 +450,9 @@ window.G = window.G || {};
       const st = G.engine.regState(S, reg.dex);
       const unlock = st.unlocked;
       const order = S.orders[reg.dex];
+      const sp = (S.specialOrders || {})[reg.dex];
+      const eff = G.affinityEffects(st.aff);
+      const needMore = Math.max(0, Math.ceil(G.engine.affinityNeed(st.aff) - (st.exp || 0)));
       const prog = G.engine.unlockProgress(S, reg);
       const pctv = Math.min(1, prog.cur / prog.need);
 
@@ -439,12 +461,15 @@ window.G = window.G || {};
         <div class="grow">
           <div class="who">${esc(reg.name)} <span class="tag">${esc(reg.title)}</span>
             ${unlock ? "" : `<span class="tag">未解锁</span>`}</div>
-          <div class="sub">性格 ${esc(reg.nature)}　喜欢 <b class="flavor-${reg.flavor}">${reg.flavor}</b>　讨厌 <b class="flavor-${reg.dislike}">${reg.dislike}</b>
-            ｜好感 ${st.aff}/5</div>
+          <div class="sub">性格 ${esc(reg.nature)}　喜欢 <b class="flavor-${reg.flavor}">${reg.flavor}</b>　讨厌 <b class="flavor-${reg.dislike}">${reg.dislike}</b></div>
+          ${unlock ? `<div class="sub">好感 <b>${st.aff}/5</b>　${esc(eff.text)}${eff.maxed ? "" : `　（还差 ${needMore} 点升下一级）`}</div>` : ""}
           <div class="sub">${esc(reg.desc)}</div>
           ${unlock ? `<div class="sub" style="margin-top:4px">${esc(reg.lines.greet[st.aff % reg.lines.greet.length])}</div>`
             : `<div class="sub" style="margin-top:4px">解锁条件：${esc(prog.label)} ${G.fmt(prog.cur)} / ${G.fmt(prog.need)}</div>
                <div class="bar-outer" style="margin-top:4px"><i style="width:${(pctv * 100).toFixed(0)}%"></i></div>`}
+          ${sp ? `<div class="sub sorder" style="margin-top:4px">【专属订单】要 ${sp.count} 份<b class="flavor-${sp.flavor}">${sp.flavor}</b>味的商品，
+             赏金 ${money(sp.reward)}，剩 ${G.clock((sp.expires - G.now(S)) / 1000)}</div>
+             <button class="small gold" data-act="deliverSpecial" data-p='${attr({ dex: reg.dex })}'>交付专属订单</button>` : ""}
           ${order ? `<div class="sub" style="margin-top:4px;color:#9fd8ff">【订单】要 ${order.count} 份<b class="flavor-${order.flavor}">${order.flavor}</b>味的商品，
              赏金 ${money(order.reward)}，剩 ${G.clock((order.expires - G.now(S)) / 1000)}</div>
              <button class="small gold" data-act="deliver" data-p='${attr({ dex: reg.dex })}'>交付订单</button>` : ""}
@@ -939,9 +964,10 @@ window.G = window.G || {};
         <li><b>收获</b>：成熟后点一下，或者「收获全部」。</li>
         <li><b>卖</b>：生果在${go("market", "市场")}直接卖；但先看看${go("kitchen", "加工")}——同一批树果做成商品能多卖好几倍。</li>
         <li><b>学配方</b>：配方要花钱学。学会之后，投入越贵的树果，商品越值钱。</li>
-        <li><b>常客</b>：每位常客只爱一种口味。把对应口味的商品交给他，售价 +50%，好感还会涨。</li>
+        <li><b>常客</b>：每位常客只爱一种口味。把对应口味的商品交给他，售价 +50%；好感每升一级他再多给 12%，
+          满 5 级还会给你留高价的<b>专属订单</b>。</li>
         <li><b>道具</b>：材料可以让阿特拉斯去杂货铺代购，也可以让他出远门买（便宜，要等）。材料齐了他会亲手做。</li>
-        <li><b>帮手</b>：好感够的常客可以请来帮忙，自动收、自动补种、自动浇水。</li>
+        <li><b>帮手</b>：已经上门的常客可以花钱请来帮忙，自动收、自动补种、自动浇水。</li>
         <li><b>素材</b>：阿特拉斯出门除了买清单上的材料，还会顺手带回一些素材（面粉、鲜奶、香料……），
           都放进${go("store", "仓库")}。素材只有三条出路：卖钱、丢掉、或者拿去研发。</li>
         <li><b>研发</b>：${go("lab", "研发")}页有一口大锅。把树果和素材丢进去（点一下或拖进去都行），
@@ -1938,6 +1964,10 @@ window.G = window.G || {};
     fire: (p) => { G.engine.fireHelper(S, p.dex); UI.toast("让他回去了"); },
     deliver: (p) => {
       if (G.engine.deliverOrder(S, p.dex)) UI.toast("订单完成");
+      else UI.toast("符合口味的商品不够");
+    },
+    deliverSpecial: (p) => {
+      if (G.engine.deliverSpecial(S, p.dex)) UI.toast("专属订单完成，这一笔够沉");
       else UI.toast("符合口味的商品不够");
     },
     buyTalent: (p) => {

@@ -74,7 +74,7 @@ window.G = window.G || {};
 
   A.regState = function (state, dex) {
     if (!state.regulars[dex]) {
-      state.regulars[dex] = { aff: 0, exp: 0, unlocked: false, orders: 0 };
+      state.regulars[dex] = { aff: 0, exp: 0, unlocked: false, orders: 0, lastSpecialAt: 0 };
     }
     return state.regulars[dex];
   };
@@ -598,6 +598,15 @@ window.G = window.G || {};
     });
     state.stallCarry = Math.max(0, state.stallCarry || 0);
     A.pruneHelpers(state);
+    if (!state.specialOrders || typeof state.specialOrders !== "object") state.specialOrders = {};
+    // 老存档里满级常客攒了几千点用不上的好感经验（升满只要 110 点），载入时抹掉
+    Object.keys(state.regulars || {}).forEach((k) => {
+      const r = state.regulars[k];
+      if (!r) return;
+      r.aff = Math.max(0, Math.min(G.AFF_MAX, Math.floor(r.aff || 0)));
+      if (r.aff >= G.AFF_MAX) r.exp = 0;
+      else if (!isFinite(r.exp)) r.exp = 0;
+    });
     // 老存档里可能已经被 NaN 污染过（卖了东西钱不动就是这个）
     if (typeof state.money !== "number" || !isFinite(state.money)) {
       G.addLog(state, "余额有异常值，已经修回 0。", "info");
@@ -776,7 +785,8 @@ window.G = window.G || {};
     state.autoTradeCd = 0;
     const friends = A.regionRegulars(state.region)
       .filter((r) => A.regState(state, r.dex).unlocked);
-    // 先把能交的订单交掉
+    // 先把能交的订单交掉（专属订单先交，赏金更高）
+    Object.keys(state.specialOrders || {}).forEach((dex) => { A.deliverSpecial(state, +dex); });
     Object.keys(state.orders).forEach((dex) => { A.deliverOrder(state, +dex); });
     // 再把商品一件一件交给喜欢这个口味的常客（没常客收就按市场价出）
     const before = state.money;
@@ -1235,23 +1245,80 @@ window.G = window.G || {};
 
   // ---------- 常客 ----------
 
+  // 升到下一级要多少好感经验：0→1 级 6 点，之后每级多 8 点，满级 110 点。
+  A.affinityNeed = function (lvl) { return 6 + (lvl || 0) * 8; };
+
   A.giveAffinity = function (state, dex, flavor, times) {
     const reg = A.regularByDex(dex);
     if (!reg) return;
     const s = A.regState(state, dex);
+    // 满级之后不再囤经验：继续交给他只拿价钱。以前经验会一路涨到几千点
+    // （玩家存档里一位满级常客攒了 7935 点，而升满总共只要 110 点），
+    // 白占存档，还让人以为"好感还能再升"。
+    if (s.aff >= G.AFF_MAX) { s.exp = 0; return; }
     const b = G.bonuses(state);
     let exp = (times || 1) * (1 + b.affinity);
     if (flavor === reg.flavor) exp *= 1.5;
     if (flavor === reg.dislike) exp *= 0.35;
     s.exp += exp;
-    const need = (lvl) => 6 + lvl * 8;
-    while (s.aff < 5 && s.exp >= need(s.aff)) {
-      s.exp -= need(s.aff);
+    while (s.aff < G.AFF_MAX && s.exp >= A.affinityNeed(s.aff)) {
+      s.exp -= A.affinityNeed(s.aff);
       s.aff++;
       G.addLog(state, reg.name + "的好感提升到 " + s.aff + " 级。", "good");
       G.clearBonusCache();
     }
+    if (s.aff >= G.AFF_MAX) {
+      s.exp = 0;
+      G.addLog(state, reg.name + "已经是老主顾了，以后会给你留专属的活。", "good");
+    }
   };
+
+  // 一份该味道商品的"基础单价"，订单赏金以它为准。
+  // 以前取"最后一个解锁的配方"，而研发配方只要锅大，倍率能到普通配方的 4~5 倍，
+  // 于是同一个味道的订单赏金能差 20 倍（玩家真实存档里 5 份甜味报出 ₽37万）。
+  // 现在只拿商店配方当基准；没有商店配方就取中位数，避免被个别极端配方带飞。
+  function orderUnit(state, flavor) {
+    const berry = G.bestBerryOfRegion(state.region);
+    let unit = berry.basePrice * 3;
+    const recipes = A.unlockedRecipes(state).filter((r) => r.flavor === flavor);
+    if (recipes.length) {
+      const shop = recipes.filter((r) => !r.research && !r.specialty);
+      let base = null;
+      if (shop.length) {
+        base = shop[0];
+      } else {
+        const sorted = recipes.slice().sort((a, b) => a.mult - b.mult);
+        base = sorted[Math.floor(sorted.length / 2)];
+      }
+      unit = G.productValue(base, berry);
+    }
+    return unit;
+  }
+
+  // 专属订单：好感满级的常客才有的活。独立放在 state.specialOrders 里，
+  // 不占普通订单的位置 —— 不然"好感满了"反而让你能接的普通单变少，等于惩罚。
+  // 高价值、限 5 分钟，错过就等下一轮。
+  const SPECIAL_TTL = 5 * 60 * 1000;
+  const SPECIAL_CD = 240000;
+  function trySpawnSpecial(state, reg, s, now, payMult) {
+    if (!state.specialOrders) state.specialOrders = {};
+    const cur = state.specialOrders[reg.dex];
+    if (cur && cur.expires > now) return;
+    if (cur) delete state.specialOrders[reg.dex];
+    if (now - (s.lastSpecialAt || 0) < SPECIAL_CD) return;
+    if (Math.random() > 0.01) return; // 每 tick 很小概率，冷却之后才roll
+    s.lastSpecialAt = now;
+    const count = 5 + Math.floor(Math.random() * 4);
+    const flavor = reg.flavor;   // 自己的看家口味，不掺别的
+    const unit = orderUnit(state, flavor);
+    const aff = G.affinityEffects(s.aff);
+    const reward = Math.floor(unit * count * 2.4 * aff.orderMult * payMult * 1.8);
+    state.specialOrders[reg.dex] = {
+      flavor: flavor, count: count, reward: reward, expires: now + SPECIAL_TTL, special: true
+    };
+    G.addLog(state, "【专属订单】" + reg.name + "给你留了一份 " + count + " 份" + flavor +
+      "味的活，赏金 ₽" + G.fmt(reward) + "，限 5 分钟。", "order");
+  }
 
   // 生成订单
   A.trySpawnOrders = function (state) {
@@ -1263,6 +1330,8 @@ window.G = window.G || {};
     A.regionRegulars(state.region).forEach((reg) => {
       const s = A.regState(state, reg.dex);
       if (!s.unlocked) return;
+      // 满级常客先看专属订单（独立槽位，和下面的普通订单互不影响）
+      if (s.aff >= G.AFF_MAX) trySpawnSpecial(state, reg, s, now, payMult);
       const cur = state.orders[reg.dex];
       if (cur && cur.expires > now) return;
       if (cur) delete state.orders[reg.dex];
@@ -1272,25 +1341,10 @@ window.G = window.G || {};
       if (Math.random() > 0.02) return; // 每 tick 很小概率
       s.lastOrderAt = now;
       const count = 2 + Math.floor(Math.random() * 4) + Math.floor(s.aff / 2);
-      const berry = G.bestBerryOfRegion(state.region);
       const flavor = Math.random() < 0.7 ? reg.flavor : G.FLAVORS[Math.floor(Math.random() * G.FLAVORS.length)];
-      const recipes = A.unlockedRecipes(state).filter((r) => r.flavor === flavor);
-      let unit = berry.basePrice * 3;
-      if (recipes.length) {
-        // 以前取"最后一个解锁的配方"，而研发配方只要锅大，倍率能到普通配方的 4~5 倍，
-        // 于是同一个味道的订单赏金能差 20 倍（玩家真实存档里 5 份甜味报出 ₽37万）。
-        // 现在只拿商店配方当基准；没有商店配方就取中位数，避免被个别极端配方带飞。
-        const shop = recipes.filter((r) => !r.research && !r.specialty);
-        let base = null;
-        if (shop.length) {
-          base = shop[0];
-        } else {
-          const sorted = recipes.slice().sort((a, b) => a.mult - b.mult);
-          base = sorted[Math.floor(sorted.length / 2)];
-        }
-        unit = G.productValue(base, berry);
-      }
-      const reward = Math.floor(unit * count * 2.4 * (1 + s.aff * 0.15) * payMult);
+      const unit = orderUnit(state, flavor);
+      const aff = G.affinityEffects(s.aff);
+      const reward = Math.floor(unit * count * 2.4 * aff.orderMult * payMult);
       state.orders[reg.dex] = {
         flavor: flavor, count: count, reward: reward, expires: now + 10 * 60 * 1000
       };
@@ -1298,16 +1352,13 @@ window.G = window.G || {};
     });
   };
 
-  A.deliverOrder = function (state, dex) {
-    const order = state.orders[dex];
-    if (!order) return false;
-    // 收集符合口味的商品
-    let need = order.count;
+  // 从货架上凑够 need 份指定口味的商品（混合的也算）。凑不够就一点不动，返回 false。
+  function takeByFlavor(state, flavor, need) {
     const keys = Object.keys(state.products).filter((k) => {
       const ki = G.keyInfo(k);
       if (!ki.recipe) return false;
-      if (ki.recipe.flavor === order.flavor || ki.recipe.flavor === "混合") return true;
-      return !!(ki.sub && ki.sub.flavor === order.flavor);
+      if (ki.recipe.flavor === flavor || ki.recipe.flavor === "混合") return true;
+      return !!(ki.sub && ki.sub.flavor === flavor);
     });
     let available = 0;
     keys.forEach((k) => { available += state.products[k] || 0; });
@@ -1319,6 +1370,13 @@ window.G = window.G || {};
       if (state.products[k] <= 0) delete state.products[k];
       need -= take;
     }
+    return true;
+  }
+
+  A.deliverOrder = function (state, dex) {
+    const order = state.orders[dex];
+    if (!order) return false;
+    if (!takeByFlavor(state, order.flavor, order.count)) return false;
     delete state.orders[dex];
     gain(state, order.reward);
     const s = A.regState(state, dex);
@@ -1328,6 +1386,23 @@ window.G = window.G || {};
     const reg = A.regularByDex(dex);
     G.addLog(state, "把 " + order.count + " 份" + order.flavor + "味的东西交给" + (reg ? reg.name : "常客") +
       "，拿到 ₽" + G.fmt(order.reward) + "。", "good");
+    A.checkUnlocks(state);
+    return true;
+  };
+
+  // 交付专属订单：只有好感满级的常客才有
+  A.deliverSpecial = function (state, dex) {
+    const order = state.specialOrders && state.specialOrders[dex];
+    if (!order) return false;
+    if (!takeByFlavor(state, order.flavor, order.count)) return false;
+    delete state.specialOrders[dex];
+    gain(state, order.reward);
+    const s = A.regState(state, dex);
+    s.orders++;
+    state.stats.orders++;
+    const reg = A.regularByDex(dex);
+    G.addLog(state, "把 " + order.count + " 份" + order.flavor + "味的东西给" + (reg ? reg.name : "常客") +
+      "送去，专属订单结了 ₽" + G.fmt(order.reward) + "。", "good");
     A.checkUnlocks(state);
     return true;
   };
@@ -1500,6 +1575,7 @@ window.G = window.G || {};
     state.waste = 0;
     state.craftQueue = [];
     state.orders = {};
+    state.specialOrders = {};
     // 帮手是"这一带的常客"，人不会跟着搬家走 —— 不清掉的话，新区域的田里
     // 会出现几个本区域根本没解锁的帮手在自动收种浇水（玩家看到的"幽灵"）。
     if (state.helpers && state.helpers.length) {

@@ -1409,6 +1409,87 @@ window.SIM = {};
       if (chk.ok) return "还能移民";
       return chk.roaming === true ? true : "被别的原因挡住了：" + JSON.stringify(chk.progress);
     })());
+
+    // ── 好感：数字对得上、满级不囤经验、满级专属订单 ──
+    check("好感每级 +12% 收购价，满级 +60%", (function () {
+      const s = fresh();
+      const reg = G.engine.regionRegulars(1)[0];
+      const rec = G.RECIPES.filter((r) => r.flavor === reg.flavor && !r.research)[0];
+      const berry = G.BERRIES.filter((b) => b.flavor === reg.flavor)[0];
+      const at = (aff) => G.productSellPrice(s, rec, berry, { aff: aff, flavor: reg.flavor, dislike: reg.dislike });
+      const e0 = G.affinityEffects(0), e5 = G.affinityEffects(5);
+      if (Math.abs(e5.priceMult - 1.6) > 1e-9) return "满级收购倍率是 " + e5.priceMult;
+      if (!e5.maxed || e0.maxed) return "满级标记不对";
+      const r0 = at(0), r5 = at(5);
+      if (!(r5 > r0)) return "好感满了反而更便宜";
+      if (Math.abs(r5 / r0 - 1.6) > 0.02) return "实测倍率 " + (r5 / r0).toFixed(3);
+      return true;
+    })());
+    check("好感满级之后不再囤经验", (function () {
+      const s = fresh();
+      const reg = G.engine.regionRegulars(1)[0];
+      const st = G.engine.regState(s, reg.dex);
+      st.aff = 5; st.exp = 4475.5;
+      G.engine.sanitize(s);
+      if (st.exp !== 0) return "sanitize 没抹掉 " + st.exp;
+      G.engine.giveAffinity(s, reg.dex, reg.flavor, 100);
+      return st.aff === 5 && st.exp === 0 ? true : ("aff=" + st.aff + " exp=" + st.exp);
+    })());
+    check("好感没满时不会出专属订单", (function () {
+      const s = fresh();
+      s.money = 1e6;
+      G.engine.regionRegulars(1).forEach((r) => {
+        const st = G.engine.regState(s, r.dex);
+        st.unlocked = true; st.aff = 4;
+      });
+      for (let i = 0; i < 600; i++) { s.clock += 1000; G.engine.trySpawnOrders(s); }
+      const n = Object.keys(s.specialOrders || {}).length;
+      return n === 0 ? true : ("没满级也出了 " + n + " 个");
+    })());
+    check("好感满级会出专属订单，且不挤掉普通订单", (function () {
+      const s = fresh();
+      s.money = 1e6;
+      const reg = G.engine.regionRegulars(1)[0];
+      G.engine.regionRegulars(1).forEach((r) => {
+        const st = G.engine.regState(s, r.dex);
+        st.unlocked = true; st.aff = 5; st.lastSpecialAt = 0;
+      });
+      let sp = null;
+      for (let i = 0; i < 1500 && !sp; i++) {
+        s.clock += 1000;
+        G.engine.trySpawnOrders(s);
+        sp = s.specialOrders[reg.dex];
+      }
+      if (!sp) return "一直没出专属订单";
+      if (!sp.special) return "没标成专属";
+      if (sp.expires - s.clock > 5 * 60 * 1000 + 1000) return "时限不对";
+      // 再跑一小段：两个槽位要能同时存在
+      for (let i = 0; i < 30; i++) { s.clock += 1000; G.engine.trySpawnOrders(s); }
+      if (!s.specialOrders[reg.dex]) return "专属订单被普通订单挤掉了";
+      if (!s.orders[reg.dex]) return "专属订单把普通订单挤掉了";
+      return true;
+    })());
+    check("专属订单：货不够不动货，货够才结账", (function () {
+      const s = fresh();
+      s.money = 1e6;
+      const reg = G.engine.regionRegulars(1)[0];
+      G.engine.regState(s, reg.dex).unlocked = true;
+      s.specialOrders[reg.dex] = { flavor: reg.flavor, count: 3, reward: 5000, expires: s.clock + 60000, special: true };
+      const berry = G.BERRIES.filter((b) => b.flavor === reg.flavor)[0];
+      const rec = G.RECIPES.filter((r) => r.flavor === reg.flavor && !r.research)[0];
+      s.recipes[rec.id] = true;
+      const key = rec.id + "|" + berry.id;
+      s.products[key] = 2;
+      if (G.engine.deliverSpecial(s, reg.dex)) return "货不够也交了";
+      if (s.products[key] !== 2) return "失败时把货吃了";
+      s.products[key] = 5;
+      const before = s.money;
+      if (!G.engine.deliverSpecial(s, reg.dex)) return "货够了交不上";
+      if (s.money !== before + 5000) return "赏金不对：" + (s.money - before);
+      if (s.products[key] !== 2) return "扣多了：" + s.products[key];
+      if (s.specialOrders[reg.dex]) return "交完没清掉";
+      return true;
+    })());
   }
 
   window.__why = {};

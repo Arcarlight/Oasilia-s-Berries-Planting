@@ -46,6 +46,8 @@ window.G = window.G || {};
       stallOn: true,      // 摊位自动出货开关
       stallReserve: 20,   // 摊位每个品种至少留多少个不卖（留给加工）
       orders: {},
+      // 满级常客的专属订单（独立槽位，不占 orders 的位置）
+      specialOrders: {},
       talents: {},
       talentPoints: 0,
       talentSpent: 0,

@@ -864,3 +864,11 @@ label .micon { margin-right: 4px; }
 .berrybtn img { width: 22px; height: 22px; image-rendering: pixelated; }
 .berrybtn b { font-weight: normal; }
 .fillbtn { font-size: 10px; padding: 3px 6px; white-space: nowrap; }
+
+/* 满级常客的专属订单：比普通订单更金，一眼能从列表里分出来 */
+.sub.sorder {
+  color: #ffe6a3;
+  border-left: 2px solid var(--gold);
+  padding-left: 7px;
+}
+

@@ -146,7 +146,27 @@ window.G = window.G || {};
     return 1.0;
   };
 
-  G.affinityMult = function (aff) { return 1 + 0.12 * (aff || 0); };
+  // 好感到底给什么，全部从这里算 —— 结价、订单、界面共用同一套数字，免得三处漂移。
+  // 满级（5）：收购价 ×1.60、订单赏金 ×1.75，另外送专属订单（见 engine 的 specialOrders）。
+  G.AFF_MAX = 5;
+  G.affinityEffects = function (aff) {
+    const a = Math.max(0, Math.min(G.AFF_MAX, Math.floor(aff || 0)));
+    return {
+      aff: a,
+      priceMult: 1 + 0.12 * a,
+      orderMult: 1 + 0.15 * a,
+      orderCount: Math.floor(a / 2),
+      maxed: a >= G.AFF_MAX,
+      // 给界面直接用的那句话
+      text: a >= G.AFF_MAX
+        ? "收购价 +60%、订单赏金 +75%，专属订单已开"
+        : (a === 0
+          ? "还没什么交情；每升一级收购价多 12%"
+          : "收购价 +" + Math.round(a * 12) + "%、订单赏金 +" + Math.round(a * 15) + "%")
+    };
+  };
+
+  G.affinityMult = function (aff) { return G.affinityEffects(aff).priceMult; };
 
   G.productSellPrice = function (state, recipe, berry, regular) {
     const b = G.bonuses(state);

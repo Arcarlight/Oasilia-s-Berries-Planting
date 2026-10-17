@@ -104,7 +104,7 @@ window.G = window.G || {};
     merged.atlas.report = (s.atlas && s.atlas.report) || null;
     merged.settings = Object.assign({}, base.settings, s.settings || {});
     ["seeds", "berries", "products", "materials", "finds", "items", "recipes",
-      "regulars", "talents", "dex", "madeProducts", "orders",
+      "regulars", "talents", "dex", "madeProducts", "orders", "specialOrders",
       // 共轭图纸 / 巡游：老档没有这些，补成空表就行（等于一副图纸都还没刻）
       "conj", "conjOwned", "roam"].forEach((k) => {
       merged[k] = Object.assign({}, s[k] || {});
