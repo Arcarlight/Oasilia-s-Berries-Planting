@@ -319,7 +319,7 @@ G.REGULARS = [
     dislike: "甜",
     title: "敢拦大客的忠实犬",
     desc: "个头虽小却胆气十足，不管是生客熟客都要端正站直了打量。",
-    unlock: { type: "crafted", value: 200 },
+    unlock: { type: "craftTime", value: 2400 },
     lines: {
       greet: [
         "你先在门前站稳了，跟我交代明白你是从哪个方向过来的，再放你进屋！",
@@ -376,7 +376,7 @@ G.REGULARS = [
     dislike: "甜",
     title: "顶着阔叶的小水渡",
     desc: "头顶一片大绿叶当扁舟，顺着溪流漂上一整天也从不着急。",
-    unlock: { type: "crafted", value: 300 },
+    unlock: { type: "craftTime", value: 3600 },
     lines: {
       greet: [
         "水流今天把你送到我这片水洼啦，你快在溪边坐会儿歇歇脚吧。",
@@ -432,7 +432,7 @@ G.REGULARS = [
     dislike: "苦",
     title: "逆浪翻腾的小浪花",
     desc: "脖子上的浮囊一鼓起来，就敢迎着瀑布底下最急的浪头往前冲。",
-    unlock: { type: "crafted", value: 700 },
+    unlock: { type: "craftTime", value: 8400 },
     lines: {
       greet: [
         "要跟我一块儿跳下水吗？我带你去逆流冲一趟最陡最急的那段大瀑布！",
@@ -545,7 +545,7 @@ G.REGULARS = [
     dislike: "苦",
     title: "迎海风送信的长翅羽",
     desc: "双翼一展就能借着气流滑过海湾，嘴里总叼着各岛传来的包裹。",
-    unlock: { type: "crafted", value: 1200 },
+    unlock: { type: "craftTime", value: 14400 },
     lines: {
       greet: [
         "今天码头上的风向正好顺风，我在半空一滑翔，老远就闻着你的果香味了！",
@@ -601,7 +601,7 @@ G.REGULARS = [
     dislike: "甜",
     title: "咕噜咕噜滚动的圆货郎",
     desc: "身子圆得像个毛绒球没法稳步走，全靠一路打滚把货推回货仓。",
-    unlock: { type: "crafted", value: 2200 },
+    unlock: { type: "craftTime", value: 26400 },
     lines: {
       greet: [
         "呼……我是一路从码头石头路上骨碌骨碌滚过来的，路上还不小心撞了三回桩子呢。",
@@ -714,7 +714,7 @@ G.REGULARS = [
     dislike: "涩",
     title: "花田里蹦跳的小蛋壳",
     desc: "蛋壳里装满了暖融融的好福气，谁挨近它谁就能顺当一整天。",
-    unlock: { type: "crafted", value: 2500 },
+    unlock: { type: "craftTime", value: 30000 },
     lines: {
       greet: [
         "呀，西莉亚你来啦，我抱着蛋壳在草丛里等你好久啦！",
@@ -770,7 +770,7 @@ G.REGULARS = [
     dislike: "苦",
     title: "借着大尾巴弹跳的圆波",
     desc: "大尾巴软弹又带劲，原地轻轻一蹬就能蹦跳着跨过一整片花丛。",
-    unlock: { type: "crafted", value: 4000 },
+    unlock: { type: "craftTime", value: 48000 },
     lines: {
       greet: [
         "你是从哪座山头飞过来的呀？我刚才蹦来蹦去好像还没见过你呢！",
@@ -883,7 +883,7 @@ G.REGULARS = [
     dislike: "甜",
     title: "巡护山间梯田的厉爪",
     desc: "在高空盘旋监视梯田，只要瞧见有谁糟蹋庄稼便立刻振翅俯冲。",
-    unlock: { type: "crafted", value: 4000 },
+    unlock: { type: "craftTime", value: 48000 },
     lines: {
       greet: [
         "这片山地梯田全归我一双眼睛盯着，你走山道的时候动作稍微慢一点。",
@@ -939,7 +939,7 @@ G.REGULARS = [
     dislike: "酸",
     title: "背驮暖岩的慢步客",
     desc: "背上驼峰储存着滚烫熔岩，冰冷飞雪落在身上也转瞬化为水汽。",
-    unlock: { type: "crafted", value: 7000 },
+    unlock: { type: "craftTime", value: 84000 },
     lines: {
       greet: [
         "我四条腿迈得慢腾腾的，你在旁边可千万别急着催促我呀。",
@@ -1052,7 +1052,7 @@ G.REGULARS = [
     dislike: "酸",
     title: "温汤边慢挪的岩浆软泥",
     desc: "身躯全由滚烫岩浆聚成，在石地上挪一步就拖出一道冒烟热痕。",
-    unlock: { type: "crafted", value: 9000 },
+    unlock: { type: "craftTime", value: 108000 },
     lines: {
       greet: [
         "哎呀，你刚才踩着我刚拖过去的那道冒烟热印子了，你的脚爪不觉得烫得慌吗？",
@@ -1108,7 +1108,7 @@ G.REGULARS = [
     dislike: "涩",
     title: "石隙里探听的硬耳朵",
     desc: "通体浑圆如硬石，全靠正当中的石孔倾听深山矿道里极远处的声响。",
-    unlock: { type: "crafted", value: 15000 },
+    unlock: { type: "craftTime", value: 180000 },
     lines: {
       greet: [
         "我刚才就听见你一步一步走上来了，打从山坡最底下起，你踩碎石子的动静我一步都没漏下。",
@@ -1221,7 +1221,7 @@ G.REGULARS = [
     dislike: "辣",
     title: "脑后张开大铁齿的黠影",
     desc: "头后生着一张由角化成的巨大钢颚，正脸虽然小巧娇柔，下手却极有胆识。",
-    unlock: { type: "crafted", value: 12000 },
+    unlock: { type: "craftTime", value: 144000 },
     lines: {
       greet: [
         "你居然敢一个人往我这处黑漆漆的水晶窟里钻，你的胆量倒真是不算小嘛。",
@@ -1277,7 +1277,7 @@ G.REGULARS = [
     dislike: "涩",
     title: "高悬洞顶的照兆青铜",
     desc: "古旧铜面微微偏转，便能从光影微澜中看出哪处石梁即将塌落。",
-    unlock: { type: "crafted", value: 20000 },
+    unlock: { type: "craftTime", value: 240000 },
     lines: {
       greet: [
         "你先在原地站定别往洞里走，我刚才镜面一照，正照见你头顶前头那块尖石头要往下掉呢。",
@@ -1390,7 +1390,7 @@ G.REGULARS = [
     dislike: "涩",
     title: "沙坑底下静候的大颚",
     desc: "在滑沙里刨出深漏斗坑，大脑袋往下一缩就是一整天。",
-    unlock: { type: "crafted", value: 26000 },
+    unlock: { type: "craftTime", value: 312000 },
     lines: {
       greet: [
         "哎，西莉亚你可千万别踩着坑边啊，那滑沙坑是我刨了好久才刨出来的。",
@@ -1446,7 +1446,7 @@ G.REGULARS = [
     dislike: "苦",
     title: "逢物必先啃一口的小鲨",
     desc: "瞧见会动的影子总要猛冲上去先咬一口，嘴巴往往动得比脑子快。",
-    unlock: { type: "crafted", value: 42000 },
+    unlock: { type: "craftTime", value: 504000 },
     lines: {
       greet: [
         "西莉亚你别躲嘛，快让我拿尖牙咬上一口试试，就轻轻啃一小口！",
@@ -1559,7 +1559,7 @@ G.REGULARS = [
     dislike: "辣",
     title: "高憩云端浅眠的棉花翼",
     desc: "双翼洁白蓬松如轻柔棉絮，静静隐入重重云海深处便难觅其轻盈踪迹。",
-    unlock: { type: "crafted", value: 55000 },
+    unlock: { type: "craftTime", value: 660000 },
     lines: {
       greet: [
         "今天高空里这层白云厚重得很，你展翅飞过来的时候慢一些，可千万别走散了方向。",
@@ -1615,7 +1615,7 @@ G.REGULARS = [
     dislike: "辣",
     title: "云海匿影轻游的灵动羽",
     desc: "一身细腻绒羽能随云光天色悄然隐匿，游弋云间极难辨清其真实身影。",
-    unlock: { type: "crafted", value: 90000 },
+    unlock: { type: "craftTime", value: 1080000 },
     lines: {
       greet: [
         "……西莉亚，我、就藏在浮云后头呢，你稍微小声一点，别唤来别处的视线。",

@@ -410,6 +410,7 @@ window.G = window.G || {};
           harvest: [stt.harvested, u.value, "累计收获树果"],
           species: [Object.keys(S.dex).length, u.value, "见过的树果种类"],
           crafted: [stt.crafted, u.value, "累计加工商品"],
+          craftTime: [stt.craftSeconds || 0, u.value, "累计加工时长"],
           revenue: [stt.revenueRegion, u.value, "本区域累计收入"],
           affinity: [Math.max(0, ...Object.keys(S.regulars).map((d) => S.regulars[d].aff || 0)), u.value, "最高好感等级"]
         };
@@ -1918,7 +1919,7 @@ window.G = window.G || {};
         <table class="simple">
           <tr><td>游戏时长</td><td>${G.time(S.playTime)}</td></tr>
           <tr><td>累计收获</td><td>${G.fmt(S.stats.harvested)} 个</td></tr>
-          <tr><td>累计加工</td><td>${G.fmt(S.stats.crafted)} 次</td></tr>
+          <tr><td>累计加工</td><td>${G.fmt(S.stats.crafted)} 次　（共 ${G.time(S.stats.craftSeconds || 0)}）</td></tr>
           <tr><td>累计卖出</td><td>${G.fmt(S.stats.sold)} 件</td></tr>
           <tr><td>累计收入</td><td>${money(S.stats.revenueTotal)}</td></tr>
           <tr><td>移民次数</td><td>${S.stats.prestige}</td></tr>

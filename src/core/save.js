@@ -94,6 +94,11 @@ window.G = window.G || {};
   G.migrate = function (s) {
     const base = G.newState();
     const merged = Object.assign({}, base, s);
+    // 门槛从「累计加工次数」改成「累计加工时长」。老档只有次数，
+    // 按 8 秒/次 折一下 —— 这就是原来"全做果酱"口径的进度，换算后不丢。
+    if (merged.stats && !merged.stats.craftSeconds) {
+      merged.stats.craftSeconds = (merged.stats.crafted || 0) * 8;
+    }
     merged.stats = Object.assign({}, base.stats, s.stats || {});
     merged.atlas = Object.assign({}, base.atlas, s.atlas || {});
     merged.atlas.report = (s.atlas && s.atlas.report) || null;

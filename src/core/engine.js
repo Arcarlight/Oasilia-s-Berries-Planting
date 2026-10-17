@@ -88,6 +88,7 @@ window.G = window.G || {};
       case "harvest": return st.harvested >= u.value;
       case "species": return Object.keys(state.dex).length >= u.value;
       case "crafted": return st.crafted >= u.value;
+      case "craftTime": return (st.craftSeconds || 0) >= u.value;
       case "revenue": return st.revenueRegion >= u.value;
       case "affinity": {
         return Object.keys(state.regulars).some((d) => (state.regulars[d].aff || 0) >= u.value);
@@ -491,6 +492,9 @@ window.G = window.G || {};
       until: G.now(state) + secs * 1000, secs: secs, value: G.productValue(recipe, berry)
     });
     state.stats.crafted++;
+    // 门槛看的是「累计加工时长」，不是次数 —— 否则做慢配方的人被罚 14 倍。
+    // 次数继续记着，给玩家看成就。
+    state.stats.craftSeconds = (state.stats.craftSeconds || 0) + (secs || 0);
     A.checkUnlocks(state);
     return { ok: true, secs: secs };
   };
