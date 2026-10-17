@@ -169,6 +169,11 @@
       }
     });
 
+    // 把版本写进日志：以后玩家报"某功能不灵"，先看这一行就知道他跑的是哪一版
+    // （改完没刷到新版是这类问题里最常见的一种）。
+    if (G.BUILD) {
+      G.addLog(S, "构建 " + G.BUILD.version + "（build " + G.BUILD.build + "）已加载。", "info");
+    }
     lastFrame = performance.now();
     requestAnimationFrame(loop);
   }

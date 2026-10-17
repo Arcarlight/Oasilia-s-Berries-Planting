@@ -779,6 +779,7 @@ window.G = window.G || {};
     // 先把能交的订单交掉
     Object.keys(state.orders).forEach((dex) => { A.deliverOrder(state, +dex); });
     // 再把商品一件一件交给喜欢这个口味的常客（没常客收就按市场价出）
+    const before = state.money;
     Object.keys(state.products).forEach((k) => {
       const parts = k.split("|");
       const recipe = G.RECIPE_BY_ID[parts[0]];
@@ -790,6 +791,15 @@ window.G = window.G || {};
         .sort((a, b) => A.regState(state, b.dex).aff - A.regState(state, a.dex).aff)[0];
       A.sellProduct(state, k, Math.min(stock, 5), target ? target.dex : null);
     });
+    // 自动交付是后台行为，玩家看不到明细就容易怀疑"钱没进"。每 15 秒最多记一条。
+    const got = state.money - before;
+    if (got > 0) {
+      const now = G.now(state);
+      if (!state._autoLogAt || now - state._autoLogAt > 15000) {
+        state._autoLogAt = now;
+        G.addLog(state, "自动交付入账 ₽" + G.fmt(got) + "（余额 ₽" + G.fmt(state.money) + "）。", "sell");
+      }
+    }
   }
 
   // ---------- 素材与研发 ----------

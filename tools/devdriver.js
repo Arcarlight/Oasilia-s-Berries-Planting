@@ -787,6 +787,49 @@
       document.body.appendChild(pre);
     }
 
+    // #check=talentmoney：点了天赋之后，卖东西还进不进钱
+    if (p.check === "talentmoney") {
+      const out = [];
+      try {
+        const s = G.newState();
+        s.money = 0;
+        s.talentPoints = 20;
+        const b0 = G.bonuses(s);
+        out.push("点之前 sellBonus=" + b0.sellBonus + " allBonus=" + b0.allBonus);
+        G.engine.buyTalent(s, "price");
+        G.clearBonusCache();
+        const b1 = G.bonuses(s);
+        out.push("点之后 sellBonus=" + b1.sellBonus + " allBonus=" + b1.allBonus +
+          "　talentSpent=" + s.talentSpent);
+        s.berries[1] = 10;
+        const p1 = G.engine.sellBerry(s, 1, 10);
+        out.push("卖 10 颗生果：" + p1 + "　钱=" + s.money +
+          (isFinite(s.money) && s.money > 0 ? " ✓" : " ✗ 没进钱"));
+        const r = G.RECIPES.filter((x) => x.cat === "jam" && !x.specialty)[0];
+        s.recipes[r.id] = true;
+        s.products[r.id + "|1"] = 1;
+        const m1 = s.money;
+        const p2 = G.engine.sellProduct(s, r.id + "|1", 1, null);
+        out.push("卖 1 件商品：" + p2 + "　钱 " + m1 + " → " + s.money +
+          (s.money > m1 ? " ✓" : " ✗ 没进钱"));
+        out.push("berrySellPrice(1)=" + G.berrySellPrice(s, G.BERRY_BY_ID[1]) +
+          "　productSellPrice=" + G.productSellPrice(s, r, G.BERRY_BY_ID[1], null));
+        // 再点满议价，看看会不会坏
+        for (let i = 0; i < 9; i++) { s.talentPoints += 100; G.engine.buyTalent(s, "price"); }
+        G.clearBonusCache();
+        const m2 = s.money;
+        s.berries[1] = 5;
+        G.engine.sellBerry(s, 1, 5);
+        out.push("议价满级后再卖：" + (s.money > m2 ? "✓" : "✗") +
+          "　sellBonus=" + G.bonuses(s).sellBonus);
+        out.push("页面运行期报错数：" + ((window.__errors || []).length));
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "tmcheck";
+      pre.textContent = "TALENTMONEY\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
     // #check=help：说明自动收进「?」的覆盖情况
     if (p.check === "help") {
       const out = [];
