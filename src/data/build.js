@@ -6,7 +6,7 @@ window.G = window.G || {};
 (function () {
   G.BUILD = {
     version: "0.13.16",
-    build: 1792255751,
+    build: 1792255922,
     date: "2026-10-18"
   };
 

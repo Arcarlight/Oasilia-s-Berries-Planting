@@ -1873,10 +1873,13 @@ window.G = window.G || {};
   const ACT_ELSEWHERE = ["picksell", "settings"];
   UI.actNames = function () { return Object.keys(ACT).concat(ACT_ELSEWHERE); };
 
-  // 自绘的评级字模：给 #check=radar 用（七档全都得有字形，别只在截图里看过的那两三个）
+  // 自绘的评级字模：给 #check=radar / #check=grades 用
+  //（七档全都得有字形，别只在截图里看过的那两三个）
   UI.gradeFont = function () {
-    return { font: GRADE_FONT, paths: GRADE_PATHS, shades: GRADE_SHADES, colors: GRADE_COLORS };
+    return { font: GRADE_FONT, paths: GRADE_PATHS, shades: GRADE_SHADES, colors: GRADE_COLORS, cell: GRADE_CELL };
   };
+  // 画一颗评级字，预览页和自检页也走这一份，不另抄一遍合成逻辑
+  UI.gradeBadge = gradeBadge;
 
   UI.forceRender = function () {
     sigPlots = ""; sigSeeds = ""; sigLog = "";

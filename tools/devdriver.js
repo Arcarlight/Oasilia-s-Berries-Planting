@@ -841,6 +841,35 @@
       document.body.appendChild(pre);
     }
 
+    // #check=grades：把七档评级字按 1× / 2× / 4× 画成一张样张，用来看字模本身
+    if (p.check === "grades") {
+      const out = [];
+      try {
+        const letters = ["S", "A", "B", "C", "D", "E", "F"];
+        const gf = G.UI.gradeFont();
+        const cell = gf.cell || 2;
+        const gw = 6 * cell, gh = 8 * cell, gap = 12, pad = 14;
+        const bw = pad * 2 + gw * letters.length + gap * (letters.length - 1), bh = gh + pad * 2;
+        let sheets = "";
+        [1, 2, 4].forEach((sc) => {
+          let inner = "";
+          letters.forEach((L, i) => {
+            inner += G.UI.gradeBadge(L, pad + i * (gw + gap), pad, L + " 评级样张");
+          });
+          sheets += `<div class="sub" style="color:#9fb08e;font-size:12px">${sc}×（${sc === 1 ? "实际大小" : "放大看字模"}）</div>` +
+            `<svg width="${bw * sc}" height="${bh * sc}" viewBox="0 0 ${bw} ${bh}" ` +
+            `style="display:block;margin:4px 0 14px;background:#1b2016;image-rendering:pixelated">` +
+            `<g transform="scale(${sc})">${inner}</g></svg>`;
+          out.push(sc + "×：" + bw + "×" + bh + " 单位");
+        });
+        out.push("七档颜色：" + letters.map((L) => L + " " + gf.colors[L]).join("　"));
+        document.body.innerHTML = `<div style="padding:16px;font-family:Consolas,monospace">` +
+          `<div style="color:#f0c04a;font-size:14px;margin-bottom:10px">评级字模：6×8 点阵，本体 + 上沿高光 + 下沿阴影 + 八向描边</div>` +
+          sheets + `</div>`;
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      console.log("GRADESCHECK\n  " + out.join("\n  "));
+    }
+
     // #check=radar：雷达图的五个角用字母评级（S~F）代替数字
     if (p.check === "radar") {
       const out = [];
