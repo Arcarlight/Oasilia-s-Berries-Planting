@@ -1402,6 +1402,13 @@ window.G = window.G || {};
     state.waste = 0;
     state.craftQueue = [];
     state.orders = {};
+    // 帮手是"这一带的常客"，人不会跟着搬家走 —— 不清掉的话，新区域的田里
+    // 会出现几个本区域根本没解锁的帮手在自动收种浇水（玩家看到的"幽灵"）。
+    if (state.helpers && state.helpers.length) {
+      const names = state.helpers.map((h) => (A.regularByDex(h.dex) || {}).name || h.dex);
+      G.addLog(state, "雇的帮手留在了老地方：" + names.join("、") + "。到了新区域重新请人。", "info");
+    }
+    state.helpers = [];
     refundAtlasCraft(state);
     state.stats.revenueRegion = 0;
     state.regionEnteredAt = G.now(state);

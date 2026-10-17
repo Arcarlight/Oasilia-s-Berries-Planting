@@ -1186,6 +1186,22 @@ window.SIM = {};
       return bad.length === 0 ? true : (bad.join(",") || true);
     })());
 
+    // ── 搬家不能把帮手带走（以前会留下"幽灵帮手"在新区域的田里干活）──
+    check("搬家之后帮手全部留在老地方", (function () {
+      const s = fresh();
+      s.money = 1e9;
+      const reg = G.engine.regionRegulars(1)[0];
+      G.engine.regState(s, reg.dex).unlocked = true;
+      // 直接塞一个帮手（绕过雇人钱不够的情况）
+      s.helpers.push({ dex: reg.dex, cd: 0 });
+      // 把区域 1 的常客全解锁，满足移民条件
+      G.engine.regionRegulars(1).forEach((r) => { G.engine.regState(s, r.dex).unlocked = true; });
+      s.stats.revenueRegion = 1e6;
+      const r = G.engine.migrate(s);
+      if (!r) return "移民失败";
+      return s.helpers.length === 0 ? true : "还剩 " + s.helpers.length + " 个帮手";
+    })());
+
     // ── 巡游 ──
     check("巡游：走到天穹园之前不开放", (function () {
       const s = fresh();
