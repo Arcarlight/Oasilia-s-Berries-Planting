@@ -716,6 +716,40 @@
     }
 
 
+    // #check=filter：口味筛选能同时选两个
+    if (p.check === "filter") {
+      const out = [];
+      try {
+        G.UI.tab = "kitchen";
+        G.UI.forceRender();
+        const pickFlavor = (name) => {
+          const btns = [].slice.call(document.querySelectorAll("[data-act='kflavor']"));
+          const b = btns.filter((x) => x.textContent.trim() === name)[0];
+          if (b) b.click();
+          G.UI.forceRender();
+        };
+        const onNames = () => [].slice.call(document.querySelectorAll("[data-act='kflavor'].picked"))
+          .map((x) => x.textContent.trim());
+        out.push("初始高亮：" + JSON.stringify(onNames()));
+        pickFlavor("辣"); pickFlavor("甜");
+        const two = onNames();
+        out.push("点辣 + 甜 之后：" + JSON.stringify(two) +
+          (two.indexOf("辣") >= 0 && two.indexOf("甜") >= 0 ? " ✓" : " ✗"));
+        const rows = document.querySelectorAll(".krow").length;
+        out.push("这一屏的配方行数：" + rows);
+        pickFlavor("苦");   // 第三个应该把最早的挤掉
+        const three = onNames();
+        out.push("再点苦（最多两个）：" + JSON.stringify(three) +
+          (three.length === 2 && three.indexOf("辣") < 0 ? " ✓" : " ✗"));
+        pickFlavor("全部");
+        out.push("点全部清空：" + JSON.stringify(onNames()));
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "filtercheck";
+      pre.textContent = "FILTERCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
     // #check=mix：加工页的混合口味工作台（主料 + 副料）
     if (p.check === "mix") {
       const out = [];

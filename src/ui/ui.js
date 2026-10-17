@@ -23,7 +23,7 @@ window.G = window.G || {};
     { id: "help", name: "说明" }
   ];
 
-  const pick = { seed: null, recipe: null, regularFor: {}, labBerry: null, labFinds: [], storeSel: null, kflavor: null };
+  const pick = { seed: null, recipe: null, regularFor: {}, labBerry: null, labFinds: [], storeSel: null, kflavor: [] };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -319,7 +319,7 @@ window.G = window.G || {};
         h += `<div class="row2" style="margin-top:4px;flex-wrap:wrap"><span class="sub">副料</span>`;
         subs.slice(0, 10).forEach((x) => {
           h += `<button class="berrybtn" data-act="craftMix" data-p='${attr({ r: mixR.id, m: mainB.id, s: x.id })}'
-            title="${esc(mainB.zh)}×${sp.main} + ${esc(x.zh)}×${sp.sub} → ${esc(G.mixTag(mainB, x) || "")}"><img src="${x.icon}" alt=""><b>×${int(S.berries[x.id])}</b></button>`;
+            title="${esc(mainB.zh)}×${sp.main} + ${esc(x.zh)}×${sp.sub} → ${esc(G.mixTag(mainB, x) || "")}"><img src="${x.icon}" alt=""><b class="flavor-${x.flavor}">${esc(x.flavor)}${int(S.berries[x.id])}</b></button>`;
         });
         if (!subs.length) h += `<span class="sub">手上没有另一种味道的果子够用</span>`;
         h += `</div><div class="sub" style="margin-top:4px">做出来大概是「${esc(G.mixTag(mainB, subs[0] || mainB) || "")}${esc(mixR.catName || mixR.name)}」。</div>`;
@@ -329,14 +329,19 @@ window.G = window.G || {};
 
     // ── 口味筛选 ──
     const fls = ["全部"].concat(G.FLAVORS).concat(["混合"]);
-    const want = pick.kflavor || "全部";
-    h += `<div class="card"><div class="fltabs">` + fls.map((f) =>
-      `<button class="${want === f ? "picked" : ""}" data-act="kflavor" data-p='${attr({ f: f })}'>${esc(f)}</button>`
-    ).join("") + `</div>`;
+    const wants = pick.kflavor || [];
+    h += `<div class="card"><div class="fltabs">` + fls.map((f) => {
+      const on = f === "全部" ? !wants.length : wants.indexOf(f) >= 0;
+      const label = (f === "全部" || f === "混合")
+        ? esc(f)
+        : `<span class="flavor-${f}">${esc(f)}</span>`;
+      return `<button class="${on ? "picked" : ""}" data-act="kflavor" data-p='${attr({ f: f })}'>${label}</button>`;
+    }).join("") + `</div>`
+      + (wants.length === 2 ? `<div class="sub" style="margin-top:4px">同时看两个味道：${wants.map(esc).join(" + ")}</div>` : "");
 
     // ── 一行一张配方：点树果图标直接下单 ──
     const mine = G.engine.regionRegulars(S.region).filter((rg) => G.engine.regState(S, rg.dex).unlocked);
-    const list = unlocked.filter((r) => want === "全部" || r.flavor === want);
+    const list = unlocked.filter((r) => !wants.length || wants.indexOf(r.flavor) >= 0);
     if (!list.length) h += `<div class="sub">这个口味还没有配方。</div>`;
     list.forEach((r) => {
       const secs = r.time / (1 + b.craftSpeed);
@@ -346,7 +351,7 @@ window.G = window.G || {};
       const isAuto = S.autoRecipe === r.id;
       h += `<div class="krow${elig.length ? "" : " off"}">
         <div class="kinfo">
-          <div class="kname">${esc(r.name)}${isAuto ? ` <span class="tag" style="color:var(--gold)">自动</span>` : ""}</div>
+          <div class="kname"><span class="ftier small flavor-${r.flavor}">${esc(r.flavor)}</span> ${esc(r.name)}${isAuto ? ` <span class="tag" style="color:var(--gold)">自动</span>` : ""}</div>
           <div class="kmeta"><img class="kico" src="assets/ui/stat-money.png" alt="">×${r.mult}
             <img class="kico" src="assets/ui/hourglass.png" alt="">${secs.toFixed(1)}s
             ${fans.slice(0, 3).map((g) => `<img class="guest" src="assets/pmd/${String(g.dex).padStart(4, "0")}_portrait.png" alt="" title="${esc(g.name)}喜欢${esc(r.flavor)}味，会买">`).join("")}
@@ -1756,7 +1761,17 @@ window.G = window.G || {};
       UI.toast(S.autoTrade ? "自动交付已开启" : "自动交付已关闭");
       UI.forceRender();
     },
-    kflavor: (p) => { pick.kflavor = p.f === "全部" ? null : p.f; UI.markDirty(); },
+    kflavor: (p) => {
+      // 点「全部」清空；点味道是切换式开关，最多同时选两个
+      if (p.f === "全部") { pick.kflavor = []; UI.markDirty(); return; }
+      const i = pick.kflavor.indexOf(p.f);
+      if (i >= 0) pick.kflavor.splice(i, 1);
+      else {
+        pick.kflavor.push(p.f);
+        if (pick.kflavor.length > 2) pick.kflavor.shift();   // 超过两个就把最早的挤掉
+      }
+      UI.markDirty();
+    },
     mixOn: (p) => {
       pick.mixFor = pick.mixFor === p.r ? null : p.r;
       pick.mixMain = null;
