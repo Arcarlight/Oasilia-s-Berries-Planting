@@ -1277,8 +1277,18 @@ window.G = window.G || {};
       const recipes = A.unlockedRecipes(state).filter((r) => r.flavor === flavor);
       let unit = berry.basePrice * 3;
       if (recipes.length) {
-        const r = recipes[recipes.length - 1];
-        unit = G.productValue(r, berry);
+        // 以前取"最后一个解锁的配方"，而研发配方只要锅大，倍率能到普通配方的 4~5 倍，
+        // 于是同一个味道的订单赏金能差 20 倍（玩家真实存档里 5 份甜味报出 ₽37万）。
+        // 现在只拿商店配方当基准；没有商店配方就取中位数，避免被个别极端配方带飞。
+        const shop = recipes.filter((r) => !r.research && !r.specialty);
+        let base = null;
+        if (shop.length) {
+          base = shop[0];
+        } else {
+          const sorted = recipes.slice().sort((a, b) => a.mult - b.mult);
+          base = sorted[Math.floor(sorted.length / 2)];
+        }
+        unit = G.productValue(base, berry);
       }
       const reward = Math.floor(unit * count * 2.4 * (1 + s.aff * 0.15) * payMult);
       state.orders[reg.dex] = {
