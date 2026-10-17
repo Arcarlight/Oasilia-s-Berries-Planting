@@ -17,62 +17,62 @@ window.G = window.G || {};
 G.MATERIALS = [
   {
     id: "wood", name: "木料", price: 40,
-    desc: "林子里砍的木头，劈开晾干。搭架子做木柄，就靠它。",
+    desc: "繁盛之森砍下来的整根原木剥了皮晾干可以直接用，搭架子或者削个木柄都结实耐用。",
     trip: true
   },
   {
     id: "clay", name: "陶土", price: 90,
-    desc: "溪沟边上挖的湿黏泥，抓一把黏手。烧罐子做陶管，都得先拿它捏。",
+    desc: "溪沟边挖上来的湿黏泥攥在爪子里能捏成任何形状，烧透了敲起来响声清脆，做罐子做陶管都离不开它。",
     trip: true
   },
   {
     id: "vine", name: "藤条", price: 160,
-    desc: "林子里割的老藤，晾过还挺韧。编筐捆东西，用它不松。",
+    desc: "林子深处割下来的老藤晾过以后仍然柔韧，用它编筐、扎篱笆、捆车轮都松不了。",
     trip: true
   },
   {
     id: "copper", name: "铜锭", price: 320,
-    desc: "三元山矿脉里熔出来的铜块，掂着沉。打铜器做壶嘴都行。",
+    desc: "打造铜器得先备一整块铜锭，三元山矿脉熔出来的那种趁热软和好加工，凉透以后变硬，想改只能回炉重烧。",
     trip: true
   },
   {
     id: "cloth", name: "粗布", price: 620,
-    desc: "盐风镇织布机出来的，料子糙。挡风垫筐擦手，随便用。",
+    desc: "挡风垫筐擦手粗布都能凑合，盐风镇织布机上织出来的那种最结实，磨破了不心疼。",
     trip: true
   },
   {
     id: "resin", name: "松脂", price: 1200,
-    desc: "老松树皮伤口上淌下来的，黏糊糊。防潮上漆都靠它。",
+    desc: "从老松树皮的伤口上淌下来凝成的树脂沾上手很难洗掉，熬化了涂在绳结和木器上能防潮。",
     trip: true
   },
   {
     id: "quartz", name: "石英砂", price: 2400,
-    desc: "水晶洞穴外沿淘出来的沙子，颗粒细。烧炉打磨做灯罩都用得上。",
+    desc: "水晶洞穴外沿淘洗出来的透亮晶砂颗粒细而匀，烧炉子、打磨器口或者做灯罩都用得上。",
     trip: true
   },
   {
     id: "ash", name: "火山灰", price: 4600,
-    desc: "三元山温泉火口铲来的灰，轻得很。肥土砌炉都好使。",
+    desc: "三元山温泉火口边上铲下来的细灰撒进地垄能肥土，掺进炉料能把锻炉砌牢，只是扬起来呛人，装袋要避着风。",
     trip: true
   },
   {
     id: "salt", name: "深海盐", price: 8800,
-    desc: "盐风镇海滩上晒出来的盐，腌树果挺提味。拿去换东西也认。",
+    desc: "盐风镇海滩上晒出来的大粒粗盐腌厚皮树果最对路，拿去跟别家宝可梦换零碎东西挺受欢迎。",
     trip: true
   },
   {
     id: "dragonscale", name: "龙鳞粉", price: 17000,
-    desc: "龙系宝可梦换季脱的旧鳞，磨成粉。掺炉料、当药引都行。",
+    desc: "龙系宝可梦换季时脱落的旧鳞磨成的细粉掺进炉料能让打出来的东西更硬，据说也拿来当药引。",
     trip: true
   },
   {
     id: "mooncrystal", name: "月光水晶", price: 36000,
-    desc: "水晶洞穴最深处刨出来的，自己会发亮。拿手里凉丝丝的。",
+    desc: "水晶洞穴最深处凝结出来的晶体不必照阳光也通体发亮，握久了指尖发麻，据说和月亮有关。",
     trip: true
   },
   {
     id: "skygem", name: "天穹石", price: 90000,
-    desc: "天穹园云海里掉下来的石头，轻得不像石头，托在手里都怕吹跑。",
+    desc: "天穹园云海里飘落下来的奇石看着像石头，掂起来还没有一片羽毛沉，放在掌心会自己往云里飘。",
     trip: true
   }
 ];
@@ -85,7 +85,7 @@ G.ITEMS = [
   {
     id: "watering_can", name: "铜嘴洒水壶", cat: "农具", region: 1,
     icon: "watering_can",
-    desc: "木头掏空做壶身，铜打成长嘴。水出得细，不冲散刚撒的种子。",
+    desc: "木头掏空了当壶身再接一截长铜嘴，浇水的时候水流细而匀，不会把刚撒下去的种子冲散。",
     flavor: "提梁我拿砂石修过好几轮，弧度正贴着你的掌心。旁边敲瘪了一块的那只我也没舍得扔，平时自己打铁口渴了当水舀子使正合适。",
     materials: { wood: 2, copper: 1 },
     craftTime: 60,
@@ -100,7 +100,7 @@ G.ITEMS = [
   {
     id: "soft_soil", name: "松软沃土", cat: "农具", region: 2,
     icon: "soft_soil",
-    desc: "石块和硬泥块筛干净，拌了草木灰。土是松的，苗好扎根。",
+    desc: "先把粗石子和硬泥块筛干净再拌上草木灰，土松了以后苗在里面扎根能省不少力气。",
     flavor: "我弯腰翻了一整下午，头发里落的全是细灰。你拿着湿布过来给我擦额头，怕手上泥巴沾脏你的衣裳，愣是缩着手不敢往前迎。",
     materials: { clay: 3, wood: 1 },
     craftTime: 120,
@@ -115,7 +115,7 @@ G.ITEMS = [
   {
     id: "copper_hoe", name: "铜背小锄", cat: "农具", region: 4,
     icon: "copper_hoe",
-    desc: "锄头背上包着铜，刃磨得薄。翻土省劲，断草根也利索。",
+    desc: "锄头背上包一层铜、刃口磨薄，翻土和挑断老草根都省劲，铜不容易生锈。",
     flavor: "锄刃我在油石上细细蹭过，光亮得能映出影子。握柄那处我用洗软的粗布密密缠了两道，你手皮嫩，省得干久了磨出红泡来。",
     materials: { copper: 4, wood: 2 },
     craftTime: 240,
@@ -130,7 +130,7 @@ G.ITEMS = [
   {
     id: "dew_frame", name: "集露木架", cat: "农具", region: 5,
     icon: "dew_frame",
-    desc: "四根木桩绷上粗布，夜里挂露水。早上拧下来，浇地正好。",
+    desc: "四根木桩立起来绷上粗布接夜里的露水，早上拧一把够浇一趟地。",
     flavor: "布扯得不紧水珠就挂不住。我先前拉断了两截，重新量绳头才算绷踏实。你在旁边说我瞎较劲，可手艺活儿松一寸，收成可就少一罐。",
     materials: { wood: 5, cloth: 3, copper: 2 },
     craftTime: 300,
@@ -145,7 +145,7 @@ G.ITEMS = [
   {
     id: "spring_pipe", name: "温泉引水管", cat: "农具", region: 7,
     icon: "spring_pipe",
-    desc: "陶管一节节接进温泉，引过来的水还是温的。土不凉，苗长得快。",
+    desc: "用陶管一节一节接进温泉把温热的水引到垄沟底下，让作物喝着暖水长得更快。",
     flavor: "接榫的地方漏过几缕热汤，我熬了满满一铁勺黏松脂全封实了。手上沾的黏胶洗不掉，足足硬皮了两三天，抓什么家伙什都发涩。",
     materials: { copper: 6, clay: 5, quartz: 2 },
     craftTime: 720,
@@ -160,7 +160,7 @@ G.ITEMS = [
   {
     id: "dragon_plow", name: "龙牙深耕犁", cat: "农具", region: 9,
     icon: "dragon_plow",
-    desc: "犁尖掺了龙鳞粉，硬得能翻开板结的生土。翻得深，根才扎得牢。",
+    desc: "犁尖里掺了龙鳞粉能一路翻开板结的生土，犁沟深了根自然往下扎。",
     flavor: "拉风箱淬火时迎风燎着了手背，红了一小块，其实压根不打紧。你非说看着渗人，硬是给我抹了两天清凉膏，闻着全是甜甜的草药味。",
     materials: { dragonscale: 3, copper: 8, wood: 6 },
     craftTime: 1500,
@@ -177,7 +177,7 @@ G.ITEMS = [
   {
     id: "vine_cart", name: "藤编手推车", cat: "商铺", region: 1,
     icon: "vine_cart",
-    desc: "藤条编的车斗，底下装两个木轮。货装得满，推起来也不晃。",
+    desc: "藤条编的车斗底下装两个木轮，装满货推起来也稳当，摆到集市上卸下车斗能当个小摊台用。",
     flavor: "两边轮轴找平费了我好大工夫，改了三回才不往左偏。车斗特意编得浅矮，你站在车边点货收钱，伸手就能拿到底下的果子。",
     materials: { vine: 3, wood: 1 },
     craftTime: 90,
@@ -192,7 +192,7 @@ G.ITEMS = [
   {
     id: "wood_sign", name: "木质招牌", cat: "商铺", region: 2,
     icon: "wood_sign",
-    desc: "厚木板削平，写上字挂门口。招牌亮，离老远就看得见。",
+    desc: "厚木板削平了写上字挂在摊子门口，过路的隔老远认得出这是哪一家。",
     flavor: "原本想刻字，下凿偏了一刀给劈出条大裂缝，让我随手塞在门后当垫脚板了。后来这块我就只耐着性子凿图样，反倒比写字还显眼。",
     materials: { wood: 4, resin: 1 },
     craftTime: 150,
@@ -207,7 +207,7 @@ G.ITEMS = [
   {
     id: "fruit_basket", name: "藤条果筐", cat: "商铺", region: 4,
     icon: "fruit_basket",
-    desc: "藤条编的筐，底上垫了软草。果子放进去不磕不碰。",
+    desc: "藤条编的筐底上垫一层软草，果子码进去磕不着碰不着，筐沿修圆了不硌手。",
     flavor: "手生的时候编得歪歪扭扭，拆拆改改编到第七个才像个正经样。我挑了个最紧实的搁在窗台边，正好能盛下一堆文柚果留着给你当零嘴。",
     materials: { vine: 5, cloth: 2 },
     craftTime: 300,
@@ -222,7 +222,7 @@ G.ITEMS = [
   {
     id: "bell_counter", name: "铜铃摊位", cat: "商铺", region: 5,
     icon: "bell_counter",
-    desc: "摊位角上挂个小铜铃。有客走近，铃一响就知道。",
+    desc: "摊位角上挂一串小铜铃，客人走近的时候铃会响，听见响动说明有生意上门。",
     flavor: "有两个砂眼没清干净，敲起来哑声哑气的，我栓在了自家门帘子角上。你平日里推门出入撞得它一响，坐在锻炉后头就知道是你回屋了。",
     materials: { copper: 5, cloth: 3, resin: 1 },
     craftTime: 420,
@@ -237,7 +237,7 @@ G.ITEMS = [
   {
     id: "salt_stall", name: "盐风货架", cat: "商铺", region: 7,
     icon: "salt_stall",
-    desc: "货架立在风口上，板面撒了盐。果子摆在上头，不容易坏。",
+    desc: "货架立在风口上、板面撒一层盐隔潮，果子摆在上头不容易坏。",
     flavor: "在礁石滩架木方那会儿冷不丁让海头浪拍了一身，咸水晾干后衣服硬得能立起来。回去你一边笑我笨，一边烧开大锅热水帮我搓洗后背。",
     materials: { wood: 8, salt: 2, cloth: 5 },
     craftTime: 900,
@@ -252,7 +252,7 @@ G.ITEMS = [
   {
     id: "sky_pavilion", name: "天穹展台", cat: "商铺", region: 10,
     icon: "sky_pavilion",
-    desc: "展台架得高，货摆上去特别显眼。风大，得钉牢。",
+    desc: "展台架高了以后整条街都看得见摆在最上头的货，只是云里风大，四角都得钉牢。",
     flavor: "台面那块大水晶我蹲在水盆边足足磨了两天。你说摆在云端太扎眼、晃得慌，说开铺子就得这样，从云海打头飞过的过客都得探头看上两眼。",
     materials: { skygem: 1, cloth: 10, mooncrystal: 2 },
     craftTime: 2700,
@@ -269,7 +269,7 @@ G.ITEMS = [
   {
     id: "stone_mill", name: "石磨", cat: "工坊", region: 2,
     icon: "stone_mill",
-    desc: "两扇石盘扣在一起，推起来磨得细。树果丢进去，浆就出来了。",
+    desc: "上下两扇石盘扣在一起中间插一根木轴，树果从上面漏下去，转几圈磨成浆。",
     flavor: "那两块大青石是我用麻绳勒在背上一截截挪下山的，路上歇了整整四趟。回院子找平咬合面凿到半夜，总算转起来没半分杂音了。",
     materials: { copper: 3, wood: 2 },
     craftTime: 180,
@@ -284,7 +284,7 @@ G.ITEMS = [
   {
     id: "clay_jar", name: "陶土腌罐", cat: "工坊", region: 3,
     icon: "clay_jar",
-    desc: "陶土烧的罐子，口封得严。腌东西放得住，味道还进得透。",
+    desc: "陶土烧成的鼓肚罐子口沿留一圈水槽，盖上盖子不透气，腌什么都能放很久。",
     flavor: "烧土窑那晚风紧，我怕火候撤了降温，整夜靠在柴火堆边没敢合眼。清早出窑碎了一只，剩下的敲着声儿都脆，烂的那只正巧留在大灶后头腌干菜。",
     materials: { clay: 4, quartz: 1 },
     craftTime: 180,
@@ -299,7 +299,7 @@ G.ITEMS = [
   {
     id: "water_wheel", name: "木轮水车", cat: "工坊", region: 4,
     icon: "water_wheel",
-    desc: "木轮架在急流上，水一冲就自己转。借水力干活，不费力气。",
+    desc: "木轮架在急流上让水冲着转，磨盘跟着一块动，不用守在旁边也能一直干活。",
     flavor: "头回装斗板角度没算准，转到顶上总要猛磕一下，吵得人心烦。我泡在冷水滩里敲凿榫头改到后半夜，第二天试水总算顺当得跟溪水一个流速了。",
     materials: { wood: 6, copper: 3 },
     craftTime: 360,
@@ -314,7 +314,7 @@ G.ITEMS = [
   {
     id: "windmill", name: "风车磨坊", cat: "工坊", region: 6,
     icon: "windmill",
-    desc: "风车立在山口，风一来扇叶就转。转起来磨得又快又省。",
+    desc: "四片风翼立在山口，四片风翼立在山口迎着风，磨盘挂在轴上从早转到晚。",
     flavor: "爬梁上固定主翼轴那天赶上山谷倒灌风，我抓着横木悬在半空撑了半个多时辰，下来时膀子酸得抬不起爪。……反正装得极结实，刮再大风也晃不动分毫。",
     materials: { wood: 8, cloth: 4, copper: 4 },
     craftTime: 600,
@@ -329,7 +329,7 @@ G.ITEMS = [
   {
     id: "crystal_kiln", name: "水晶窑", cat: "工坊", region: 8,
     icon: "crystal_kiln",
-    desc: "窑壁衬了水晶，火候稳。烧出来的东西成色好。",
+    desc: "窑壁里衬了一圈水晶，火烧起来以后热气在窑里回旋不散，烘出来的东西成色很匀。",
     flavor: "水晶块必须顺着天然晶纹往石壁里卡，歪一颗火舌就往外窜。我敲碎重嵌了两回，工是费了点，但烧起来内膛火光聚成一团，好看又顶热。",
     materials: { quartz: 6, clay: 6, ash: 2 },
     craftTime: 1200,
@@ -344,7 +344,7 @@ G.ITEMS = [
   {
     id: "dragon_forge", name: "龙焰锻炉", cat: "工坊", region: 10,
     icon: "dragon_forge",
-    desc: "炉膛里锁着一口龙焰，火硬。烧到发白也不裂，打出来的东西结实。",
+    desc: "炉膛里压着一口龙焰，火头比寻常炉子猛得多也烧不裂，打出来的东西格外结实。",
     flavor: "第一次起大火封炉膛，火头窜得急，眉角燎了一块皮。你进来看见什么都没问，取来药膏轻轻往我额角抹。……下回开炉我肯定把头埋低些，不让你挂心。",
     materials: { ash: 8, dragonscale: 4, quartz: 8 },
     craftTime: 2400,
@@ -361,7 +361,7 @@ G.ITEMS = [
   {
     id: "helper_bell", name: "帮手铃", cat: "帮手", region: 1,
     icon: "helper_bell",
-    desc: "小铜铃，摇一下就有帮手过来搭把手。",
+    desc: "小铜铃挂在田头摇一下，附近的帮手听见会自己跑过来搭手。",
     flavor: "铜舌头我拆下来包了三遍布才算合意。打铁的听惯了砸锤的脆响，但田里需要的是安宁，声调沉下来，大家听着心里才不慌。",
     materials: { copper: 2, vine: 1 },
     craftTime: 120,
@@ -376,7 +376,7 @@ G.ITEMS = [
   {
     id: "grass_wagon", name: "果筐车", cat: "帮手", region: 3,
     icon: "grass_wagon",
-    desc: "大筐车，装得多。帮手推着走，一趟能拉不少。",
+    desc: "车架上并排码着几只大筐、底下装了轮子，帮手推着一趟能运回小半垄的果子。",
     flavor: "车板每块木拼缝我都拿刨刀推得光平，筐底全垫了软布，免得路上乱颠蹭破皮。轮轴里抹匀了松脂，推起来轻快顺溜，用不着死命使蛮力。",
     materials: { vine: 4, wood: 3 },
     craftTime: 240,
@@ -391,7 +391,7 @@ G.ITEMS = [
   {
     id: "dragon_whistle", name: "龙笛", cat: "帮手", region: 6,
     icon: "dragon_whistle",
-    desc: "骨笛，吹起来传出很远。路过的听见，就过来帮忙了。",
+    desc: "龙骨掏空做成的短笛吹起来声音沉而长，山风再大也能传到对面山坡。",
     flavor: "头两支开孔偏了半毫，吹着跟漏气似的难听，随手扔进锻炉当柴引火了。直到第三支才把音调校正。山高风疾，音准差一点，远处的帮手可就辨不清方向了。",
     materials: { resin: 3, dragonscale: 1 },
     craftTime: 600,
@@ -406,7 +406,7 @@ G.ITEMS = [
   {
     id: "moonlit_nest", name: "月光巢架", cat: "帮手", region: 8,
     icon: "moonlit_nest",
-    desc: "巢架顶上挂了月光水晶，夜里也亮堂。帮手挤在一块歇着，洞风再凉也不怕。",
+    desc: "巢架搭在避风的洞里、顶上嵌一块月光水晶终夜亮着，帮手累了过来眯一觉，外头的凉风进不来。",
     flavor: "进窝的木台阶我特意比照着最小个头那只的高度落的凿。小家伙跳上去稳稳当当，回头瞧了我一眼。个头小的够得着，别的大个子自然更踩得稳当。",
     materials: { cloth: 8, mooncrystal: 1, resin: 4 },
     craftTime: 1500,
@@ -421,7 +421,7 @@ G.ITEMS = [
   {
     id: "sand_sledge", name: "沙舟拖板", cat: "帮手", region: 9,
     icon: "sand_sledge",
-    desc: "拖板底是平的，铺了一层铜皮。沙地上拉货滑得动，省劲。",
+    desc: "厚木排底下铺了一层刨平的铜皮，在松软的沙坡上拖着走省力，整筐的重货省得往肩上扛。",
     flavor: "铜皮边缘必须收得圆润，翘起半颗沙粒大的一角都会在沙里打绊。我蹲在地上敲平这排细铜钉敲了一整宿，第二天累得直不起腰——你可别当笑话到处讲。",
     materials: { wood: 10, dragonscale: 2, cloth: 6 },
     craftTime: 1800,
@@ -436,7 +436,7 @@ G.ITEMS = [
   {
     id: "dragon_wing_amulet", name: "龙之翼护符", cat: "帮手", region: 10,
     icon: "dragon_wing_amulet",
-    desc: "旧翼膜压进两片水晶里。挂身上，说是能沾点龙气，干活顺当些。",
+    desc: "旧翼膜压进两片水晶中间、边上嵌一圈天穹石，挂在身上据说能沾些龙气，干起活来顺手。",
     flavor: "这坠子我趁着夜里一个人在油石边磨了许多天。没让谁搭过手，边角手艺全是自己的。……你既然收下了就稳妥挂着，地里再忙乱也别随手摘下来。",
     materials: { dragonscale: 6, mooncrystal: 4, skygem: 2 },
     craftTime: 3600,
