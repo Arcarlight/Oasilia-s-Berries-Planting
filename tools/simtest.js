@@ -1186,6 +1186,19 @@ window.SIM = {};
       return bad.length === 0 ? true : (bad.join(",") || true);
     })());
 
+    // ── 旧存档里的幽灵帮手：读档按区域校验后应该被清掉 ──
+    check("读档会清掉不在当前区域的帮手", (function () {
+      const s = fresh();
+      const r1 = G.engine.regionRegulars(1)[0];
+      const r5 = G.engine.regionRegulars(5)[0];
+      s.region = 5;
+      s.helpers = [{ dex: r1.dex, cd: 0 }, { dex: r5.dex, cd: 0 }];
+      const cut = G.engine.pruneHelpers(s);
+      if (cut !== 1) return "清掉了 " + cut + " 个（应该 1 个）";
+      if (s.helpers.length !== 1 || s.helpers[0].dex !== r5.dex) return "留下的不对";
+      return true;
+    })());
+
     // ── 混合口味：数据层 ──
     check("混合：同名味道不算混合，两味排序一致", (function () {
       const a = { flavor: "甜" }, b = { flavor: "酸" };

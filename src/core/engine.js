@@ -575,6 +575,19 @@ window.G = window.G || {};
   };
 
   // 库存取整：旧存档里可能出现 4.6591 这种小数，统一抹平
+  // 帮手必须是"这一带的常客"。旧存档里换过区、但 helpers 没清干净的，
+  // 读档时按当前区域校验一遍 —— 不然那几个幽灵会一直在新田里收种浇水。
+  A.pruneHelpers = function (state) {
+    if (!state.helpers || !state.helpers.length) return 0;
+    const ok = {};
+    A.regionRegulars(state.region).forEach((r) => { ok[r.dex] = true; });
+    const before = state.helpers.length;
+    state.helpers = state.helpers.filter((h) => ok[h.dex]);
+    const cut = before - state.helpers.length;
+    if (cut) G.addLog(state, "清掉了 " + cut + " 个不在这一带的帮手。", "info");
+    return cut;
+  };
+
   A.sanitize = function (state) {
     ["berries", "seeds", "products", "materials"].forEach((bag) => {
       Object.keys(state[bag] || {}).forEach((k) => {
@@ -584,6 +597,7 @@ window.G = window.G || {};
       });
     });
     state.stallCarry = Math.max(0, state.stallCarry || 0);
+    A.pruneHelpers(state);
   };
 
   A.craft = function (state, recipeId, berryId) {
@@ -1451,6 +1465,7 @@ window.G = window.G || {};
       G.addLog(state, "雇的帮手留在了老地方：" + names.join("、") + "。到了新区域重新请人。", "info");
     }
     state.helpers = [];
+    A.pruneHelpers(state);   // 兜一层：万一之前漏了，这里也清干净
     refundAtlasCraft(state);
     state.stats.revenueRegion = 0;
     state.regionEnteredAt = G.now(state);
