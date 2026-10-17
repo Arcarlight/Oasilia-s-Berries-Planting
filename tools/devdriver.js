@@ -716,6 +716,51 @@
     }
 
 
+    // #check=money：卖货/交订单/卖混合品 都要真的进钱（玩家报"卖东西不给钱"）
+    if (p.check === "money") {
+      const out = [];
+      try {
+        const eng = G.engine;
+        S.money = 0;
+        S.berries[1] = 10;
+        const p1 = eng.sellBerry(S, 1, 5);
+        out.push("卖 5 颗生果：" + p1 + "　钱=" + S.money +
+          (isFinite(S.money) && S.money > 0 ? " ✓" : " ✗"));
+        // 订单
+        const reg = eng.regionRegulars(S.region).filter((r) => !eng.regState(S, r.dex).unlocked)[0]
+          || eng.regionRegulars(S.region)[0];
+        eng.regState(S, reg.dex).unlocked = true;
+        const rr = G.RECIPES.filter((x) => x.cat === "jam" && !x.specialty)[0];
+        S.products[rr.id + "|1"] = 3;
+        S.orders[reg.dex] = { flavor: rr.flavor, count: 2, reward: 777, expires: G.now(S) + 600000 };
+        const before = S.money;
+        const okd = eng.deliverOrder(S, reg.dex);
+        out.push("交订单：" + (okd ? "成功" : "失败") + "　钱 " + before + " → " + S.money +
+          (okd && S.money === before + 777 ? " ✓" : " ✗"));
+        // 混合品卖市场
+        const b2 = G.BERRIES.filter((x) => x.flavor !== rr.flavor && x.id > 0)[0];
+        S.products[rr.id + "|1|" + b2.id] = 1;
+        const b3 = S.money;
+        const pm = eng.sellProduct(S, rr.id + "|1|" + b2.id, 1, null);
+        out.push("卖混合品：" + pm + "　钱 " + b3 + " → " + S.money +
+          (isFinite(S.money) && S.money > b3 ? " ✓" : " ✗"));
+        // 搬家后的钱不能是 NaN
+        for (let i = 0; i < 200 && !eng.canMigrate(S).ok; i++) {
+          S.money += 1e6;
+          S.stats.revenueRegion += 1e6;
+          eng.regionRegulars(S.region).forEach((r) => { eng.regState(S, r.dex).unlocked = true; });
+        }
+        const mig = eng.migrate(S);
+        out.push("搬家：" + (mig ? "成功" : "跳过") + "　钱=" + S.money +
+          (isFinite(S.money) ? " ✓" : " ✗ NaN！"));
+        out.push("revenueTotal=" + S.stats.revenueTotal + "　isFinite=" + isFinite(S.stats.revenueTotal));
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "moneycheck";
+      pre.textContent = "MONEYCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
     // #check=help：说明自动收进「?」的覆盖情况
     if (p.check === "help") {
       const out = [];

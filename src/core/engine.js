@@ -598,6 +598,14 @@ window.G = window.G || {};
     });
     state.stallCarry = Math.max(0, state.stallCarry || 0);
     A.pruneHelpers(state);
+    // 老存档里可能已经被 NaN 污染过（卖了东西钱不动就是这个）
+    if (typeof state.money !== "number" || !isFinite(state.money)) {
+      G.addLog(state, "余额有异常值，已经修回 0。", "info");
+      state.money = 0;
+    }
+    ["revenueRegion", "revenueTotal"].forEach((k) => {
+      if (!isFinite(state.stats[k])) state.stats[k] = 0;
+    });
   };
 
   A.craft = function (state, recipeId, berryId) {
@@ -1153,7 +1161,15 @@ window.G = window.G || {};
   // ---------- 出售 ----------
 
   function gain(state, money) {
+    // 金额一旦算成 NaN / Infinity，后面每一次加钱都会继续是 NaN —— 表现就是
+    // "卖了东西但钱不动、余额一直是 0"。宁可这一笔记 0 并留日志，也不能把存档污染了。
+    if (typeof money !== "number" || !isFinite(money)) {
+      G.addLog(state, "结算金额异常（" + String(money) + "），这一笔按 0 记。", "info");
+      console.warn("gain 收到异常金额", money);
+      return;
+    }
     state.money += money;
+    if (!isFinite(state.money)) { state.money = 0; }   // 兜底：余额本身坏了就归零
     state.stats.revenueRegion += money;
     state.stats.revenueTotal += money;
   }

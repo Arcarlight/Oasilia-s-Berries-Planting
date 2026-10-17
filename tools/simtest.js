@@ -1186,6 +1186,23 @@ window.SIM = {};
       return bad.length === 0 ? true : (bad.join(",") || true);
     })());
 
+    // ── 金额防护：算错的一笔不能把余额变成 NaN ──
+    check("异常金额不会污染余额", (function () {
+      const s = fresh();
+      s.money = 100;
+      // 直接走一单坏的：把树果价弄成 NaN
+      const b = G.BERRY_BY_ID[1];
+      const oldPrice = b.basePrice;
+      b.basePrice = NaN;
+      s.berries[1] = 5;
+      const got = G.engine.sellBerry(s, 1, 5);
+      b.basePrice = oldPrice;
+      s.berries[1] = 0;
+      if (!isFinite(s.money)) return "余额变成 " + s.money;
+      if (s.money !== 100) return "余额被改成了 " + s.money;
+      return true;
+    })());
+
     // ── 旧存档里的幽灵帮手：读档按区域校验后应该被清掉 ──
     check("读档会清掉不在当前区域的帮手", (function () {
       const s = fresh();
