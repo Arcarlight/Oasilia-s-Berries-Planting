@@ -1170,8 +1170,15 @@ window.G = window.G || {};
     if (!chk.ok) return null;
     const b = G.bonuses(state);
     const tp = G.talentPointsFor(state.stats.revenueRegion);
-    // 走之前把没卖完的货清掉，折成现钱一起带走。
-    // 否则搬到后面的区域时身上是 0 元、只有三颗最便宜的种子，根本爬不起来。
+    // 走之前把没卖完的**收成**折成现钱一起带走。
+    // 否则搬到后面的区域时身上是 0 元、只有几颗最便宜的种子，根本爬不起来。
+    //
+    // 只折算树果和商品。料理素材 / 材料 这两样**不折、直接清掉**，因为它们
+    // 随时能用钱在杂货铺买到：
+    //   素材买价是卖价的 6 倍、材料是 2.6 倍，而迁移时钱基本全丢（keepMoney 初始 0）。
+    //   只要折算价 > 0，"临走前把钱全换成素材/材料"就是稳赚 —— 亏 5/6 也好过亏光。
+    //   所以这两样一律清零，买它们来"存钱"就是纯亏。
+    //   （树果也能买种子种，但那要等生长，属于正常经营，不算套利。）
     let liquidated = 0;
     Object.keys(state.berries).forEach((id) => {
       const berry = G.BERRY_BY_ID[id];
@@ -1182,10 +1189,6 @@ window.G = window.G || {};
       const recipe = G.RECIPE_BY_ID[parts[0]];
       const berry = G.BERRY_BY_ID[+parts[1]];
       if (recipe && berry) liquidated += G.marketPrice(state, recipe, berry) * state.products[k];
-    });
-    Object.keys(state.materials).forEach((mid) => {
-      const m = (G.MATERIALS || []).filter((x) => x.id === mid)[0];
-      if (m) liquidated += Math.floor(m.price * 0.6) * state.materials[mid];
     });
     liquidated = Math.floor(liquidated);
     const keep = Math.floor(state.money * b.keepMoney) + liquidated;
@@ -1201,6 +1204,8 @@ window.G = window.G || {};
     state.berries = {};
     state.products = {};
     state.materials = {};
+    state.finds = {};
+    state.waste = 0;
     state.craftQueue = [];
     state.orders = {};
     state.atlas.craft = null;

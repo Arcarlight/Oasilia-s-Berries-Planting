@@ -838,6 +838,38 @@ window.SIM = {};
         return r.ok && G.engine.potSlots(potU) > before && G.engine.potStirSecs(potU) < 6;
       })());
 
+    // 迁移不能变成"临走前把钱换成素材/材料"的存钱通道
+    // （素材买价 6×、材料 2.6×，只要折算价 > 0 就稳赚 —— 亏 5/6 也好过钱全丢）
+    const migReady = function () {
+      const st = fresh();
+      st.region = 1;
+      st.maxRegion = 1;
+      st.money = 1e9;
+      (G.REGULARS || []).filter((r) => r.region === 1)
+        .forEach((r) => { G.engine.regState(st, r.dex).unlocked = true; });
+      st.berries = {}; st.products = {}; st.materials = {}; st.finds = {}; st.waste = 0;
+      return st;
+    };
+    const migBare = migReady();
+    G.engine.migrate(migBare);
+    const migFind = migReady();
+    migFind.finds = { flour: 1666666 };       // 把 10 亿全换成面粉
+    G.engine.migrate(migFind);
+    check("买素材来「存钱」是纯亏", migFind.money <= migBare.money,
+      "买素材 " + G.fmt(migFind.money) + " / 不带 " + G.fmt(migBare.money));
+    check("迁移后素材清零", Object.keys(migFind.finds).length === 0);
+    const migMat = migReady();
+    migMat.materials = { wood: 999999 };
+    G.engine.migrate(migMat);
+    check("买材料来「存钱」也是纯亏", migMat.money <= migBare.money,
+      "买材料 " + G.fmt(migMat.money));
+    check("迁移后材料清零", Object.keys(migMat.materials).length === 0);
+    const migBerry = migReady();
+    migBerry.berries = { 1: 1000 };
+    G.engine.migrate(migBerry);
+    check("收成照样折算成起步资金", migBerry.money > migBare.money,
+      G.fmt(migBerry.money) + " vs " + G.fmt(migBare.money));
+
     // 制作耗时：界面上写的「耗时」和实际倒计时必须是同一个数。
     // 以前界面用 item.craftTime（基础值），实际是 craftTime/(1+加速) ——
     // 有火候时显示 3 分钟，实际从 2 分半开始倒数。
