@@ -622,6 +622,39 @@ window.G = window.G || {};
     return { ok: true, secs: secs };
   };
 
+  // 混合口味：主料定配方（必须对上 recipe 需要的味道/树果），副料只要味道不同。
+  // 投料总数不变，拆成主料多数、副料少数。
+  A.craftMix = function (state, recipeId, mainBerryId, subBerryId) {
+    const recipe = G.RECIPE_BY_ID[recipeId];
+    const mainB = G.BERRY_BY_ID[mainBerryId];
+    const subB = G.BERRY_BY_ID[subBerryId];
+    if (!recipe || !mainB || !subB) return { ok: false, why: "配方或树果不存在" };
+    if (!state.recipes[recipeId]) return { ok: false, why: "还没学会这个配方" };
+    if (recipe.needBerry && recipe.needBerry !== mainBerryId) return { ok: false, why: "主料得是这个配方要的树果" };
+    if (recipe.needFlavor && mainB.flavor !== recipe.needFlavor) return { ok: false, why: "主料得是「" + recipe.needFlavor + "」味的树果" };
+    if (mainB.flavor === subB.flavor) return { ok: false, why: "两味一样，直接做普通版就行" };
+    const need = G.craftNeedCount(state, recipe);
+    const sp = G.mixSplit(need);
+    if ((state.berries[mainBerryId] || 0) < sp.main) return { ok: false, why: "主料不够（要 " + sp.main + " 颗）" };
+    if ((state.berries[subBerryId] || 0) < sp.sub) return { ok: false, why: "副料不够（要 " + sp.sub + " 颗）" };
+    if (state.craftQueue.length >= A.craftSlots(state)) return { ok: false, why: "加工台满了" };
+    state.berries[mainBerryId] -= sp.main;
+    if (state.berries[mainBerryId] <= 0) delete state.berries[mainBerryId];
+    state.berries[subBerryId] -= sp.sub;
+    if (state.berries[subBerryId] <= 0) delete state.berries[subBerryId];
+    const b = G.bonuses(state);
+    const secs = Math.max(1, recipe.time / (1 + b.craftSpeed));
+    const key = recipeId + "|" + mainBerryId + "|" + subBerryId;
+    state.craftQueue.push({
+      recipeId: recipeId, berryId: mainBerryId, key: key,
+      until: G.now(state) + secs * 1000, secs: secs, value: G.mixedValue(recipe, mainB, subB)
+    });
+    state.stats.crafted++;
+    state.stats.craftSeconds = (state.stats.craftSeconds || 0) + (secs || 0);
+    A.checkUnlocks(state);
+    return { ok: true, secs: secs, tag: G.mixTag(mainB, subB) };
+  };
+
   // 额外产出的概率：常规的 craftOutput 管所有配方；
   // 「慢火细作」只给慢配方加码 —— 这正是它和「快手淬火」分开的意义：
   // 一个抬所有配方的吞吐，一个只抬慢而精的那一类。
@@ -645,6 +678,10 @@ window.G = window.G || {};
       if (extraChance > 0 && Math.random() < extraChance) n++;
       state.products[j.key] = (state.products[j.key] || 0) + n;
       A.noteMade(state, recipe);
+      // 混合口味在图鉴里单独算一格：品类|混合
+      if (String(j.key).split("|").length === 3 && state.madeProducts) {
+        state.madeProducts[recipe.cat + "|混合"] = true;
+      }
       state.craftQueue.splice(i, 1);
       state.stats.lastCraft = { key: j.key, n: n, at: now };
     }
@@ -1131,18 +1168,21 @@ window.G = window.G || {};
     const have = state.products[key] || 0;
     count = Math.min(count || 1, have);
     if (count <= 0) return 0;
-    const parts = key.split("|");
-    const recipe = G.RECIPE_BY_ID[parts[0]];
-    const berry = G.BERRY_BY_ID[+parts[1]];
+    const ki = G.keyInfo(key);
+    const recipe = ki.recipe, berry = ki.berry, sub = ki.sub;
     if (!recipe || !berry) return 0;
     const rInfo = regularDex ? A.regularByDex(regularDex) : null;
     const reg = rInfo ? { aff: A.regState(state, regularDex).aff, flavor: rInfo.flavor, dislike: rInfo.dislike } : null;
-    const price = G.productSellPrice(state, recipe, berry, reg) * count;
+    const unit = sub ? G.mixedSellPrice(state, recipe, berry, sub, reg) : G.productSellPrice(state, recipe, berry, reg);
+    const price = unit * count;
     state.products[key] -= count;
     if (state.products[key] <= 0) delete state.products[key];
     state.stats.sold += count;
     gain(state, price);
-    if (regularDex) A.giveAffinity(state, regularDex, recipe.flavor, count);
+    if (regularDex) {
+      const affFlavor = (sub && rInfo && sub.flavor === rInfo.flavor) ? sub.flavor : recipe.flavor;
+      A.giveAffinity(state, regularDex, affFlavor, count);
+    }
     A.checkUnlocks(state);
     return price;
   };
@@ -1214,10 +1254,10 @@ window.G = window.G || {};
     // 收集符合口味的商品
     let need = order.count;
     const keys = Object.keys(state.products).filter((k) => {
-      const parts = k.split("|");
-      const r = G.RECIPE_BY_ID[parts[0]];
-      if (!r) return false;
-      return r.flavor === order.flavor || r.flavor === "混合";
+      const ki = G.keyInfo(k);
+      if (!ki.recipe) return false;
+      if (ki.recipe.flavor === order.flavor || ki.recipe.flavor === "混合") return true;
+      return !!(ki.sub && ki.sub.flavor === order.flavor);
     });
     let available = 0;
     keys.forEach((k) => { available += state.products[k] || 0; });
@@ -1384,10 +1424,12 @@ window.G = window.G || {};
       if (berry) liquidated += G.berrySellPrice(state, berry) * state.berries[id];
     });
     Object.keys(state.products).forEach((k) => {
-      const parts = k.split("|");
-      const recipe = G.RECIPE_BY_ID[parts[0]];
-      const berry = G.BERRY_BY_ID[+parts[1]];
-      if (recipe && berry) liquidated += G.marketPrice(state, recipe, berry) * state.products[k];
+      const ki = G.keyInfo(k);
+      if (!ki.recipe || !ki.berry) return;
+      const unit = ki.sub
+        ? G.mixedMarketPrice(state, ki.recipe, ki.berry, ki.sub)
+        : G.marketPrice(state, ki.recipe, ki.berry);
+      liquidated += unit * state.products[k];
     });
     liquidated = Math.floor(liquidated);
     state.money = Math.floor(state.money * b.keepMoney) + liquidated;

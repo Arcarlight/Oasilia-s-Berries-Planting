@@ -222,11 +222,12 @@ window.G = window.G || {};
     if (!keys.length) h += `<div class="sub">还没有加工出来的商品。去${go("kitchen", "加工")}看看。</div>`;
     const regs = G.engine.regionRegulars(S.region).filter((r) => G.engine.regState(S, r.dex).unlocked);
     keys.forEach((k) => {
-      const parts = k.split("|");
-      const r = G.RECIPE_BY_ID[parts[0]];
-      const b = G.BERRY_BY_ID[+parts[1]];
+      const ki = G.keyInfo(k);
+      const r = ki.recipe, b = ki.berry, sub = ki.sub;
       if (!r || !b) return;
-      const v = G.productValue(r, b);
+      const v = sub ? G.mixedValue(r, b, sub) : G.productValue(r, b);
+      const pname = sub ? G.mixedName(r, b, sub) : G.productName(r, b);
+      const ftag = sub ? (G.mixTag(b, sub) || r.flavor) : r.flavor;
       const sellTo = regs.length
         ? `<select data-act="picksell" data-p='${attr({ k: k })}'>
              <option value="">随便谁（市场价）</option>
@@ -234,13 +235,17 @@ window.G = window.G || {};
            </select>`
         : `<span class="sub">还没有常客</span>`;
       const target = pick.regularFor[k] || null;
-      const price = target
-        ? G.productSellPrice(S, r, b, { aff: G.engine.regState(S, target).aff, flavor: G.engine.regularByDex(target).flavor, dislike: G.engine.regularByDex(target).dislike })
-        : G.marketPrice(S, r, b);
+      const regArg = target
+        ? { aff: G.engine.regState(S, target).aff, flavor: G.engine.regularByDex(target).flavor, dislike: G.engine.regularByDex(target).dislike }
+        : null;
+      const price = sub
+        ? (regArg ? G.mixedSellPrice(S, r, b, sub, regArg) : G.mixedMarketPrice(S, r, b, sub))
+        : (regArg ? G.productSellPrice(S, r, b, regArg) : G.marketPrice(S, r, b));
+      const mshare = sub ? (G.mixSplit(G.craftNeedCount(S, r)).main / Math.max(1, G.craftNeedCount(S, r))) : 0.5;
       h += `<div class="list-item">
-        ${G.productIcon(r, b)}
-        <span class="grow" title="${esc(G.productName(r, b))}">${esc(G.productName(r, b))}
-          <span class="flavor-${r.flavor}">[${r.flavor}]</span></span>
+        ${G.productIcon(r, b, sub, mshare)}
+        <span class="grow" title="${esc(pname)}">${esc(pname)}
+          <span class="flavor-${b.flavor}">[${esc(ftag)}]</span></span>
         <span>×${int(S.products[k])}</span>
         <span class="sub">基础 ₽${G.fmt(v)}</span>
         ${sellTo}
@@ -290,6 +295,38 @@ window.G = window.G || {};
       return h;
     }
 
+    // ── 混合口味工作台：主料 + 副料 ──
+    const mixR = pick.mixFor ? G.RECIPE_BY_ID[pick.mixFor] : null;
+    if (mixR && S.recipes[mixR.id]) {
+      const need = G.craftNeedCount(S, mixR);
+      const sp = G.mixSplit(need);
+      const mains = G.engine.eligibleBerries(S, mixR).slice().sort((x, y) => y.basePrice - x.basePrice);
+      if (!pick.mixMain || !mains.some((x) => x.id === pick.mixMain)) pick.mixMain = mains.length ? mains[0].id : null;
+      const mainB = pick.mixMain ? G.BERRY_BY_ID[pick.mixMain] : null;
+      h += `<div class="card" style="border-color:var(--gold)"><h4>混合口味：${esc(mixR.name)}</h4>
+        <div class="sub">主料决定用哪张配方（要「${esc(mixR.needFlavor || "指定")}」味），副料只要味道不同就成。
+        投料 ${need} 颗拆成主料 ${sp.main} + 副料 ${sp.sub}，做出来的东西带两种味道，爱吃这两味的常客都肯买，
+        价值还多 8%。</div>`;
+      h += `<div class="row2" style="margin-top:6px;flex-wrap:wrap"><span class="sub">主料</span>`;
+      mains.slice(0, 8).forEach((x) => {
+        h += `<button class="berrybtn${x.id === pick.mixMain ? " picked" : ""}" data-act="mixMain" data-p='${attr({ b: x.id })}'
+          title="用${esc(x.zh)}当主料"><img src="${x.icon}" alt=""><b>×${int(S.berries[x.id])}</b></button>`;
+      });
+      if (!mains.length) h += `<span class="sub">没有够用的主料</span>`;
+      h += `</div>`;
+      if (mainB) {
+        const subs = G.BERRIES.filter((x) => x.id > 0 && x.flavor !== mainB.flavor && (S.berries[x.id] || 0) >= sp.sub);
+        h += `<div class="row2" style="margin-top:4px;flex-wrap:wrap"><span class="sub">副料</span>`;
+        subs.slice(0, 10).forEach((x) => {
+          h += `<button class="berrybtn" data-act="craftMix" data-p='${attr({ r: mixR.id, m: mainB.id, s: x.id })}'
+            title="${esc(mainB.zh)}×${sp.main} + ${esc(x.zh)}×${sp.sub} → ${esc(G.mixTag(mainB, x) || "")}"><img src="${x.icon}" alt=""><b>×${int(S.berries[x.id])}</b></button>`;
+        });
+        if (!subs.length) h += `<span class="sub">手上没有另一种味道的果子够用</span>`;
+        h += `</div><div class="sub" style="margin-top:4px">做出来大概是「${esc(G.mixTag(mainB, subs[0] || mainB) || "")}${esc(mixR.catName || mixR.name)}」。</div>`;
+      }
+      h += `</div>`;
+    }
+
     // ── 口味筛选 ──
     const fls = ["全部"].concat(G.FLAVORS).concat(["混合"]);
     const want = pick.kflavor || "全部";
@@ -324,6 +361,8 @@ window.G = window.G || {};
         if (G.engine.autoUnlocked(S) && !isAuto) {
           h += `<button class="fillbtn" data-act="autoOn" data-p='${attr({ r: r.id })}' title="一直做这个">一直做</button>`;
         }
+        const mixing = pick.mixFor === r.id;
+        h += `<button class="fillbtn${mixing ? " gold" : ""}" data-act="mixOn" data-p='${attr({ r: r.id })}' title="两种口味混着做">${mixing ? "取消" : "混"}</button>`;
       } else {
         const hint = G.engine.berryHint(S, r);
         h += `<span class="sub kwhy">缺 ${need} 颗${esc(r.needFlavor || "对应")}味果${hint.length ? "（" + esc(hint.slice(0, 2).map((x) => x.zh).join("、")) + "…）" : "，这一带还没有"}</span>`;
@@ -823,7 +862,7 @@ window.G = window.G || {};
 
     // 制品图鉴：每个品类一行，五个口味各一格，做过就点亮
     const made = S.madeProducts || {};
-    const total = G.RECIPE_CATS.length * G.FLAVORS_5.length;
+    const total = G.RECIPE_CATS.length * (G.FLAVORS_5.length + 1);   // +1 是混合那一格
     const got = Object.keys(made).length;
     h += `<div class="card" style="margin-top:8px"><h4>制品图鉴 ${got}/${total}</h4>
       <div class="sub">做过一次就点亮。加工台做的和锅里出的都算；
@@ -843,6 +882,10 @@ window.G = window.G || {};
           ${ok ? `<div class="flavor-${fl}">${fl}</div>` : ""}
         </div>`;
       });
+      const mixOk = !!made[cat.id + "|混合"];
+      h += `<div class="dex-cell ${mixOk ? "" : "unknown"}" title="${esc(mixOk ? cat.name + "·混合口味" : "还没做过混合口味")}">
+        <img src="${G.productSprite({ cat: cat.id, flavor: G.FLAVORS_5[0] })}" alt="">
+        <div>${mixOk ? "混合" : "？？？"}</div></div>`;
       h += `</div></div></div>`;
     });
     // 区域招牌单独列，它们每个区域只有一款
@@ -1019,19 +1062,25 @@ window.G = window.G || {};
       };
     }
     if (kind === "product") {
-      const parts = id.split("|");
-      const r = G.RECIPE_BY_ID[parts[0]];
-      const b = G.BERRY_BY_ID[+parts[1]];
+      const ki = G.keyInfo(id);
+      const r = ki.recipe, b = ki.berry, sub = ki.sub;
       if (!r || !b) return null;
+      const sp = G.mixSplit(G.craftNeedCount(S, r));
       return {
-        kind: kind, id: id, n: S.products[id] || 0, name: G.productName(r, b),
-        img: G.productSprite ? null : null, icon: G.productIcon(r, b),
-        recipe: r, berry: b,
+        kind: kind, id: id, n: S.products[id] || 0,
+        name: sub ? G.mixedName(r, b, sub) : G.productName(r, b),
+        img: null, icon: G.productIcon(r, b, sub, sub ? sp.main / Math.max(1, sp.main + sp.sub) : 0.5),
+        recipe: r, berry: b, subBerry: sub,
         desc: ((G.CAT_BY_ID && G.CAT_BY_ID[r.cat] && G.CAT_BY_ID[r.cat].desc)
           ? G.CAT_BY_ID[r.cat].desc + "　" : "") +
-          "这份是用「" + b.zh + "」做的，基础倍率 ×" + r.mult + "。",
-        note: "交给喜欢" + r.flavor + "味的常客有加成，味道越浓加得越多（最多 +75%）。",
-        price: G.marketPrice(S, r, b), priceLabel: "市场价", tags: [r.flavor],
+          (sub
+            ? "这份用「" + b.zh + "」×" + sp.main + " 和「" + sub.zh + "」×" + sp.sub + " 做的，基础倍率 ×" + r.mult + "，混着做加成 ×1.08。"
+            : "这份是用「" + b.zh + "」做的，基础倍率 ×" + r.mult + "。"),
+        note: sub
+          ? "爱吃" + b.flavor + "和爱吃" + sub.flavor + "的常客都乐意买；另一味正好是它讨厌的会打折。"
+          : "交给喜欢" + r.flavor + "味的常客有加成，味道越浓加得越多（最多 +75%）。",
+        price: sub ? G.mixedMarketPrice(S, r, b, sub) : G.marketPrice(S, r, b),
+        priceLabel: "市场价", tags: sub ? [b.flavor, sub.flavor] : [r.flavor],
         actions: [["sellProduct", "卖1", { k: id, n: 1 }], ["sellProduct", "卖光", { k: id, n: 9999 }]]
       };
     }
@@ -1708,6 +1757,17 @@ window.G = window.G || {};
       UI.forceRender();
     },
     kflavor: (p) => { pick.kflavor = p.f === "全部" ? null : p.f; UI.markDirty(); },
+    mixOn: (p) => {
+      pick.mixFor = pick.mixFor === p.r ? null : p.r;
+      pick.mixMain = null;
+      UI.markDirty();
+    },
+    mixMain: (p) => { pick.mixMain = p.b; UI.markDirty(); },
+    craftMix: (p) => {
+      const r = G.engine.craftMix(S, p.r, p.m, p.s);
+      if (!r.ok) { UI.toast(r.why); return; }
+      UI.toast("做「" + (r.tag || "混合") + "」的排进去了（" + r.secs.toFixed(1) + "s）");
+    },
     craftFill: (p) => {
       const r = G.engine.craftFill(S, p.r);
       UI.toast(r.n ? "排了 " + r.n + " 件进去" : "工位满了，或者原料不够");

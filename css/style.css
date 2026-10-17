@@ -337,6 +337,12 @@ button, .link, select, input, .plot, .dex-cell, summary, label {
   position: absolute; right: -4px; bottom: -3px; width: 16px; height: 16px;
   image-rendering: pixelated; filter: drop-shadow(1px 1px 0 #10140d);
 }
+/* 混合口味：两颗树果。主料大、副料小并错开；颗数一样多时两颗叠在一起半透明，
+   靠调色叠出「红+蓝≈紫」那种混色感（不额外生成图片）。 */
+.picon .pberry.big { width: 19px; height: 19px; right: -6px; bottom: -4px; }
+.picon .pberry.small { width: 13px; height: 13px; right: 9px; bottom: 7px; opacity: .95; }
+.picon .pberry.blend { opacity: .68; }
+.picon .pberry.blend + .pberry.blend { right: -4px; bottom: -3px; }
 
 .seed-picker { padding: 0 8px 8px; }
 .seed-picker .row { display: flex; align-items: center; gap: 6px; padding: 3px 0; }

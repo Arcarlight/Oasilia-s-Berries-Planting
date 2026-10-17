@@ -157,7 +157,9 @@ window.G = window.G || {};
   G.mixedName = function (recipe, mainB, subB) {
     if (recipe.specialty || !mainB || !subB) return recipe.name;
     const tag = G.mixTag(mainB, subB);
-    return tag ? tag + recipe.name : G.productName(recipe, mainB);
+    if (!tag) return G.productName(recipe, mainB);
+    // 用品类名拼（"涩酸"+“果酱”），别用完整配方名，否则会变成"涩酸涩味果酱"
+    return tag + (recipe.catName || recipe.name);
   };
 
   // 混合产品在常客那儿值多少：取两味里更高的那档（爱吃甜的、爱吃酸的都乐意买），
@@ -175,6 +177,34 @@ window.G = window.G || {};
   G.parseProductKey = function (key) {
     const p = String(key || "").split("|");
     return { recipeId: p[0], berryId: +p[1] || 0, subId: p[2] ? +p[2] : 0 };
+  };
+
+  // 产品键 → 配方 / 主料 / 副料。副料为 null 就是普通产品
+  G.keyInfo = function (key) {
+    const p = G.parseProductKey(key);
+    return {
+      recipe: G.RECIPE_BY_ID[p.recipeId],
+      berry: G.BERRY_BY_ID[p.berryId],
+      sub: p.subId ? G.BERRY_BY_ID[p.subId] : null
+    };
+  };
+
+  // 混合产品售价：和普通产品同一套加成，只是价值换 mixedValue、常客加成换 mixedFlavorMult
+  G.mixedSellPrice = function (state, recipe, mainB, subB, regular) {
+    const b = G.bonuses(state);
+    const peak = Math.max(G.flavorIntensity(recipe, mainB), G.flavorIntensity(recipe, subB));
+    let v = G.mixedValue(recipe, mainB, subB);
+    v *= (1 + b.sellBonus) * (1 + b.allBonus);
+    if (b.flavorSell && (recipe.flavor === b.flavorSell || subB.flavor === b.flavorSell)) v *= (1 + b.flavorBonus);
+    if (regular) {
+      v *= G.mixedFlavorMult(regular, mainB, subB, peak);
+      v *= G.affinityMult(regular.aff);
+      v *= 1 + (b.regularPay || 0);
+    }
+    return Math.max(1, Math.floor(v));
+  };
+  G.mixedMarketPrice = function (state, recipe, mainB, subB) {
+    return Math.max(1, Math.floor(G.mixedSellPrice(state, recipe, mainB, subB, null) * 0.85));
   };
 
   // 商品叫法：树果名放最前，一眼看得出这份东西是用哪种果子做的。
@@ -335,13 +365,24 @@ window.G = window.G || {};
   };
 
   // berry 可以省略（比如还没决定用哪种树果时），省略就只显示底图
-  G.productIcon = function (recipe, berry) {
+  G.productIcon = function (recipe, berry, sub, mainShare) {
     const base = `<img class="pbase" src="${G.productSprite(recipe)}" alt="">`;
     // 无味（berry.id === 0）没有图可叠，别输出一个坏图片
-    const over = berry && berry.icon
-      ? `<img class="pberry" src="${berry.icon}" alt="${berry.zh}">`
-      : "";
-    return `<span class="picon" title="${recipe.flavor}">${base}${over}</span>`;
+    const one = function (x, cls) {
+      return x && x.icon ? `<img class="pberry ${cls}" src="${x.icon}" alt="${x.zh}">` : "";
+    };
+    let over = "";
+    if (sub && sub.icon && berry && berry.icon) {
+      const share = typeof mainShare === "number" ? mainShare : 0.5;
+      // 颗数一样多 → 两颗叠在一起半透明，红+蓝出紫那种"混色"效果
+      if (share > 0.5) over = one(berry, "big") + one(sub, "small");
+      else if (share < 0.5) over = one(berry, "small") + one(sub, "big");
+      else over = one(berry, "blend") + one(sub, "blend");
+    } else {
+      over = one(berry, "");
+    }
+    const tag = sub ? (G.mixTag(berry, sub) || "") : "";
+    return `<span class="picon" title="${tag || recipe.flavor}">${base}${over}</span>`;
   };
 
   G.flavorColor = function (fl) { return FLAVOR_COLOR[fl] || "#8cbf6a"; };

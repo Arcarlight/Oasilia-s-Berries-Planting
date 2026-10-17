@@ -1221,6 +1221,34 @@ window.SIM = {};
       return true;
     })());
 
+    // ── 混合口味：引擎能下单、能卖、键是三段的 ──
+    check("混合：能下单，出的是三段键，卖得掉", (function () {
+      const s = fresh();
+      const r = G.RECIPES.filter((x) => x.cat === "jam" && x.flavor === "甜" && !x.specialty)[0];
+      s.recipes[r.id] = true;
+      const mainB = G.BERRIES.filter((x) => x.flavor === "甜")[0];
+      const subB = G.BERRIES.filter((x) => x.flavor === "辣")[0];
+      s.berries[mainB.id] = 20; s.berries[subB.id] = 20;
+      const res = G.engine.craftMix(s, r.id, mainB.id, subB.id);
+      if (!res.ok) return "下单失败：" + res.why;
+      if (res.tag !== G.mixTag(mainB, subB)) return "标签不对";
+      G.advance(s, 60);
+      const keys = Object.keys(s.products).filter((k) => k.split("|").length === 3);
+      if (!keys.length) return "没产出三段键的产品";
+      const before = s.money;
+      const got = G.engine.sellProduct(s, keys[0], 1, null);
+      if (!(got > 0) || s.money !== before + got) return "卖给市场失败";
+      return true;
+    })());
+    check("混合：同味的副料会被拒绝", (function () {
+      const s = fresh();
+      const r = G.RECIPES.filter((x) => x.cat === "jam" && x.flavor === "甜" && !x.specialty)[0];
+      s.recipes[r.id] = true;
+      const b = G.BERRIES.filter((x) => x.flavor === "甜")[0];
+      s.berries[b.id] = 20;
+      return G.engine.craftMix(s, r.id, b.id, b.id).ok ? "同味居然成功了" : true;
+    })());
+
     // ── 搬家不能把帮手带走（以前会留下"幽灵帮手"在新区域的田里干活）──
     check("搬家之后帮手全部留在老地方", (function () {
       const s = fresh();

@@ -716,6 +716,41 @@
     }
 
 
+    // #check=mix：加工页的混合口味工作台（主料 + 副料）
+    if (p.check === "mix") {
+      const out = [];
+      try {
+        const eng = G.engine;
+        // 给点料和配方，保证工作台有得选
+        const r = G.RECIPES.filter((x) => x.cat === "jam" && x.flavor === "甜" && !x.specialty)[0];
+        S.recipes[r.id] = true;
+        const sweet = G.BERRIES.filter((x) => x.flavor === "甜")[0];
+        const sour = G.BERRIES.filter((x) => x.flavor === "酸")[0];
+        S.berries[sweet.id] = 20; S.berries[sour.id] = 20;
+        S.craftQueue = [];          // 先腾空工位，不然点下去只会提示"加工台满了"
+        G.UI.tab = "kitchen";
+        G.UI.forceRender();
+        const mixBtn = document.querySelector("[data-act='mixOn']");
+        out.push("行内有「混」按钮：" + (mixBtn ? "有 ✓" : "没有 ✗"));
+        if (mixBtn) mixBtn.click();
+        G.UI.forceRender();
+        const mainBtns = document.querySelectorAll("[data-act='mixMain']");
+        const subBtns = document.querySelectorAll("[data-act='craftMix']");
+        out.push("主料可选：" + mainBtns.length + " 个　副料可选：" + subBtns.length + " 个");
+        const q0 = S.craftQueue.length;
+        if (subBtns.length) subBtns[0].click();
+        G.UI.forceRender();
+        out.push("点副料之后队列：" + q0 + " → " + S.craftQueue.length +
+          (S.craftQueue.length === q0 + 1 ? " ✓" : " ✗"));
+        const keys = Object.keys(S.products);
+        out.push("排进去的键：" + (S.craftQueue.length ? JSON.stringify(S.craftQueue[S.craftQueue.length - 1].key) : "（无）"));
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "mixcheck";
+      pre.textContent = "MIXCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
     // #check=conj：共轭图纸下单 → 刻好 → 选边 → 加成生效 → 同区不能改 → 换区能改
     if (p.check === "conj") {
       const out = [];
