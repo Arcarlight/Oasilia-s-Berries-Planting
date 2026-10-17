@@ -787,11 +787,15 @@ window.G = window.G || {};
     const chk = G.engine.canMigrate(S);
     const tp = G.talentPointsFor(S.stats.revenueRegion);
     const rc = G.canRespecTalents(S);
+    const mv = G.engine.migratePreview(S);
     let h = `<div class="card"><h4>移民（转世）</h4>
       <div class="sub">在 ${esc(region.name)} 的常客全部解锁后，付一笔移民费就能搬到下一个区域。
       离开会清空宝可元和库存，但天赋、配方、道具、图鉴、常客好感都会留下。</div>
       <div class="sub" style="margin-top:4px">常客 ${chk.progress.done}/${chk.progress.total}　移民费 ${money(chk.cost)}　
         本次可得天赋点 <b>${tp}</b>（本区域收入 ${money(S.stats.revenueRegion)}）</div>
+      <div class="sub" style="margin-top:2px;color:#ffc98a">搬家后身上只剩 <b>${money(mv.total)}</b>：
+        现钱按行囊保留 ${mv.keepPct}%${mv.keepPct ? "" : "（没点「行囊」天赋就是一分不带）"}，
+        加上果子与存货折现 ${money(mv.liquidated)}。</div>
       <div style="margin-top:6px">
         <button class="gold" data-act="migrate" ${chk.ok ? "" : "disabled"}>
           ${chk.hasNext ? "搬到「" + esc(chk.next.name) + "」" : "已经是最后一片田了"}
@@ -1590,7 +1594,14 @@ window.G = window.G || {};
         <div class="sub">存档没坏，切到别的页签还能继续玩。</div></div>`;
     }
     // 说明性文字统一收进「?」（确定性的，不会影响下面的"内容没变"判断）
-    html = helpfy(html);
+    // 这层只是装饰：万一在某个浏览器上抛异常，绝不能把整个界面卡死
+    //（界面停更的表现就是"卖了东西顶栏的钱不动"）。
+    try {
+      html = helpfy(html);
+    } catch (e) {
+      console.warn("helpfy 出错，退回原样", e);
+      UI.helpError = String(e && e.message);
+    }
     // 内容没变就别动 DOM：innerHTML 会把按钮节点整个销毁重造，
     // 鼠标悬停时会导致 hover 状态反复丢失（一闪一闪），手机上的原生下拉也会被关掉。
     if (html === lastHtml && !UI.lastError) {
@@ -1922,7 +1933,7 @@ window.G = window.G || {};
       const r = G.engine.migrate(S);
       if (r) {
         UI.flash();
-        UI.toast("搬到新区域了。天赋点 +" + r.talentPoints);
+        UI.toast("搬到新区域了。天赋点 +" + r.talentPoints + "，身上带着 " + money(S.money));
         const l = (G.ATLAS_LINES && G.ATLAS_LINES.prestige) || [];
         if (l.length) UI.bubble(l[Math.floor(Math.random() * l.length)]);
         UI.forceRender();

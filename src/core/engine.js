@@ -1498,6 +1498,32 @@ window.G = window.G || {};
     return liquidated;
   }
 
+  // 搬家会带走多少钱 —— 和 enterRegion 里那套折现规则同一份口径。
+  // 玩家最容易误会的就是这件："我明明卖了东西，怎么一分钱没有"。
+  A.migratePreview = function (state) {
+    const b = G.bonuses(state);
+    let liquidated = 0;
+    Object.keys(state.berries).forEach((id) => {
+      const berry = G.BERRY_BY_ID[id];
+      if (berry) liquidated += G.berrySellPrice(state, berry) * state.berries[id];
+    });
+    Object.keys(state.products).forEach((k) => {
+      const ki = G.keyInfo(k);
+      if (!ki.recipe || !ki.berry) return;
+      const unit = ki.sub
+        ? G.mixedMarketPrice(state, ki.recipe, ki.berry, ki.sub)
+        : G.marketPrice(state, ki.recipe, ki.berry);
+      liquidated += unit * state.products[k];
+    });
+    liquidated = Math.floor(liquidated);
+    const keepPct = Math.round((b.keepMoney || 0) * 100);
+    return {
+      keepPct: keepPct,
+      liquidated: liquidated,
+      total: Math.floor(state.money * (b.keepMoney || 0)) + liquidated
+    };
+  };
+
   A.migrate = function (state) {
     const chk = A.canMigrate(state);
     if (!chk.ok) return null;

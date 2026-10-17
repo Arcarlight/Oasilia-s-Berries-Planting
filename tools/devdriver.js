@@ -754,6 +754,32 @@
         out.push("搬家：" + (mig ? "成功" : "跳过") + "　钱=" + S.money +
           (isFinite(S.money) ? " ✓" : " ✗ NaN！"));
         out.push("revenueTotal=" + S.stats.revenueTotal + "　isFinite=" + isFinite(S.stats.revenueTotal));
+        // 玩家描述的那条路：卖种子 → 种 → 自动加工 → 自动交付
+        const s2 = G.newState();
+        s2.money = 0;
+        s2.seeds[1] = 5;
+        const sv = G.engine.sellSeed(s2, 1, 5);
+        out.push("卖 5 颗种子：" + (sv.ok ? sv.got : sv.why) + "　钱=" + s2.money +
+          (s2.money > 0 ? " ✓" : " ✗"));
+        s2.autoTrade = true;
+        s2.items.wood_sign = 1;          // 自动交付要「木质招牌」那种给 sellBonus 的商铺道具
+        const rr2 = G.RECIPES.filter((x) => x.cat === "jam" && !x.specialty)[0];
+        s2.recipes[rr2.id] = true;
+        G.engine.regionRegulars(1).forEach((r) => { G.engine.regState(s2, r.dex).unlocked = true; });
+        s2.products[rr2.id + "|1"] = 6;
+        const m0 = s2.money;
+        for (let i = 0; i < 6; i++) G.advance(s2, 1);
+        out.push("自动交付后：钱 " + m0 + " → " + s2.money + "　剩 " + JSON.stringify(s2.products) +
+          (s2.money > m0 ? " ✓" : " ✗"));
+        // 订单赏金是不是有限值
+        const badOrders = [];
+        G.engine.regionRegulars(1).forEach((r) => {
+          const o = s2.orders[r.dex];
+          if (o && !isFinite(o.reward)) badOrders.push(r.dex + ":" + o.reward);
+        });
+        out.push("异常订单赏金：" + (badOrders.length ? badOrders.join(",") : "无 ✓"));
+        out.push("页面运行期报错数：" + ((window.__errors || []).length) +
+          "　helpfy 出错：" + (G.UI.helpError || "无"));
       } catch (err) { out.push("抛异常了：" + (err && err.message)); }
       const pre = document.createElement("pre");
       pre.id = "moneycheck";
