@@ -1198,6 +1198,16 @@ window.SIM = {};
       return true;
     })());
 
+    // ── 搬家保底：空手搬过去也不能是 0 元 ──
+    check("空手搬家之后至少还有一点盘缠", (function () {
+      const s = fresh();
+      s.money = 600000; s.berries = {}; s.products = {}; s.talents = {};
+      G.engine.regionRegulars(1).forEach((r) => { G.engine.regState(s, r.dex).unlocked = true; });
+      s.stats.revenueRegion = 20000;
+      if (!G.engine.migrate(s)) return "搬家失败";
+      return s.money >= 500 ? true : "搬完只剩 " + s.money;
+    })());
+
     // ── 卡死判定 + 阿特拉斯补助 ──
     check("全空时判定为卡死，能拿到 ₽200 补助", (function () {
       const s = fresh();

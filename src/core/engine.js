@@ -1483,6 +1483,12 @@ window.G = window.G || {};
     });
     liquidated = Math.floor(liquidated);
     state.money = Math.floor(state.money * b.keepMoney) + liquidated;
+    // 搬家保底：没点「行囊」天赋、手上又没货可折算时，搬过去就是 ₽0 —— 只有几颗种子，
+    // 一步走错就再也起不来（玩家真实存档就是这么卡死的）。给一点盘缠兜底。
+    if (state.money < 500) {
+      state.money = 500;
+      G.addLog(state, "阿特拉斯把最后一点盘缠塞给你：路上别乱花，先买两袋种子。", "good");
+    }
     state.region = regionId;
     state.maxRegion = Math.max(state.maxRegion, regionId);
     state.extraPlots = 0;
