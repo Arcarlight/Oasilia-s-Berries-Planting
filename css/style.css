@@ -93,6 +93,17 @@ button:disabled { opacity: .38; cursor: not-allowed; filter: grayscale(.6); }
 button.gold { border-image-source: url("../assets/ui/btn-main.png"); color: #3a2a12; }
 button.gold:hover:not(:disabled) { border-image-source: url("../assets/ui/btn.png"); }
 button.gold:active:not(:disabled) { border-image-source: url("../assets/ui/btn-press.png"); color: var(--ink); }
+/* 「已选中」和「主要操作」是两回事，别混用一个样式：
+     .gold    = "点这个"（比如"让他出发"），亮底深字，是行动号召
+     .picked  = "已经选了这个"，金环 + 金字 + 前面的 ✓
+   以前配方 / 保留量这些"选择"状态直接用 .gold，看着像"让你点它"，
+   读不出"已经选中了"。 */
+button.picked {
+  color: var(--gold);
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+button.picked:hover:not(:disabled) { border-image-source: url("../assets/ui/btn.png"); }
 button.danger { border-image-source: url("../assets/ui/btn-danger.png"); color: #ffe6e0; }
 button.danger:hover:not(:disabled) { border-image-source: url("../assets/ui/btn-press.png"); color: var(--ink); }
 input[type=checkbox] { border-width: 0; border-image: none; accent-color: var(--gold); }

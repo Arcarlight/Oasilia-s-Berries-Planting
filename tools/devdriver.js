@@ -125,7 +125,7 @@
       const before = document.querySelector(".card h4 + .sub") ? "" : "";
       if (btns[i]) btns[i].click();
       G.UI.forceRender();
-      const on = document.querySelector("[data-act='recipe'].gold");
+      const on = document.querySelector("[data-act='recipe'].picked");
       const pre2 = document.createElement("pre");
       pre2.id = "recipecheck";
       pre2.textContent = "RECIPECHECK " + (on ? "选中=" + on.textContent.trim() : "没有选中任何配方")
@@ -424,11 +424,11 @@
       G.UI.tab = "kitchen"; G.UI.forceRender();
       const rb = document.querySelectorAll("[data-act='recipe']");
       if (rb.length > 1) {
-        const prev = document.querySelector("[data-act='recipe'].gold");
+        const prev = document.querySelector("[data-act='recipe'].picked");
         const prevTxt = prev ? prev.textContent.trim() : "";
         rb[1].click();
         G.UI.forceRender();
-        const now2 = document.querySelector("[data-act='recipe'].gold");
+        const now2 = document.querySelector("[data-act='recipe'].picked");
         out.push("选配方：" + (now2 && now2.textContent.trim() !== prevTxt ? "OK（" + now2.textContent.trim() + "）" : "没反应"));
       } else out.push("选配方：还没解锁配方");
       // 天赋 / 常客 / 阿特拉斯 至少确认页面上的按钮能被点到（不校验效果）

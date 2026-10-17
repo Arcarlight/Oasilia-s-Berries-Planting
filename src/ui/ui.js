@@ -190,7 +190,7 @@ window.G = window.G || {};
           <button class="${stall.on ? "gold" : ""}" data-act="toggleStall">${stall.on ? "✔ 正在自动出货" : "已关闭（点一下打开）"}</button>
           <span class="sub">保留量：</span>
           ${[0, 10, 20, 50, 100, 200].map((n) =>
-            `<button class="small ${stall.reserve === n ? "gold" : ""}" data-act="setReserve" data-p='${attr({ n: n })}'>${n}</button>`).join("")}
+            `<button class="small ${stall.reserve === n ? "picked" : ""}" data-act="setReserve" data-p='${attr({ n: n })}'>${n}</button>`).join("")}
         </div>
         <div class="sub" style="margin-top:4px">要做果酱又抢不过摊位？把保留量调大，或者直接关掉自动出货。</div>
       </div>`;
@@ -304,9 +304,10 @@ window.G = window.G || {};
     byCat.forEach((g) => {
       h += `<div class="cat-group"><div class="sub cat-name">${esc(g.name)}</div><div class="row2" style="flex-wrap:wrap">`;
       g.list.forEach((r) => {
-        const on = pick.recipe === r.id ? "gold" : "";
+        const on = pick.recipe === r.id ? "picked" : "";
         const label = r.specialty ? r.name : r.name.replace(g.name, "") || r.name;
-        h += `<button class="${on}" data-act="recipe" data-p='${attr({ r: r.id })}' title="${esc(r.name)}">${esc(label)}</button>`;
+        h += `<button class="${on}" data-act="recipe" data-p='${attr({ r: r.id })}'
+          title="${esc(r.name)}${pick.recipe === r.id ? "（已选中）" : ""}">${pick.recipe === r.id ? "✓ " : ""}${esc(label)}</button>`;
       });
       h += `</div></div>`;
     });
