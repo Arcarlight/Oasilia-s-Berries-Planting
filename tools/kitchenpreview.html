@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>加工页效果图</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  body { padding: 12px; }
+  .wrap { display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 520px; }
+  .demo > h3 { margin: 0 0 6px; font-size: 13px; color: var(--gold); font-weight: normal; }
+
+  /* 工位条 */
+  .slots { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+  .slot { width: 34px; height: 34px; border: 1px solid var(--line); background: var(--panel);
+          display: flex; align-items: center; justify-content: center; position: relative; }
+  .slot img { width: 26px; height: 26px; image-rendering: pixelated; }
+  .slot.busy { border-color: var(--gold); }
+  .slot.busy::after { content: ""; position: absolute; inset: 0;
+          background: linear-gradient(to top, rgba(232,196,92,.35) var(--p), transparent var(--p)); }
+  .slot.free { border-style: dashed; opacity: .5; }
+
+  /* 口味筛选 */
+  .fltabs { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
+  .fltabs button { font-size: 11px; padding: 2px 8px; }
+  .fltabs button.on { outline: 2px solid var(--gold); outline-offset: -2px; color: var(--gold); }
+
+  /* 方案一：紧凑行 */
+  .rrow { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+  .rrow:last-child { border-bottom: none; }
+  .rrow .pinfo { flex: 1; min-width: 0; }
+  .rrow .pname { color: var(--green); }
+  .rrow .pmeta { font-size: 10px; color: var(--dim); }
+  .berrybtn { display: flex; align-items: center; gap: 2px; padding: 2px 5px 2px 3px; font-size: 11px; }
+  .berrybtn img { width: 22px; height: 22px; image-rendering: pixelated; }
+  .berrybtn b { font-weight: normal; }
+  .berrybtn.dim { opacity: .4; }
+  .fillbtn { font-size: 10px; padding: 3px 6px; white-space: nowrap; }
+
+  /* 方案二：卡片 */
+  .kcard { display: flex; gap: 9px; padding: 8px; border: 1px solid var(--line);
+           background: var(--panel); margin-bottom: 6px; align-items: flex-start; }
+  .kcard .picon2 { width: 34px; height: 34px; flex: 0 0 34px; image-rendering: pixelated; }
+  .kcard .kbody { flex: 1; min-width: 0; }
+  .kcard .khead { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .kcard .kberry { display: flex; gap: 4px; margin-top: 5px; flex-wrap: wrap; }
+  .bcell { border: 1px solid var(--line); background: var(--bg); padding: 2px 5px;
+           display: flex; align-items: center; gap: 3px; font-size: 11px; }
+  .bcell img { width: 22px; height: 22px; image-rendering: pixelated; }
+  .bcell.dim { opacity: .38; }
+  .bcell.sel { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .guest { width: 20px; height: 20px; image-rendering: pixelated; vertical-align: -5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== 方案一 ===== -->
+  <div class="demo">
+    <h3>方案一：紧凑行（点树果直接下单）</h3>
+    <div class="card">
+      <div class="sub" style="margin-bottom:5px">工位 7/12　空闲 5</div>
+      <div class="slots">
+        <div class="slot busy" style="--p:47%"><img src="../assets/item/jam_甜.png" alt=""></div>
+        <div class="slot busy" style="--p:88%"><img src="../assets/item/cake.png" alt=""></div>
+        <div class="slot busy" style="--p:12%"><img src="../assets/item/pie_辣.png" alt=""></div>
+        <div class="slot free"></div><div class="slot free"></div><div class="slot free"></div>
+        <div class="slot free"></div><div class="slot free"></div>
+      </div>
+      <div class="fltabs">
+        <button class="on">全部</button><button>辣</button><button>涩</button>
+        <button>甜</button><button>苦</button><button>酸</button>
+      </div>
+
+      <div class="rrow">
+        <div class="pinfo"><div class="pname">甜味果酱</div>
+          <div class="pmeta">×2.2　8s　<img class="guest" src="../assets/pmd/0183_portrait.png" alt=""></div></div>
+        <button class="berrybtn" title="用桃桃果做一件"><img src="../assets/berry/Bag_桃桃果_Sprite.png" alt=""><b>×16</b></button>
+        <button class="berrybtn"><img src="../assets/berry/Bag_樱子果_Sprite.png" alt=""><b>×9</b></button>
+        <button class="berrybtn dim" title="不够"><img src="../assets/berry/Bag_莓莓果_Sprite.png" alt=""><b>×1</b></button>
+        <button class="fillbtn gold">做满 5</button>
+      </div>
+
+      <div class="rrow">
+        <div class="pinfo"><div class="pname">辣味果酱</div>
+          <div class="pmeta">×2.2　8s</div></div>
+        <button class="berrybtn"><img src="../assets/berry/Bag_樱子果_Sprite.png" alt=""><b>×9</b></button>
+        <button class="berrybtn"><img src="../assets/berry/Bag_利木果_Sprite.png" alt=""><b>×4</b></button>
+        <button class="fillbtn gold">做满 5</button>
+      </div>
+
+      <div class="rrow" style="opacity:.55">
+        <div class="pinfo"><div class="pname">甜味蛋糕</div>
+          <div class="pmeta">×6.8　62s　还差 1 颗甜味果</div></div>
+        <button class="berrybtn dim"><img src="../assets/berry/Bag_桃桃果_Sprite.png" alt=""><b>×1/3</b></button>
+        <button class="fillbtn">去商店买种子</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 方案二 ===== -->
+  <div class="demo">
+    <h3>方案二：每张配方一张卡（信息更全，纵向更长）</h3>
+    <div class="kcard">
+      <img class="picon2" src="../assets/item/jam_甜.png" alt="">
+      <div class="kbody">
+        <div class="khead"><b>甜味果酱</b> <span class="tag">×2.2</span> <span class="tag">8s</span>
+          <span class="tag">甜</span>
+          <img class="guest" src="../assets/pmd/0183_portrait.png" alt="">
+        </div>
+        <div class="kberry">
+          <div class="bcell sel"><img src="../assets/berry/Bag_桃桃果_Sprite.png" alt="">16</div>
+          <div class="bcell"><img src="../assets/berry/Bag_樱子果_Sprite.png" alt="">9</div>
+          <div class="bcell dim"><img src="../assets/berry/Bag_莓莓果_Sprite.png" alt="">1</div>
+        </div>
+        <div class="row2" style="margin-top:5px">
+          <button class="small gold">做满 5 个</button>
+          <button class="small">自动加工用这个</button>
+        </div>
+      </div>
+    </div>
+    <div class="kcard">
+      <img class="picon2" src="../assets/item/cake.png" alt="">
+      <div class="kbody">
+        <div class="khead"><b>甜味蛋糕</b> <span class="tag">×6.8</span> <span class="tag">62s</span>
+          <span class="tag">甜</span></div>
+        <div class="kberry">
+          <div class="bcell dim"><img src="../assets/berry/Bag_桃桃果_Sprite.png" alt="">1/3</div>
+        </div>
+        <div class="row2" style="margin-top:5px">
+          <button class="small">去商店买种子</button>
+          <span class="sub">原料不够，工位空着</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 混合口味（下一步）===== -->
+  <div class="demo">
+    <h3>下一步：混合口味要怎么接（双料槽）</h3>
+    <div class="kcard" style="border-color:var(--gold)">
+      <img class="picon2" src="../assets/item/jam_甜.png" alt="">
+      <div class="kbody">
+        <div class="khead"><b>酸甜果酱</b> <span class="tag">×2.2</span> <span class="tag">8s</span>
+          <span class="tag ftag flavor-甜">甜</span><span class="tag ftag flavor-酸">酸</span></div>
+        <div class="kberry" style="align-items:center">
+          <div class="bcell sel"><span class="sub">主料</span><img src="../assets/berry/Bag_桃桃果_Sprite.png" alt="">2</div>
+          <span class="sub">+</span>
+          <div class="bcell"><span class="sub">副料</span><img src="../assets/berry/Bag_莓莓果_Sprite.png" alt="">1</div>
+          <span class="sub">→ 混合加成 +8%</span>
+        </div>
+        <div class="row2" style="margin-top:5px"><button class="small gold">做一件</button></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

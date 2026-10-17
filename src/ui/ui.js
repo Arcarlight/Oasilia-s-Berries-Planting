@@ -23,7 +23,7 @@ window.G = window.G || {};
     { id: "help", name: "说明" }
   ];
 
-  const pick = { seed: null, recipe: null, regularFor: {}, labBerry: null, labFinds: [], storeSel: null };
+  const pick = { seed: null, recipe: null, regularFor: {}, labBerry: null, labFinds: [], storeSel: null, kflavor: null };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -256,34 +256,32 @@ window.G = window.G || {};
   // ---------------- 加工 ----------------
 
   function renderKitchen() {
-    let h = "";
     const info = G.engine.craftSlotInfo(S);
-    h += `<div class="card"><h4>加工台（${S.craftQueue.length}/${info.slots}）</h4>
-      <div class="sub">工位 = 2 个基础 + 工坊类道具等级总和 ÷ 2（上限 ${info.cap}）。当前工坊等级和 ${info.total}${
-        info.detail.length ? "：" + info.detail.map((x) => x.name + " Lv." + x.level).join("、") : "（还没有工坊道具）"}</div>`;
-    // 自动加工开关
-    if (G.engine.autoUnlocked(S)) {
-      const auto = S.autoRecipe && S.recipes[S.autoRecipe] ? G.RECIPE_BY_ID[S.autoRecipe] : null;
-      h += `<div class="row2" style="margin-top:6px">
-        <span class="sub">自动加工：${auto ? "开着，优先做「" + esc(auto.name) + "」，原料断了自动换能做的" : "关着"}</span>
-        ${auto ? `<button class="small" data-act="autoOff">关掉</button>` : `<span class="sub">（在下面选一个配方，点「一直做这个」）</span>`}
-      </div>`;
-    } else {
-      h += `<div class="sub" style="margin-top:6px">做出第一件工坊道具（区域 2 的「石磨」）之后，这里会多出「自动加工」。</div>`;
-    }
-    if (!S.craftQueue.length) h += `<div class="sub">空闲中。</div>`;
     const now = G.now(S);
+    const free = Math.max(0, info.slots - S.craftQueue.length);
+    const b = G.bonuses(S);
+    let h = "";
+
+    // ── 工位条：一眼看出还能塞几个 ──
+    h += `<div class="card"><h4>加工台（${S.craftQueue.length}/${info.slots}）</h4><div class="slots">`;
     S.craftQueue.forEach((j) => {
       const r = G.RECIPE_BY_ID[j.recipeId];
-      const b = G.BERRY_BY_ID[j.berryId];
+      const bb = G.BERRY_BY_ID[j.berryId];
       const left = Math.max(0, (j.until - now) / 1000);
-      const pctv = 100 - Math.min(100, (left / j.secs) * 100);
-      h += `<div class="list-item">${G.productIcon(r, b)}
-        <span class="grow">${esc(G.productName(r, b))}</span>
-        <span class="sub">${left.toFixed(1)}s</span>
-        <div class="bar-outer" style="width:120px"><i style="width:${pctv.toFixed(0)}%"></i></div>
-      </div>`;
+      const p = 100 - Math.min(100, (left / j.secs) * 100);
+      h += `<div class="slot busy" style="--p:${p.toFixed(0)}%" title="${esc(r && bb ? G.productName(r, bb) : "")}　还有 ${left.toFixed(1)}s">${r && bb ? G.productIcon(r, bb) : ""}</div>`;
     });
+    for (let i = 0; i < free; i++) h += `<div class="slot free" title="空工位"></div>`;
+    h += `</div>`;
+    h += `<div class="sub">工位 = 2 个基础 + 工坊类道具等级总和 ÷ 2（上限 ${info.cap}）。当前等级和 ${info.total}${
+      info.detail.length ? "：" + info.detail.map((x) => x.name + " Lv." + x.level).join("、") : "（还没有工坊道具）"}</div>`;
+    if (G.engine.autoUnlocked(S)) {
+      const auto = S.autoRecipe && S.recipes[S.autoRecipe] ? G.RECIPE_BY_ID[S.autoRecipe] : null;
+      h += `<div class="row2" style="margin-top:4px"><span class="sub">自动加工：${auto ? "开着，优先做「" + esc(auto.name) + "」" : "关着"}</span>
+        ${auto ? `<button class="small" data-act="autoOff">关掉</button>` : `<span class="sub">（下面每行有「一直做」）</span>`}</div>`;
+    } else {
+      h += `<div class="sub" style="margin-top:4px">做出第一件工坊道具（区域 2 的「石磨」）之后，这里会多出「自动加工」。</div>`;
+    }
     h += `</div>`;
 
     const unlocked = G.engine.unlockedRecipes(S);
@@ -291,72 +289,48 @@ window.G = window.G || {};
       h += `<div class="card"><h4>还没有配方</h4><div class="sub">去${go("shop", "商店")}买一个配方。最先该买的是「辣味果酱」。</div></div>`;
       return h;
     }
-    if (!pick.recipe || !S.recipes[pick.recipe]) pick.recipe = unlocked[0].id;
 
-    // 按品类分组：配方多了以后（10 类 × 5 味 + 10 招牌）平铺就是一片按钮墙
-    h += `<div class="card"><h4>选择配方</h4>`;
-    const byCat = [];
-    unlocked.forEach((r) => {
-      let g = byCat.filter((x) => x.id === r.cat)[0];
-      if (!g) { g = { id: r.cat, name: r.catName, list: [] }; byCat.push(g); }
-      g.list.push(r);
-    });
-    byCat.forEach((g) => {
-      h += `<div class="cat-group"><div class="sub cat-name">${esc(g.name)}</div><div class="row2" style="flex-wrap:wrap">`;
-      g.list.forEach((r) => {
-        const on = pick.recipe === r.id ? "picked" : "";
-        const label = r.specialty ? r.name : r.name.replace(g.name, "") || r.name;
-        h += `<button class="${on}" data-act="recipe" data-p='${attr({ r: r.id })}'
-          title="${esc(r.name)}${pick.recipe === r.id ? "（已选中）" : ""}">${pick.recipe === r.id ? "✓ " : ""}${esc(label)}</button>`;
-      });
-      h += `</div></div>`;
-    });
-    h += `</div>`;
+    // ── 口味筛选 ──
+    const fls = ["全部"].concat(G.FLAVORS).concat(["混合"]);
+    const want = pick.kflavor || "全部";
+    h += `<div class="card"><div class="fltabs">` + fls.map((f) =>
+      `<button class="${want === f ? "picked" : ""}" data-act="kflavor" data-p='${attr({ f: f })}'>${esc(f)}</button>`
+    ).join("") + `</div>`;
 
-    const recipe = G.RECIPE_BY_ID[pick.recipe];
-    const elig = G.engine.eligibleBerries(S, recipe);
-    const isAuto = S.autoRecipe === recipe.id;
-    h += `<div class="card"><h4>${esc(recipe.name)}</h4>
-      <div class="sub">需要：${recipe.needBerry ? esc(G.BERRY_BY_ID[recipe.needBerry].zh) : "「" + recipe.needFlavor + "」味树果"} ×${G.craftNeedCount(S, recipe)}
-      ｜耗时 ${(recipe.time / (1 + G.bonuses(S).craftSpeed)).toFixed(1)}s
-      ｜基础倍率 ×${recipe.mult}${recipe.specialty ? "（招牌商品）" : ""}</div>
-      ${G.engine.autoUnlocked(S) ? `<div class="row2" style="margin-top:4px">
-        <button class="small ${isAuto ? "gold" : ""}" data-act="${isAuto ? "autoOff" : "autoOn"}" data-p='${attr({ r: recipe.id })}'>
-          ${isAuto ? "✔ 一直在做这个" : "一直做这个（自动加工）"}</button>
-        <span class="sub">${isAuto ? "工位一空就自动补料继续做；这个配方的原料断了，会自动换一个现在能做、倍率最高的。" : "打开之后不用盯着，做完一个自动接下一个。"}</span>
-      </div>` : ""}`;
-    if (!elig.length) {
-      const hint = G.engine.berryHint(S, recipe);
-      if (hint.length) {
-        h += `<div class="sub" style="margin-top:6px">库存不够（要 ${G.craftNeedCount(S, recipe)} 个）。能做这个配方的是这些，去${go("shop", "商店")}买种子种起来：</div>`;
-        hint.slice(0, 6).forEach((b) => {
-          h += `<div class="list-item"><img src="${b.icon}" alt="">
-            <span class="grow flavor-${b.flavor}">${esc(b.zh)}</span>
-            <span class="sub">库存 ${int(S.berries[b.id])} / 需要 ${G.craftNeedCount(S, recipe)}</span>
-            <span class="sub">种子 ₽${G.fmt(G.seedPrice(S, b))}</span>
-          </div>`;
-        });
-      } else {
-        const stall = G.engine.stallInfo(S);
-        const beingSold = stall.unlocked && stall.on;
-        h += `<div class="sub" style="margin-top:6px">这一带还没有「${recipe.needFlavor || "对应"}」味的树果，搬到后面的区域才会有。</div>`;
-        if (beingSold) {
-          h += `<div class="sub" style="color:#ffc98a;margin-top:4px">也可能是刚收上来就被摊位自动卖掉了——
-            去${go("market", "市场")}页把「摊位自动出货」的保留量调高，或者直接关掉它。</div>`;
-        }
-      }
-    } else {
-      elig.forEach((b) => {
-        const val = G.productValue(recipe, b);
-        const cost = b.basePrice * G.craftNeedCount(S, recipe);
-        h += `<div class="list-item"><img src="${b.icon}" alt="">
-          <span class="grow">用 ${esc(b.zh)} ×${G.craftNeedCount(S, recipe)} <span class="sub">（库存 ${int(S.berries[b.id])}）</span></span>
-          <span class="sub">原料值 ₽${G.fmt(cost)}</span>
-          <span class="gold">→ ₽${G.fmt(val)}</span>
-          <button class="small gold" data-act="craft" data-p='${attr({ r: recipe.id, b: b.id })}'>制作</button>
+    // ── 一行一张配方：点树果图标直接下单 ──
+    const mine = G.engine.regionRegulars(S.region).filter((rg) => G.engine.regState(S, rg.dex).unlocked);
+    const list = unlocked.filter((r) => want === "全部" || r.flavor === want);
+    if (!list.length) h += `<div class="sub">这个口味还没有配方。</div>`;
+    list.forEach((r) => {
+      const secs = r.time / (1 + b.craftSpeed);
+      const need = G.craftNeedCount(S, r);
+      const elig = G.engine.eligibleBerries(S, r).slice().sort((x, y) => y.basePrice - x.basePrice);
+      const fans = mine.filter((rg) => rg.flavor === r.flavor);
+      const isAuto = S.autoRecipe === r.id;
+      h += `<div class="krow${elig.length ? "" : " off"}">
+        <div class="kinfo">
+          <div class="kname">${esc(r.name)}${isAuto ? ` <span class="tag" style="color:var(--gold)">自动</span>` : ""}</div>
+          <div class="kmeta"><img class="kico" src="assets/ui/stat-money.png" alt="">×${r.mult}
+            <img class="kico" src="assets/ui/hourglass.png" alt="">${secs.toFixed(1)}s
+            ${fans.slice(0, 3).map((g) => `<img class="guest" src="assets/pmd/${String(g.dex).padStart(4, "0")}_portrait.png" alt="" title="${esc(g.name)}喜欢${esc(r.flavor)}味，会买">`).join("")}
+          </div>
         </div>`;
-      });
-    }
+      if (elig.length) {
+        elig.forEach((x) => {
+          h += `<button class="berrybtn" data-act="craft" data-p='${attr({ r: r.id, b: x.id })}'
+            title="用${esc(x.zh)}做一件（吃掉 ${need} 颗）"><img src="${x.icon}" alt=""><b>×${int(S.berries[x.id])}</b></button>`;
+        });
+        if (free > 0) h += `<button class="fillbtn gold" data-act="craftFill" data-p='${attr({ r: r.id })}'>做满 ${free}</button>`;
+        if (G.engine.autoUnlocked(S) && !isAuto) {
+          h += `<button class="fillbtn" data-act="autoOn" data-p='${attr({ r: r.id })}' title="一直做这个">一直做</button>`;
+        }
+      } else {
+        const hint = G.engine.berryHint(S, r);
+        h += `<span class="sub kwhy">缺 ${need} 颗${esc(r.needFlavor || "对应")}味果${hint.length ? "（" + esc(hint.slice(0, 2).map((x) => x.zh).join("、")) + "…）" : "，这一带还没有"}</span>`;
+        if (hint.length) h += `<button class="fillbtn" data-act="tab" data-p='${attr({ t: "shop" })}'>去商店</button>`;
+      }
+      h += `</div>`;
+    });
     h += `</div>`;
 
     const locked = G.RECIPES.filter((r) => !r.research && !S.recipes[r.id] && r.region <= S.maxRegion);
@@ -364,7 +338,7 @@ window.G = window.G || {};
       h += `<div class="card"><h4>可以学的配方</h4>`;
       locked.slice(0, 12).forEach((r) => {
         h += `<div class="list-item">
-          <span class="grow">${esc(r.name)} <span class="sub">倍率 ×${r.mult}　需要 ${G.craftNeedCount(S, r)} 个${r.needFlavor ? r.needFlavor + "味树果" : "指定树果"}</span></span>
+          <span class="grow">${esc(r.name)} <span class="sub"><img class="kico" src="assets/ui/stat-money.png" alt="">×${r.mult}　需要 ${G.craftNeedCount(S, r)} 个${r.needFlavor ? r.needFlavor + "味树果" : "指定树果"}</span></span>
           <span>${money(r.cost)}</span>
           <button class="small" data-act="buyRecipe" data-p='${attr({ r: r.id })}' ${S.money < r.cost ? "disabled" : ""}>学会</button>
         </div>`;
@@ -1732,6 +1706,11 @@ window.G = window.G || {};
       S.autoTrade = !S.autoTrade;
       UI.toast(S.autoTrade ? "自动交付已开启" : "自动交付已关闭");
       UI.forceRender();
+    },
+    kflavor: (p) => { pick.kflavor = p.f === "全部" ? null : p.f; UI.markDirty(); },
+    craftFill: (p) => {
+      const r = G.engine.craftFill(S, p.r);
+      UI.toast(r.n ? "排了 " + r.n + " 件进去" : "工位满了，或者原料不够");
     },
     craft: (p) => {
       const r = G.engine.craft(S, p.r, p.b);

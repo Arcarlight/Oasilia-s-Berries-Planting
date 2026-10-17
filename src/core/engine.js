@@ -650,6 +650,22 @@ window.G = window.G || {};
     }
   }
 
+  // 一键做满：把空闲工位按「树果单价从高到低」依次填上
+  A.craftFill = function (state, recipeId) {
+    const recipe = G.RECIPE_BY_ID[recipeId];
+    if (!recipe) return { ok: false, n: 0 };
+    let n = 0;
+    for (let guard = 0; guard < 30; guard++) {
+      if (state.craftQueue.length >= A.craftSlots(state)) break;
+      const elig = A.eligibleBerries(state, recipe);
+      if (!elig.length) break;
+      elig.sort((a, c) => c.basePrice - a.basePrice);
+      if (!A.craft(state, recipeId, elig[0].id).ok) break;
+      n++;
+    }
+    return { ok: n > 0, n: n };
+  };
+
   // 自动加工：优先做玩家指定的那个配方；指定的原料不够时，自动换一个"现在能做、而且最值钱"的。
   // 不这么做的话，玩家选了招牌配方而原料断了，工位就会一直空转。
   function autoCraftCandidate(state, recipeId) {

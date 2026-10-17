@@ -787,3 +787,38 @@ label .micon { margin-right: 4px; }
   color: var(--dim); border: 1px solid var(--line2); border-radius: var(--px);
 }
 #tabs button.on .tabnum { color: var(--gold); border-color: var(--gold); }
+
+/* ---------- 加工页：工位条 / 配方行 / 点树果直接下单 ---------- */
+.slots { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin: 4px 0 6px; }
+.slot {
+  width: 34px; height: 34px; border: 1px solid var(--line); background: var(--panel);
+  display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+}
+.slot .picon { width: 30px; height: 30px; }
+.slot.busy { border-color: var(--gold); }
+/* 进度用底部往上填的一层金色蒙版，不挡图标 */
+.slot.busy::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to top, rgba(232,196,92,.38) var(--p, 0%), transparent var(--p, 0%));
+}
+.slot.free { border-style: dashed; opacity: .45; }
+
+.fltabs { display: flex; gap: 5px; flex-wrap: wrap; }
+.fltabs button { font-size: 11px; padding: 2px 8px; }
+
+.krow {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 0; border-bottom: 1px solid var(--line);
+}
+.krow:last-child { border-bottom: none; }
+.krow.off { opacity: .55; }
+.kinfo { flex: 1 1 150px; min-width: 0; }
+.kname { color: var(--green); font-size: 12px; }
+.kmeta { font-size: 10px; color: var(--dim); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.kico { width: 12px; height: 12px; flex: 0 0 12px; image-rendering: pixelated; vertical-align: -2px; }
+.guest { width: 18px; height: 18px; image-rendering: pixelated; vertical-align: -4px; }
+.kwhy { flex: 1 1 120px; }
+.berrybtn { display: flex; align-items: center; gap: 1px; padding: 1px 4px 1px 2px; font-size: 11px; }
+.berrybtn img { width: 22px; height: 22px; image-rendering: pixelated; }
+.berrybtn b { font-weight: normal; }
+.fillbtn { font-size: 10px; padding: 3px 6px; white-space: nowrap; }
