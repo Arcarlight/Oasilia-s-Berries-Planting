@@ -1704,6 +1704,39 @@ window.G = window.G || {};
     };
   };
 
+  // 保险：钱、种子、果子、商品全都见底 = 什么都做不了，游戏直接卡死。
+  // 玩家报过"卖了东西不给钱、余额 0"，查下来是这种状态 —— 他其实已经没东西可卖了。
+  // 这种情况送几颗最便宜的种子，让他能重新种起来。
+  // 余额自愈：钱一旦被写成 NaN/Infinity，之后所有加减都还是它，
+  // 表现就是"卖了东西一分钱不进"、最后彻底卡死。每帧记一个正常值，
+  // 发现坏了就退回上一帧 —— 最多损失一帧的钱，绝不会丢档。
+  function healMoney(state) {
+    if (!isFinite(state.money)) {
+      const back = isFinite(state._lastGoodMoney) ? state._lastGoodMoney : 0;
+      // 顺手把出问题的代码位置记下来：下次玩家再遇到，日志里就能直接看到是谁写坏的
+      const where = ((new Error().stack || "").split("\n")[1] || "").trim().slice(0, 90);
+      G.addLog(state, "余额被算成了非法值（" + String(state.money) + "），已退回上一帧的 ₽" +
+        G.fmt(back) + "。位置：" + where, "info");
+      state.money = back;
+    }
+    Object.defineProperty(state, "_lastGoodMoney", {
+      value: state.money, writable: true, enumerable: false, configurable: true
+    });
+  }
+
+  function rescueIfStuck(state) {
+    if (state.money >= 10) return false;
+    const has = (bag) => Object.keys(bag || {}).some((k) => bag[k] > 0);
+    if (has(state.seeds) || has(state.berries) || has(state.products)) return false;
+    const pool = G.BERRIES.filter((b) => b.region === state.region && b.id > 0)
+      .sort((a, b) => a.basePrice - b.basePrice);
+    const pick = pool[0] || G.BERRIES[0];
+    if (!pick) return false;
+    state.seeds[pick.id] = (state.seeds[pick.id] || 0) + 10;
+    G.addLog(state, "手头一点本钱都没了，种子站送来 10 颗「" + pick.zh + "」种子。先种下去再说。", "good");
+    return true;
+  }
+
   A.advance = function (state, dt, opts) {
     opts = opts || {};
     if (dt <= 0) return { earned: 0 };
@@ -1745,6 +1778,8 @@ window.G = window.G || {};
     if (A.stepPot) A.stepPot(state);
     A.trySpawnOrders(state);
     A.checkUnlocks(state);
+    healMoney(state);
+    rescueIfStuck(state);
     // 洗点退掉「阡陌」之后田会多出来。收完的自动裁掉；还长着东西的留着等这一茬。
     if (state.plots.length > G.plotCount(state)) G.syncPlots(state);
 

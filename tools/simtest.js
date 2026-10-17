@@ -1186,6 +1186,35 @@ window.SIM = {};
       return bad.length === 0 ? true : (bad.join(",") || true);
     })());
 
+    // ── 余额自愈：被写成 NaN 要退回上一帧，而不是丢光 ──
+    check("余额被算坏会退回上一帧的值", (function () {
+      const s = fresh();
+      s.money = 12345;
+      G.advance(s, 1);              // 先记一次"正常值"
+      s.money = NaN;
+      G.advance(s, 1);
+      if (!isFinite(s.money)) return "还是非法值";
+      if (s.money !== 12345) return "退回到了 " + s.money + "（应该是 12345）";
+      return true;
+    })());
+
+    // ── 卡死保护：钱、种子、果子、商品全空时应该送种子 ──
+    check("全空时会送种子，不会永久卡死", (function () {
+      const s = fresh();
+      s.money = 0; s.seeds = {}; s.berries = {}; s.products = {};
+      G.advance(s, 1);
+      const got = Object.keys(s.seeds).length;
+      if (!got) return "没送种子";
+      const id = Object.keys(s.seeds)[0];
+      return s.seeds[id] > 0 ? true : "种子数量是 0";
+    })());
+    check("还有东西可卖的时候不送种子", (function () {
+      const s = fresh();
+      s.money = 0; s.seeds = {}; s.berries = { 1: 3 }; s.products = {};
+      G.advance(s, 1);
+      return Object.keys(s.seeds).length === 0 ? true : "不该送却送了";
+    })());
+
     // ── 金额防护：算错的一笔不能把余额变成 NaN ──
     check("异常金额不会污染余额", (function () {
       const s = fresh();
