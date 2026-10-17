@@ -8,6 +8,37 @@
 
 ---
 
+## 0.10.5 · 工位把每件工坊道具都算上了
+
+玩家报：界面写「工位 = 2 + 工坊类道具等级总和 ÷ 2」，做了新的工坊道具工位却不涨。
+
+`A.craftSlotInfo` 原来是这么筛的：
+
+```js
+const eff = it.effects[Math.min(lv, it.effects.length) - 1];
+if (eff && eff.mod && eff.mod.craftSpeed !== undefined) detail.push(...)
+```
+
+按**「这一级的加成里有没有 craftSpeed」**算，而不是按「是不是工坊类道具」算。六件工坊道具里：
+
+| 道具 | 加成 | 老算法 |
+|---|---|---|
+| 石磨 | craftSpeed 全级 | ✓ |
+| 木轮水车 | craftSpeed 全级 | ✓ |
+| 龙焰锻炉 | craftSpeed 全级 | ✓ |
+| **陶土腌罐** | **只有 craftOutput** | **一级都不算** |
+| 风车磨坊 | Lv.1-2 没有 craftSpeed | 低级不算 |
+| 水晶窑 | Lv.1-2 没有 craftSpeed | 低级不算 |
+
+所以做了陶土腌罐，工位纹丝不动。现在按 `it.cat === "工坊"` 筛，六件的等级全部计入。
+
+`A.autoUnlocked`（自动加工）也是同一个毛病 —— 条件写的是 `modLevel("craftSpeed") > 0`，
+改成「有任意一件工坊道具」，和说明文字一致。
+
+改完模拟：区域 9 17h04m、总收入 1064 亿（工位多了，加工吞吐跟着涨）。
+
+---
+
 ## 0.10.4 · 修第一区域研发费高到做不起
 
 玩家报：第一个区域研发费 ₽39.6万，那还怎么做料理。

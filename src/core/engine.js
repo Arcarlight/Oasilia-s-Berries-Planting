@@ -36,12 +36,13 @@ window.G = window.G || {};
   // 规则写死在这里，UI 直接展示下面这个明细，玩家不用猜。
   A.craftSlotInfo = function (state) {
     const detail = [];
+    // 按「是不是工坊类道具」算，不是按「这一级的加成里有没有 craftSpeed」算。
+    // 以前那样算的话：陶土腌罐（只给产量）一级都不加，风车磨坊 / 水晶窑
+    // 的低级阶段也不算 —— 玩家做出来一件工坊道具，工位却没动。
     A.ownedItems(state).forEach((it) => {
-      const lv = state.items[it.id];
-      const eff = it.effects[Math.min(lv, it.effects.length) - 1];
-      if (eff && eff.mod && eff.mod.craftSpeed !== undefined) {
-        detail.push({ name: it.name, level: lv });
-      }
+      if (it.cat !== "工坊") return;
+      const lv = state.items[it.id] || 0;
+      if (lv > 0) detail.push({ name: it.name, level: lv });
     });
     const total = detail.reduce((a, x) => a + x.level, 0);
     const slots = Math.min(12, 2 + Math.floor(total / 2));
@@ -52,9 +53,9 @@ window.G = window.G || {};
     return A.craftSlotInfo(state).slots;
   };
 
-  // 自动加工：解锁条件是手上有工坊类道具（第一个是区域 2 的石磨）
+  // 自动加工：解锁条件是手上有任意一件工坊类道具（第一个是区域 2 的石磨）
   A.autoUnlocked = function (state) {
-    return A.modLevel(state, "craftSpeed") > 0;
+    return A.craftSlotInfo(state).detail.length > 0;
   };
 
   // 帮手槽位数（由道具提供）

@@ -838,6 +838,30 @@ window.SIM = {};
         return r.ok && G.engine.potSlots(potU) > before && G.engine.potStirSecs(potU) < 6;
       })());
 
+    // 工位：所有「工坊类」道具都该算，不能只看这一级加成里有没有 craftSpeed。
+    // （陶土腌罐只给产量、风车磨坊 / 水晶窑低级阶段也没有 craftSpeed，
+    //   以前这三件对工位一点贡献都没有 —— 玩家做出来工位却没动。）
+    const sSlot = fresh();
+    const shopItems = (G.ITEMS || []).filter((it) => it.cat === "工坊");
+    check("工坊类道具不是 0 件", shopItems.length > 0, shopItems.length + " 件");
+    let prevSlots = G.engine.craftSlots(sSlot);
+    let allCount = true;
+    shopItems.forEach((it) => {
+      sSlot.items[it.id] = 1;
+      const info = G.engine.craftSlotInfo(sSlot);
+      if (!info.detail.some((d) => d.name === it.name)) allCount = false;
+    });
+    check("每件工坊道具都算进工位", allCount,
+      G.engine.craftSlotInfo(sSlot).detail.map((d) => d.name).join("、"));
+    check("工位随等级和增长",
+      G.engine.craftSlots(sSlot) > prevSlots,
+      prevSlots + " → " + G.engine.craftSlots(sSlot));
+    const sFull = fresh();
+    shopItems.forEach((it) => { sFull.items[it.id] = it.effects.length; });
+    check("满级封顶 12", G.engine.craftSlots(sFull) === 12, String(G.engine.craftSlots(sFull)));
+    check("有任意工坊道具就解锁自动加工",
+      G.engine.autoUnlocked(sSlot) && !G.engine.autoUnlocked(fresh()));
+
     // 迁移不能变成"临走前把钱换成素材/材料"的存钱通道
     // （素材买价 6×、材料 2.6×，只要折算价 > 0 就稳赚 —— 亏 5/6 也好过钱全丢）
     const migReady = function () {
