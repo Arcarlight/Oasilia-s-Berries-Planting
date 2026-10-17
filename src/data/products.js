@@ -124,6 +124,59 @@ window.G = window.G || {};
     return Math.floor(berry.basePrice * recipe.needCount * recipe.mult * firm * G.flavorValueBonus(peak));
   };
 
+  // ── 混合口味 ─────────────────────────────────────────────────────────
+  // 两条不同味道的树果一起做，产品带两种味道：主料决定用哪张配方，副料只提供第二个味道。
+  // 设计见 DESIGN.md 3.6。
+  G.MIX_BONUS = 1.08;            // 混合加成：多一道手续，给 8% 回报
+
+  // 两味的标签：「甜酸」（按味道排序，A+B 和 B+A 是同一个东西）
+  G.mixTag = function (a, b) {
+    if (!a || !b || !a.flavor || a.flavor === b.flavor) return null;
+    return [a.flavor, b.flavor].sort().join("");
+  };
+
+  // 投料怎么分：主料 ceil(n/2)，副料 floor(n/2)。配方至少要 2 颗，所以副料至少 1 颗
+  G.mixSplit = function (n) {
+    const total = Math.max(2, Math.floor(n || 2));
+    const main = Math.ceil(total / 2);
+    return { main: main, sub: total - main };
+  };
+
+  // 混合产品的价值：两边料价按实际投料数相加，倍率/坚硬度/浓度照旧，再乘混合加成
+  G.mixedValue = function (recipe, mainB, subB) {
+    const sp = G.mixSplit(recipe.needCount);
+    const firm = 1 + Math.max(0, (mainB.firmness - 1) * 0.05);
+    const peak = Math.max(G.flavorIntensity(recipe, mainB), G.flavorIntensity(recipe, subB));
+    return Math.floor(
+      (mainB.basePrice * sp.main + subB.basePrice * sp.sub) *
+      recipe.mult * firm * G.flavorValueBonus(peak) * G.MIX_BONUS
+    );
+  };
+
+  // 名字：「甜酸果酱」。区域招牌保持原名，不拼味道
+  G.mixedName = function (recipe, mainB, subB) {
+    if (recipe.specialty || !mainB || !subB) return recipe.name;
+    const tag = G.mixTag(mainB, subB);
+    return tag ? tag + recipe.name : G.productName(recipe, mainB);
+  };
+
+  // 混合产品在常客那儿值多少：取两味里更高的那档（爱吃甜的、爱吃酸的都乐意买），
+  // 但另一味正好是它讨厌的，就压一截 —— 混合是"覆盖面变宽"，不是"单价翻倍"。
+  // 注意一个常客只有一个「喜欢」的味道，所以不存在"两味都爱"的额外加成。
+  G.mixedFlavorMult = function (regular, mainB, subB, peak) {
+    if (!regular) return 1;
+    const flavors = [mainB.flavor, subB.flavor];
+    const best = Math.max.apply(null, flavors.map((f) => G.flavorMult(f, regular, peak)));
+    const anyDislike = flavors.some((f) => f === regular.dislike);
+    return anyDislike ? best * 0.85 : best;
+  };
+
+  // 产品键：普通两段（配方|树果），混合三段（配方|主料|副料）
+  G.parseProductKey = function (key) {
+    const p = String(key || "").split("|");
+    return { recipeId: p[0], berryId: +p[1] || 0, subId: p[2] ? +p[2] : 0 };
+  };
+
   // 商品叫法：树果名放最前，一眼看得出这份东西是用哪种果子做的。
   //   普通配方 → 「桃桃果甜味瑞士卷」
   //   区域招牌 → 保留它自己的名字（那些名字本身就是文案的一部分）

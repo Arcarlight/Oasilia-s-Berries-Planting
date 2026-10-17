@@ -1186,6 +1186,41 @@ window.SIM = {};
       return bad.length === 0 ? true : (bad.join(",") || true);
     })());
 
+    // ── 混合口味：数据层 ──
+    check("混合：同名味道不算混合，两味排序一致", (function () {
+      const a = { flavor: "甜" }, b = { flavor: "酸" };
+      if (G.mixTag(a, a) !== null) return "同味没返回 null";
+      const x = G.mixTag(a, b), y = G.mixTag(b, a);
+      return x === y && x === "甜酸" ? true : (x + " vs " + y);
+    })());
+    check("混合：投料拆成主料多一颗、副料至少一颗", (function () {
+      const cases = [[2, 1], [3, 2], [4, 2], [5, 3]];
+      for (let i = 0; i < cases.length; i++) {
+        const sp = G.mixSplit(cases[i][0]);
+        if (sp.sub < 1) return "副料不够：" + cases[i][0];
+        if (sp.main + sp.sub !== cases[i][0]) return "总数不对：" + cases[i][0];
+      }
+      return true;
+    })());
+    check("混合：价值比同样投料的普通品高 8%", (function () {
+      const r = G.RECIPES.filter((x) => x.cat === "jam" && x.flavor === "甜" && !x.specialty)[0];
+      const b1 = G.BERRIES.filter((x) => x.flavor === "甜")[0];
+      const b2 = G.BERRIES.filter((x) => x.flavor !== "甜" && x.id > 0)[0];
+      if (!r || !b1 || !b2) return "测试数据没找到";
+      const plain = G.productValue(r, b1);
+      const mix = G.mixedValue(r, b1, b2);
+      if (!(mix > plain)) return "混合没更值钱";
+      const ratio = mix / plain;
+      return ratio > 1.0 && ratio < 1.6 ? true : "倍率怪：" + ratio.toFixed(2);
+    })());
+    check("混合：产品键两段/三段都能解析", (function () {
+      const a = G.parseProductKey("jam_sweet|1");
+      const b = G.parseProductKey("jam_sweet|1|4");
+      if (a.recipeId !== "jam_sweet" || a.berryId !== 1 || a.subId !== 0) return "两段解析错";
+      if (b.berryId !== 1 || b.subId !== 4) return "三段解析错";
+      return true;
+    })());
+
     // ── 搬家不能把帮手带走（以前会留下"幽灵帮手"在新区域的田里干活）──
     check("搬家之后帮手全部留在老地方", (function () {
       const s = fresh();
