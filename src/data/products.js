@@ -6,35 +6,35 @@ window.G = window.G || {};
   const FLAVOR_KEY = { 辣: "spicy", 涩: "dry", 甜: "sweet", 苦: "bitter", 酸: "sour" };
 
   const CATS = [
-    { id: "jam", name: "果酱", mult: 2.2, time: 8, region: 1, unit: "罐", icon: "jar" },
-    { id: "juice", name: "果汁", mult: 2.8, time: 12, region: 2, unit: "瓶", icon: "bottle" },
-    { id: "cube", name: "宝可方块", mult: 3.5, time: 18, region: 3, unit: "盒", icon: "cube" },
-    { id: "poffin", name: "宝芬", mult: 4.2, time: 26, region: 4, unit: "枚", icon: "poffin" },
-    { id: "pie", name: "树果派", mult: 4.8, time: 36, region: 5, unit: "个", icon: "pie" },
-    { id: "wine", name: "陈酿果酒", mult: 6.0, time: 50, region: 6, unit: "坛", icon: "wine" },
+    { id: "jam", name: "果酱", mult: 2.2, time: 8, region: 1, unit: "罐", icon: "jar", desc: "把树果熬到出胶装进罐子里，抹面包、兑水都行，是最经放的一种做法。" },
+    { id: "juice", name: "果汁", mult: 2.8, time: 12, region: 2, unit: "瓶", icon: "bottle", desc: "树果压出汁滤干净，凉着喝最解渴，赶路口渴的时候一口下去很顶事。" },
+    { id: "cube", name: "宝可方块", mult: 3.5, time: 18, region: 3, unit: "盒", icon: "cube", desc: "压成小方块的树果点心，一口一块，耐放又好带。" },
+    { id: "poffin", name: "宝芬", mult: 4.2, time: 26, region: 4, unit: "枚", icon: "poffin", desc: "捏成一枚一枚的软点心，入口很容易化开，香味能留好一阵。" },
+    { id: "pie", name: "树果派", mult: 4.8, time: 36, region: 5, unit: "个", icon: "pie", desc: "酥皮裹住煮软的果馅烤出来，切开的时候馅会往外淌，趁热吃最好。" },
+    { id: "wine", name: "陈酿果酒", mult: 6.0, time: 50, region: 6, unit: "坛", icon: "wine", desc: "树果捣碎封在坛里放着，日子越久越醇，开坛那一下香气能飘出院门。" },
     // 甜品线：接在果酒之后，区域 7-10 逐步解锁。
     // 门槛排在后段是有意的 —— 不加速前中盘，而是把后期那段最长的等待收窄。
-    { id: "cake", name: "蛋糕", mult: 6.8, time: 62, region: 7, unit: "块", icon: "cake" },
-    { id: "tart", name: "挞", mult: 7.8, time: 76, region: 8, unit: "个", icon: "tart" },
-    { id: "roll", name: "瑞士卷", mult: 9.0, time: 92, region: 9, unit: "条", icon: "roll" },
-    { id: "choco", name: "巧克力", mult: 10.5, time: 110, region: 10, unit: "板", icon: "choco" },
+    { id: "cake", name: "蛋糕", mult: 6.8, time: 62, region: 7, unit: "块", icon: "cake", desc: "打发的蛋糊和果泥一起烤，蓬松又湿润，切一块配茶正好。" },
+    { id: "tart", name: "挞", mult: 7.8, time: 76, region: 8, unit: "个", icon: "tart", desc: "薄薄一层酥皮托着整颗果肉，烤到边缘发焦，酸甜都锁在里头。" },
+    { id: "roll", name: "瑞士卷", mult: 9.0, time: 92, region: 9, unit: "条", icon: "roll", desc: "烤好的薄蛋糕抹上奶油和果酱卷起来，切开一圈一圈很好看。" },
+    { id: "choco", name: "巧克力", mult: 10.5, time: 110, region: 10, unit: "板", icon: "choco", desc: "可可和果干一起凝成的板子，掰一块含在嘴里慢慢化。" },
 
     // ── 研发线专属品类：商店里买不到，只能靠在「研发」页搭配出来 ──
     // 倍率比同期的商店品类高一档，作为"研究了半天"的回报。
-    { id: "pudding", name: "布丁", mult: 7.4, time: 70, region: 7, unit: "盅", icon: "pudding", researchOnly: true },
-    { id: "cookie", name: "曲奇", mult: 8.8, time: 84, region: 8, unit: "袋", icon: "cookie", researchOnly: true },
-    { id: "candy", name: "糖果", mult: 9.8, time: 60, region: 8, unit: "罐", icon: "candy", researchOnly: true },
-    { id: "bread", name: "面包", mult: 11.5, time: 124, region: 10, unit: "个", icon: "bread", researchOnly: true },
+    { id: "pudding", name: "布丁", mult: 7.4, time: 70, region: 7, unit: "盅", icon: "pudding", researchOnly: true, desc: "果泥拌奶凝成的一盅，勺子挖下去会颤，凉过以后更顺口。" },
+    { id: "cookie", name: "曲奇", mult: 8.8, time: 84, region: 8, unit: "袋", icon: "cookie", researchOnly: true, desc: "黄油和面粉揉团压成小片烤脆，装一袋边走边吃。" },
+    { id: "candy", name: "糖果", mult: 9.8, time: 60, region: 8, unit: "罐", icon: "candy", researchOnly: true, desc: "熬到发硬的果糖切成小块，含一颗能含很久，甜味会慢慢散开。" },
+    { id: "bread", name: "面包", mult: 11.5, time: 124, region: 10, unit: "个", icon: "bread", researchOnly: true, desc: "面团揉足发酵烤出来，外皮脆里头软，掰开有热气。" },
 
     // ── 特殊糕点 ──
     // 要往锅里下「两份 + 两份」的底料才做得出来（比普通配方费一倍料），
     // 所以倍率也高一档。剩下的槽位丢树果定味道，和别的品类一样。
-    { id: "layer", name: "千层酥", mult: 9.2, time: 72, region: 5, unit: "块", icon: "layer", researchOnly: true },
-    { id: "blackforest", name: "黑森林", mult: 10.0, time: 80, region: 6, unit: "角", icon: "blackforest", researchOnly: true },
-    { id: "spiral", name: "螺旋卷", mult: 10.8, time: 88, region: 7, unit: "条", icon: "spiral", researchOnly: true },
-    { id: "milkbun", name: "奶香圆包", mult: 11.6, time: 96, region: 8, unit: "个", icon: "milkbun", researchOnly: true },
-    { id: "croissant", name: "可颂", mult: 12.4, time: 104, region: 9, unit: "只", icon: "croissant", researchOnly: true },
-    { id: "napoleon", name: "拿破仑", mult: 13.2, time: 112, region: 10, unit: "份", icon: "napoleon", researchOnly: true }
+    { id: "layer", name: "千层酥", mult: 9.2, time: 72, region: 5, unit: "块", icon: "layer", researchOnly: true, desc: "一层油皮一层馅反复叠，烤完会一层层裂开，吃的时候用盘子接着。" },
+    { id: "blackforest", name: "黑森林", mult: 10.0, time: 80, region: 6, unit: "角", icon: "blackforest", researchOnly: true, desc: "深色的蛋糕夹着果酱和奶油，表面撒一层碎屑，看着沉吃着不腻。" },
+    { id: "spiral", name: "螺旋卷", mult: 10.8, time: 88, region: 7, unit: "条", icon: "spiral", researchOnly: true, desc: "面团抹馅卷成条再盘成圈，烤出来一圈圈花纹，撕着吃。" },
+    { id: "milkbun", name: "奶香圆包", mult: 11.6, time: 96, region: 8, unit: "个", icon: "milkbun", researchOnly: true, desc: "牛奶和面粉揉成的小圆包，烤到金黄，掰开有奶香冒出来。" },
+    { id: "croissant", name: "可颂", mult: 12.4, time: 104, region: 9, unit: "只", icon: "croissant", researchOnly: true, desc: "反复折叠的油酥面团烤成月牙形，外壳一层层剥着掉，越嚼越香。" },
+    { id: "napoleon", name: "拿破仑", mult: 13.2, time: 112, region: 10, unit: "份", icon: "napoleon", researchOnly: true, desc: "酥皮和奶油一层叠一层压成平整的一大块，切的时候得用快刀，不然会塌。" }
   ];
 
   const recipes = [];
@@ -102,6 +102,7 @@ window.G = window.G || {};
   });
 
   G.RECIPE_CATS = CATS;
+  G.CAT_BY_ID = Object.fromEntries(CATS.map((c) => [c.id, c]));
   G.FLAVORS = FLAVORS;
   G.RECIPES = recipes;
   G.RECIPE_BY_ID = {};

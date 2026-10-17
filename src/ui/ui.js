@@ -856,7 +856,9 @@ window.G = window.G || {};
       同一品类的普通版、强化版、加料版算同一样东西。</div>`;
     G.RECIPE_CATS.forEach((cat) => {
       h += `<div class="dex-cat"><span class="dex-cat-name">${esc(cat.name)}${
-        cat.researchOnly ? '<span class="sub">研发专属</span>' : ""}</span>`;
+        cat.researchOnly ? '<span class="sub">研发专属</span>' : ""}</span>
+        <div style="flex:1;min-width:0">`;
+      if (cat.desc) h += `<div class="sub" style="margin-bottom:2px">${esc(cat.desc)}</div>`;
       h += `<div class="dex-grid dex-grid-sm">`;
       G.FLAVORS_5.forEach((fl) => {
         const ok = !!made[cat.id + "|" + fl];
@@ -867,7 +869,7 @@ window.G = window.G || {};
           ${ok ? `<div class="flavor-${fl}">${fl}</div>` : ""}
         </div>`;
       });
-      h += `</div></div>`;
+      h += `</div></div></div>`;
     });
     // 区域招牌单独列，它们每个区域只有一款
     h += `<div class="dex-cat"><span class="dex-cat-name">区域招牌<span class="sub">每个区域一款</span></span>
@@ -1051,7 +1053,9 @@ window.G = window.G || {};
         kind: kind, id: id, n: S.products[id] || 0, name: G.productName(r, b),
         img: G.productSprite ? null : null, icon: G.productIcon(r, b),
         recipe: r, berry: b,
-        desc: "用 " + b.zh + " 做出来的" + (r.catName || "") + "，基础倍率 ×" + r.mult + "。",
+        desc: ((G.CAT_BY_ID && G.CAT_BY_ID[r.cat] && G.CAT_BY_ID[r.cat].desc)
+          ? G.CAT_BY_ID[r.cat].desc + "　" : "") +
+          "这份是用「" + b.zh + "」做的，基础倍率 ×" + r.mult + "。",
         note: "交给喜欢" + r.flavor + "味的常客有加成，味道越浓加得越多（最多 +75%）。",
         price: G.marketPrice(S, r, b), priceLabel: "市场价", tags: [r.flavor],
         actions: [["sellProduct", "卖1", { k: id, n: 1 }], ["sellProduct", "卖光", { k: id, n: 9999 }]]
