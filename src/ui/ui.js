@@ -587,7 +587,9 @@ window.G = window.G || {};
       const on = !!(pick && pick.side === side.id);
       const sealed = !!pick && !on;
       h += `<div class="card" style="background:var(--bg);${on ? "outline:2px solid var(--gold);outline-offset:-2px" : ""}${sealed ? ";opacity:.62" : ""}">
-        <div class="row2"><span class="grow"><b>${esc(side.name)}</b> <span class="tag">${esc(side.tag || "")}</span></span>
+        <div class="sidehead">
+          ${side.icon ? `<img class="cicon" src="assets/gear/${esc(side.icon)}.png" alt="">` : ""}
+          <span class="grow"><b>${esc(side.name)}</b> <span class="tag">${esc(side.tag || "")}</span></span>
           ${on ? `<span class="tag" style="color:var(--gold)">在手</span>` : (sealed ? `<span class="tag">封存</span>` : "")}</div>
         <div class="sub" style="margin-top:4px">${esc(side.desc || "")}</div>
         <div class="sub" style="color:#ffc98a;margin-top:4px">阿特拉斯说：${esc(side.atlas || "")}</div>
@@ -728,7 +730,8 @@ window.G = window.G || {};
             <div class="sub" style="margin-top:2px">他正在做这个：${done.toFixed(0)}%　还有 ${G.clock(left)}</div>`;
         }
         h += `<div class="card" style="background:var(--panel)" id="item-${esc(it.id)}">
-          <div class="row2"><span class="grow"><b>${esc(it.name)}</b> <span class="tag">Lv.${lv}/${max}</span>
+          <div class="row2">${it.icon ? `<img class="gicon" src="assets/gear/${esc(it.icon)}.png" alt="">` : ""}
+            <span class="grow"><b>${esc(it.name)}</b> <span class="tag">Lv.${lv}/${max}</span>
             <span class="tag">${esc(cat)}</span>
             <span class="tag">区域 ${it.region || 1}</span></span></div>
           <table class="simple" style="margin-top:2px">

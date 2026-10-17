@@ -498,6 +498,21 @@ table.simple td, table.simple th { padding: 3px 5px; border-bottom: 1px solid #2
 }
 label .micon { margin-right: 4px; }
 
+/* 阿特拉斯道具 / 共轭图纸的图标（原图 24x24，按 32 显示）
+   这两套图标和材料图标是同一个来源（化け猫缶），见 assets/gear/CREDITS.md */
+.gicon {
+  width: 28px; height: 28px; flex: 0 0 28px;
+  image-rendering: pixelated; vertical-align: middle;
+}
+/* 行内图标贴着名字，别再叠上 .row2 的 8px 间距 */
+.row2 > .gicon { margin-right: -3px; }
+.cicon {
+  width: 32px; height: 32px; flex: 0 0 32px;
+  image-rendering: pixelated;
+}
+/* 共轭侧卡：图标 + 名称/标签一行，图标比文字高，所以对齐到顶部 */
+.sidehead { display: flex; align-items: center; gap: 7px; }
+
 /* 阿特拉斯出行清单：一列装下"勾选框 + 图标 + 名称 + 库存/价格"，不要换行 */
 .mrow { flex-wrap: nowrap; border: none; padding: 2px 0; cursor: pointer; }
 .mrow .mname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

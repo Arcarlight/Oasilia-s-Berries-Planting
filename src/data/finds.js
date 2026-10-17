@@ -58,7 +58,7 @@ window.G = window.G || {};
     {
       id: "ironnut", name: "铁壳果", role: "spice", flavor: "涩口", price: 72000, region: 6, tier: "rare",
       affix: "铁壳", good: ["涩", "苦"], bad: ["甜", "酸"],
-      desc: "壳硬到能崩牙的坚果，得拿锤子敲。他每次都要敲坏一个砧角。",
+      desc: "壳硬到能崩牙的坚果，得拿锤子砸开，砧角都能被它磕坏。",
       use: "压进涩味和苦味里最搭；甜食会被它磨得发木。"
     },
     {
