@@ -275,14 +275,14 @@ window.G = window.G || {};
       const left = Math.max(0, (j.until - now) / 1000);
       const p = 100 - Math.min(100, (left / j.secs) * 100);
       const nm = r && bb ? (String(j.key).split("|").length === 3 ? G.mixedName(r, bb, G.BERRY_BY_ID[+String(j.key).split("|")[2]]) : G.productName(r, bb)) : "";
-      h += `<div class="slot busy" style="--p:${p.toFixed(0)}%" title="${esc(nm)}　还有 ${left.toFixed(1)}s">
+      h += `<div class="slot busy" style="--p:${p.toFixed(0)}%" title="正在制作「${esc(nm)}」，还有 ${left >= 60 ? Math.ceil(left / 60) + " 分钟" : left.toFixed(0) + " 秒"}">
         ${r && bb ? G.productIcon(r, bb) : ""}
         <span class="stime">${left >= 60 ? Math.ceil(left / 60) + "分" : left.toFixed(0) + "s"}</span>
         <span class="sname">${esc(nm)}</span></div>`;
     });
     for (let i = 0; i < free; i++) h += `<div class="slot free" title="空工位"></div>`;
     h += `</div>`;
-    h = h.replace('</h4>', ` <span class="help"><img class="hico" src="assets/ui/tab-help.png" alt="?"><span class="htip">工位 = 2 个基础 + 工坊类道具等级总和 ÷ 2（上限 ${info.cap}）。
+    h = h.replace('</h4>', ` <span class="help"><img class="hico" src="assets/ui/help.png" srcset="assets/ui/help-2x.png 2x, assets/ui/help-3x.png 3x" alt="?"><span class="htip">工位 = 2 个基础 + 工坊类道具等级总和 ÷ 2（上限 ${info.cap}）。
 当前等级和 ${info.total}${info.detail.length ? "：" + info.detail.map((x) => x.name + " Lv." + x.level).join("、") : "（还没有工坊道具）"}。
 格子里显示正在做的东西和剩余时间，虚线格是空工位。</span></span></h4>`, 1);
     if (G.engine.autoUnlocked(S)) {
@@ -309,7 +309,7 @@ window.G = window.G || {};
       if (!pick.mixMain || !mains.some((x) => x.id === pick.mixMain)) pick.mixMain = mains.length ? mains[0].id : null;
       const mainB = pick.mixMain ? G.BERRY_BY_ID[pick.mixMain] : null;
       h += `<div class="card" style="border-color:var(--gold)"><h4>混合口味：${esc(mixR.name)}
-        <span class="help"><img class="hico" src="assets/ui/tab-help.png" alt="?"><span class="htip">主料决定用哪张配方（要「${esc(mixR.needFlavor || "指定")}」味），副料只要味道不同就成。
+        <span class="help"><img class="hico" src="assets/ui/help.png" srcset="assets/ui/help-2x.png 2x, assets/ui/help-3x.png 3x" alt="?"><span class="htip">主料决定用哪张配方（要「${esc(mixR.needFlavor || "指定")}」味），副料只要味道不同就成。
 投料 ${need} 颗拆成主料 ${sp.main} + 副料 ${sp.sub}，做出来的东西带两种味道。
 爱吃这两味的常客都肯买，价值还多 8%。</span></span></h4>
         <button class="small" data-act="mixOn" data-p='${attr({ r: mixR.id })}' style="position:absolute;top:2px;right:26px">关闭</button>`;
