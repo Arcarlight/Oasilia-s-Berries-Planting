@@ -665,7 +665,8 @@ window.G = window.G || {};
           </table>
           <div class="sub" style="margin-top:4px">${esc(it.desc || "")}</div>
           <div class="sub" style="color:#ffc98a">阿特拉斯说：${esc(it.flavor || "")}</div>
-          <div class="sub" style="margin-top:4px">材料：${cost}　耗时 ${G.time(it.craftTime)}</div>
+          <div class="sub" style="margin-top:4px">材料：${cost}　耗时 ${G.time(G.engine.craftSecs(S, it))}${
+            G.engine.craftSecs(S, it) < it.craftTime - 0.5 ? "（原本 " + G.time(it.craftTime) + "）" : ""}</div>
           ${prog}
           <div class="row2" style="margin-top:4px">
             <button class="small gold" data-act="craftItem" data-p='${attr({ id: it.id })}'

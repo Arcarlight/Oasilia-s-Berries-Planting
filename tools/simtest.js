@@ -838,6 +838,39 @@ window.SIM = {};
         return r.ok && G.engine.potSlots(potU) > before && G.engine.potStirSecs(potU) < 6;
       })());
 
+    // 制作耗时：界面上写的「耗时」和实际倒计时必须是同一个数。
+    // 以前界面用 item.craftTime（基础值），实际是 craftTime/(1+加速) ——
+    // 有火候时显示 3 分钟，实际从 2 分半开始倒数。
+    const sCraft = fresh();
+    const craftItem = (G.ITEMS || []).filter((x) => x.craftTime > 60)[0];
+    if (craftItem) {
+      sCraft.talents = { craft: 4 };
+      const realSecs = G.engine.craftSecs(sCraft, craftItem);
+      check("制作耗时算上了锻造加速", realSecs < craftItem.craftTime - 1,
+        G.time(realSecs) + " vs 基础 " + G.time(craftItem.craftTime));
+      sCraft.materials = {};
+      Object.keys(craftItem.materials || {}).forEach((m) => { sCraft.materials[m] = 99; });
+      sCraft.items = {};
+      const ord = G.engine.orderCraft(sCraft, craftItem.id);
+      check("下单用的也是同一个数", ord.ok && Math.abs(ord.secs - realSecs) < 0.001,
+        ord.ok ? G.time(ord.secs) : ord.why);
+      check("倒计时起点就是这个数",
+        Math.abs((sCraft.atlas.craft.until - sCraft.atlas.craft.startedAt) / 1000 - realSecs) < 0.001);
+    }
+
+    // 「自动 ₽/秒」是时段内平均，不是每帧瞬时值（那样一秒跳几十次）
+    const sRate = fresh();
+    sRate.money = 0;
+    const seen = [];
+    for (let i = 0; i < 1800; i++) {          // 30 秒
+      if (i % 20 === 0) sRate.money += 5000;  // 每 1/3 秒进 5000 → 真值 15000/秒
+      G.advance(sRate, 1 / 60);
+      if (i > 900 && i % 60 === 59) seen.push(sRate.rateEMA);
+    }
+    const lo = Math.min.apply(null, seen), hi = Math.max.apply(null, seen);
+    check("速率最后收敛到真实值", Math.abs(hi - 15000) / 15000 < 0.05, "最高 " + Math.round(hi) + "/秒");
+    check("速率不再每帧乱跳", (hi - lo) / 15000 < 0.15, "波动 " + Math.round(hi - lo));
+
     // 一键播种（按 P）：照给定顺序来，顺序就是种子栏从上往下
     const sPlant = fresh();
     sPlant.plots.forEach((pl) => { pl.berry = null; pl.grown = 0; pl.ripe = false; });

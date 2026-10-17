@@ -225,6 +225,39 @@ window.G = window.G || {};
 
   A.materialCount = function (state, id) { return state.materials[id] || 0; };
 
+  // 「自动 ₽/秒」是显示值，不进存档：取最近这段时间的平均。
+  // 以前是每帧 `EMA*0.9 + 瞬时*0.1` —— 而 advance 每秒被调 60 次，
+  // 时间常数只有 0.16 秒，等于没平滑，数字一直在跳。
+  const RATE_WINDOW = 12;      // 秒
+  function noteRate(state, dt) {
+    // 采样窗挂在 state 上（不可枚举，所以不进存档）。
+    // 以前是模块级变量 —— 换存档、或者同时在跑两个 state 时会串。
+    if (!state._rateWin) {
+      Object.defineProperty(state, "_rateWin", { value: [], writable: true, enumerable: false });
+    }
+    const rateWin = state._rateWin;
+    const t = state.playTime, m = state.money;
+    // 离线补算 / 切回标签页会一次跳好几分钟，那样的采样点没意义，重来
+    if (!rateWin.length || !(dt > 0) || dt > 2) {
+      rateWin.length = 0;
+      rateWin.push({ t: t, m: m });
+      return;
+    }
+    rateWin.push({ t: t, m: m });
+    while (rateWin.length > 2 && t - rateWin[0].t > RATE_WINDOW) rateWin.shift();
+    const a = rateWin[0];
+    const span = t - a.t;
+    if (span < 0.5) return;                 // 样本还不够长，先沿用上一次的值
+    state.rateEMA = Math.max(0, (m - a.m) / span);
+  }
+
+  // 这件道具**实际**要做多久（算上锻造加速）。
+  // 界面上那行「耗时」以前用的是 item.craftTime（基础值），有加速时会显示 3 分钟、
+  // 实际却从 2 分半开始倒数 —— 显示和实际必须是同一个数。
+  A.craftSecs = function (state, item) {
+    return Math.max(4, item.craftTime / (1 + G.bonuses(state).craftSpeed));
+  };
+
   A.canCraft = function (state, item) {
     return Object.keys(item.materials || {}).every(
       (mid) => A.materialCount(state, mid) >= item.materials[mid]);
@@ -241,8 +274,7 @@ window.G = window.G || {};
     Object.keys(item.materials).forEach((mid) => {
       state.materials[mid] -= item.materials[mid];
     });
-    const speed = 1 + G.bonuses(state).craftSpeed;
-    const secs = Math.max(4, item.craftTime / speed);
+    const secs = A.craftSecs(state, item);
     state.atlas.craft = { itemId: itemId, until: G.now(state) + secs * 1000, level: lv + 1,
       secs: secs, startedAt: G.now(state) };
     G.addLog(state, "阿特拉斯开始做「" + item.name + "」了（" + G.time(secs) + "）。", "atlas");
@@ -1359,8 +1391,7 @@ window.G = window.G || {};
 
     const earned = state.money - before;
     state.playTime += dt;
-    const rate = dt > 0 ? earned / dt : 0;
-    state.rateEMA = (state.rateEMA || 0) * 0.9 + rate * 0.1;
+    noteRate(state, dt);
     return { earned: earned };
   };
 
