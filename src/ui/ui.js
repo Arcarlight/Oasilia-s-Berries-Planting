@@ -319,7 +319,7 @@ window.G = window.G || {};
         h += `<div class="row2" style="margin-top:4px;flex-wrap:wrap"><span class="sub">副料</span>`;
         subs.slice(0, 10).forEach((x) => {
           h += `<button class="berrybtn" data-act="craftMix" data-p='${attr({ r: mixR.id, m: mainB.id, s: x.id })}'
-            title="${esc(mainB.zh)}×${sp.main} + ${esc(x.zh)}×${sp.sub} → ${esc(G.mixTag(mainB, x) || "")}"><img src="${x.icon}" alt=""><b class="flavor-${x.flavor}">${esc(x.flavor)}${int(S.berries[x.id])}</b></button>`;
+            title="${esc(mainB.zh)}×${sp.main} + ${esc(x.zh)}×${sp.sub} → ${esc(G.mixTag(mainB, x) || "")}"><img src="${x.icon}" alt=""><span class="fchip fc-${x.flavor}">${esc(x.flavor)}</span><b>${int(S.berries[x.id])}</b></button>`;
         });
         if (!subs.length) h += `<span class="sub">手上没有另一种味道的果子够用</span>`;
         h += `</div><div class="sub" style="margin-top:4px">做出来大概是「${esc(G.mixTag(mainB, subs[0] || mainB) || "")}${esc(mixR.catName || mixR.name)}」。</div>`;
@@ -332,9 +332,9 @@ window.G = window.G || {};
     const wants = pick.kflavor || [];
     h += `<div class="card"><div class="fltabs">` + fls.map((f) => {
       const on = f === "全部" ? !wants.length : wants.indexOf(f) >= 0;
-      const label = (f === "全部" || f === "混合")
+      const label = (f === "全部")
         ? esc(f)
-        : `<span class="flavor-${f}">${esc(f)}</span>`;
+        : `<span class="fchip fc-${f}">${esc(f)}</span>`;
       return `<button class="${on ? "picked" : ""}" data-act="kflavor" data-p='${attr({ f: f })}'>${label}</button>`;
     }).join("") + `</div>`
       + (wants.length === 2 ? `<div class="sub" style="margin-top:4px">同时看两个味道：${wants.map(esc).join(" + ")}</div>` : "");
@@ -351,7 +351,7 @@ window.G = window.G || {};
       const isAuto = S.autoRecipe === r.id;
       h += `<div class="krow${elig.length ? "" : " off"}">
         <div class="kinfo">
-          <div class="kname"><span class="ftier small flavor-${r.flavor}">${esc(r.flavor)}</span> ${esc(r.name)}${isAuto ? ` <span class="tag" style="color:var(--gold)">自动</span>` : ""}</div>
+          <div class="kname"><span class="fchip fc-${r.flavor}">${esc(r.flavor)}</span> ${esc(r.name)}${isAuto ? ` <span class="tag" style="color:var(--gold)">自动</span>` : ""}</div>
           <div class="kmeta"><img class="kico" src="assets/ui/stat-money.png" alt="">×${r.mult}
             <img class="kico" src="assets/ui/hourglass.png" alt="">${secs.toFixed(1)}s
             ${fans.slice(0, 3).map((g) => `<img class="guest" src="assets/pmd/${String(g.dex).padStart(4, "0")}_portrait.png" alt="" title="${esc(g.name)}喜欢${esc(r.flavor)}味，会买">`).join("")}

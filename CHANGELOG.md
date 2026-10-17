@@ -8,6 +8,29 @@
 
 ---
 
+## 0.13.2 · 味道标记：味色做底 + 白字
+
+0.13.1 用描边字，玩家反馈"太淡"；换成实心色块 + 黑字，又被指出"字怎么变黑的了"。
+这个界面是深底浅字，黑字本身就错。最终形态：
+
+**味道色做底 + 白字**，浅底那几档（甜/酸）加一层 `text-shadow` 投影保可读：
+
+```css
+.fchip { color:#fff; border:1px solid rgba(0,0,0,.35);
+         text-shadow: 0 1px 0 rgba(0,0,0,.65), 0 0 2px rgba(0,0,0,.45); }
+.fc-辣{background:#d4522c}  .fc-涩{background:#6b52b8}  .fc-甜{background:#c9713b}
+.fc-苦{background:#2f8a9e}  .fc-酸{background:#9a8c17}  .fc-混合{background:#4f8a3d}
+```
+
+底色比原味色**压深了一档**（#ffb27a → #c9713b 之类），白字才压得住。
+
+**教训**：
+1. 可见性提示别依赖只有 WebKit 支持的 `-webkit-text-stroke`；
+2. 但色块配色要跟界面基调走 —— 深底浅字的界面里，色块上面也必须放亮字；
+3. 白字 + 浅色底一定要配 `text-shadow`，否则甜味/酸味那两块会糊。
+
+---
+
 ## 0.13.1 · 加工页味道可视化 + 筛选双选
 
 - 配方名前加 `<span class="ftier small flavor-X">` 描边味道字（复用制品图鉴那套，不新增样式）

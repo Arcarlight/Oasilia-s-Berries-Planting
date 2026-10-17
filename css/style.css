@@ -383,6 +383,24 @@ button, .link, select, input, .plot, .dex-cell, summary, label {
   font-size: 12px; padding: 0 5px; border: 1px solid var(--line2);
   color: var(--dim); margin-left: 4px;
 }
+/* 味道小牌：底色就是味道色 + 深色字。
+   比"纯文字上色"醒目得多，也不依赖 -webkit-text-stroke（Safari/Firefox 支持不一致）。 */
+.fchip {
+  display: inline-block; min-width: 15px; padding: 0 3px;
+  font-size: 11px; line-height: 14px; text-align: center;
+  border-radius: 2px; vertical-align: 1px;
+  color: #fff;                       /* 味色做底、白字 */
+  border: 1px solid rgba(0,0,0,.35);
+  /* 白字压在浅色底（甜/酸）上会糊，加一层投影保证可读 —— text-shadow 各浏览器都支持 */
+  text-shadow: 0 1px 0 rgba(0,0,0,.65), 0 0 2px rgba(0,0,0,.45);
+}
+.fc-辣 { background: #d4522c; }
+.fc-涩 { background: #6b52b8; }
+.fc-甜 { background: #c9713b; }
+.fc-苦 { background: #2f8a9e; }
+.fc-酸 { background: #9a8c17; }
+.fc-混合 { background: #4f8a3d; }
+
 .flavor-辣 { color: #ff7a52; } .flavor-涩 { color: #a48cf0; }
 .flavor-甜 { color: #ffb27a; } .flavor-苦 { color: #7fd8e8; }
 .flavor-酸 { color: #ffe066; } .flavor-混合 { color: var(--green); }
