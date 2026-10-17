@@ -1198,21 +1198,23 @@ window.SIM = {};
       return true;
     })());
 
-    // ── 卡死保护：钱、种子、果子、商品全空时应该送种子 ──
-    check("全空时会送种子，不会永久卡死", (function () {
+    // ── 卡死判定 + 阿特拉斯补助 ──
+    check("全空时判定为卡死，能拿到 ₽200 补助", (function () {
       const s = fresh();
       s.money = 0; s.seeds = {}; s.berries = {}; s.products = {};
       G.advance(s, 1);
-      const got = Object.keys(s.seeds).length;
-      if (!got) return "没送种子";
-      const id = Object.keys(s.seeds)[0];
-      return s.seeds[id] > 0 ? true : "种子数量是 0";
+      if (!s.stuck) return "没判定成卡死";
+      const before = s.money;
+      if (!G.engine.takeAid(s)) return "领不到补助";
+      if (s.money !== before + G.engine.AID_MONEY) return "金额不对：" + s.money;
+      if (s.stuck) return "领完补助标记没清";
+      return true;
     })());
-    check("还有东西可卖的时候不送种子", (function () {
+    check("还有果子可卖时不算卡死", (function () {
       const s = fresh();
       s.money = 0; s.seeds = {}; s.berries = { 1: 3 }; s.products = {};
       G.advance(s, 1);
-      return Object.keys(s.seeds).length === 0 ? true : "不该送却送了";
+      return s.stuck ? "不该判定卡死" : true;
     })());
 
     // ── 金额防护：算错的一笔不能把余额变成 NaN ──

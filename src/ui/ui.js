@@ -1684,10 +1684,48 @@ window.G = window.G || {};
     });
   }
 
+  // 卡死时弹"阿特拉斯给的补助"。只弹一次（state.stuck 收到补助后清掉）。
+  let aidOpen = false;
+  // 阿特拉斯给的补助：同一个意思，几种心情。
+  // 他是"话少、关心绕到细节、常常说完才回过味"的人，所以每句都落在一个具体动作上。
+  const AID_LINES = [
+    // 心疼
+    "……地空着，摊子也空着。你先拿着，别站在这儿发愣，风凉。",
+    // 嘴硬
+    "不是给你的。买种子算我垫的，以后……以后再说吧。",
+    // 着急
+    "种子一袋都没剩？别急，我这儿有。先拿去，够你种两茬。",
+    // 慢半拍
+    "我数了两遍，你手上确实一点都不剩了。……那还站着干什么，拿上啊。",
+    // 无奈
+    "你倒是挺能折腾的。给，先买种子，剩下的别乱花。",
+    // 笨拙地安慰
+    "这点钱不多，够你重新起个头。亏了的那些……慢慢种回来就是了。"
+  ];
+
+  function checkAid() {
+    if (!S.stuck) { aidOpen = false; return; }
+    if (aidOpen) return;
+    aidOpen = true;
+    // 每次弹窗换一句，避免连着看到同一句
+    const line = AID_LINES[Math.floor(Math.random() * AID_LINES.length)];
+    UI.openOverlay(`<div class="card"><div class="mon">
+      <img class="portrait" src="assets/pmd/0373_portrait.png" alt="">
+      <div class="grow"><div class="who">阿特拉斯 <span class="tag">暴飞龙 ♂</span></div>
+        <div class="bubble" style="margin-top:4px">${esc(line)}</div></div></div>
+      <div class="sub" style="margin-top:6px">阿特拉斯塞过来一小包钱：<b class="gold">₽${G.engine.AID_MONEY}</b>
+        <span class="sub">（够买几袋种子重新起头）</span></div>
+      <div class="row2" style="margin-top:8px">
+        <button class="gold" data-act="takeAid">收下（₽${G.engine.AID_MONEY}）</button>
+      </div></div>`);
+  }
+  UI.checkAid = checkAid;
+
   UI.frame = function () {
     const now = G.now(S);
     checkTripReport();
     checkNewRegulars();
+    checkAid();
     const ps = S.plots.map((p) => (p.berry || 0) + ":" + (p.ripe ? "R" : Math.round(p.grown * 25))).join(",")
       + "|" + S.plots.length + "|" + S.money;
     if (ps !== sigPlots) { sigPlots = ps; renderPlots(); }
@@ -1853,6 +1891,12 @@ window.G = window.G || {};
     craftFill: (p) => {
       const r = G.engine.craftFill(S, p.r);
       UI.toast(r.n ? "排了 " + r.n + " 件进去" : "工位满了，或者原料不够");
+    },
+    takeAid: () => {
+      if (!G.engine.takeAid(S)) { UI.closeOverlay(); return; }
+      UI.closeOverlay();
+      UI.toast("阿特拉斯给了 ₽" + G.engine.AID_MONEY + "，先买种子种起来");
+      UI.forceRender();
     },
     craft: (p) => {
       const r = G.engine.craft(S, p.r, p.b);

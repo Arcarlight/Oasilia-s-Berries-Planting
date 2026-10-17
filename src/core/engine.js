@@ -1724,17 +1724,30 @@ window.G = window.G || {};
     });
   }
 
-  function rescueIfStuck(state) {
+  // 彻底卡死的判定：钱、种子、树果、商品全部见底 —— 什么都做不了。
+  // 这时候不偷偷塞东西，而是挂一个标记，让阿特拉斯出面给一笔补助（界面弹窗）。
+  A.isStuck = function (state) {
     if (state.money >= 10) return false;
     const has = (bag) => Object.keys(bag || {}).some((k) => bag[k] > 0);
-    if (has(state.seeds) || has(state.berries) || has(state.products)) return false;
-    const pool = G.BERRIES.filter((b) => b.region === state.region && b.id > 0)
-      .sort((a, b) => a.basePrice - b.basePrice);
-    const pick = pool[0] || G.BERRIES[0];
-    if (!pick) return false;
-    state.seeds[pick.id] = (state.seeds[pick.id] || 0) + 10;
-    G.addLog(state, "手头一点本钱都没了，种子站送来 10 颗「" + pick.zh + "」种子。先种下去再说。", "good");
+    return !has(state.seeds) && !has(state.berries) && !has(state.products);
+  };
+
+  // 阿特拉斯给的补助：一次 ₽200，够买几袋种子重新起步
+  A.AID_MONEY = 200;
+  A.takeAid = function (state) {
+    if (!state.stuck) return false;
+    state.stuck = false;
+    state.money += A.AID_MONEY;
+    state.stats.revenueTotal += 0;   // 补助不算收入，别影响历史曲线
+    G.addLog(state, "收下了阿特拉斯塞过来的 ₽" + G.fmt(A.AID_MONEY) + "。他没多说，转身就去搬种子了。", "good");
+    G.clearBonusCache();
     return true;
+  };
+
+  // 每帧看一眼：卡死了就把标记立起来（界面据此弹窗）
+  function markStuck(state) {
+    if (A.isStuck(state)) state.stuck = true;
+    else state.stuck = false;
   }
 
   A.advance = function (state, dt, opts) {
@@ -1779,7 +1792,7 @@ window.G = window.G || {};
     A.trySpawnOrders(state);
     A.checkUnlocks(state);
     healMoney(state);
-    rescueIfStuck(state);
+    markStuck(state);
     // 洗点退掉「阡陌」之后田会多出来。收完的自动裁掉；还长着东西的留着等这一茬。
     if (state.plots.length > G.plotCount(state)) G.syncPlots(state);
 
