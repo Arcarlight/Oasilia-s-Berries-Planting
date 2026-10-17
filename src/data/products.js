@@ -273,6 +273,27 @@ window.G = window.G || {};
     { min: 65, name: "浓郁" },
     { min: 85, name: "厚重" }
   ];
+
+  // 雷达图每个角用字母代替数字：0~100 分切成 S/A/B/C/D/E/F 七档，颜色越暖代表越浓。
+  // 上面那套档位名（清 / 芬芳 / 浓郁 / 厚重）只有一个峰值，雷达图有五个角，各角要各自评级，
+  // 所以字母的阈值和档位名对齐：85 厚重 = S，65 浓郁 = A，45 芬芳 = B，再往下细分。
+  G.FLAVOR_GRADE_STEPS = [
+    { min: 85, letter: "S" },
+    { min: 65, letter: "A" },
+    { min: 45, letter: "B" },
+    { min: 30, letter: "C" },
+    { min: 15, letter: "D" },
+    { min: 1, letter: "E" },
+    { min: 0, letter: "F" }
+  ];
+  G.flavorGrade = function (v) {
+    const x = v || 0;
+    for (let i = 0; i < G.FLAVOR_GRADE_STEPS.length; i++) {
+      if (x >= G.FLAVOR_GRADE_STEPS[i].min) return G.FLAVOR_GRADE_STEPS[i].letter;
+    }
+    return "F";
+  };
+
   G.flavorTier = function (peak, flavor) {
     const v = peak || 0;
     if (v <= 0) return "无味";

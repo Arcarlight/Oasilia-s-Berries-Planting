@@ -1154,10 +1154,102 @@ window.G = window.G || {};
       ${inner}<span class="wh-n">×${int(n)}</span></button>`;
   }
 
-  // 五边形味道图：辣涩甜苦酸各占一个角，越靠外越重
+  // 雷达图的评级字母：自己画的 6×8 粗体点阵，不沿用全站正文那套像素字。
+  // 全站像素字是照 12px 正文设计的，字重不够、缩进雷达图里会发虚；
+  // 这里的字是方块，笔画两格宽（2px），放在 12px 汉字旁边正好压得住。
+  const GRADE_FONT = {
+    S: ["011110", "111111", "110000", "011110", "000011", "000011", "111111", "011110"],
+    A: ["001100", "011110", "110011", "110011", "111111", "110011", "110011", "110011"],
+    B: ["111110", "111111", "110011", "110011", "111110", "110011", "110011", "111111"],
+    C: ["001111", "011111", "111000", "110000", "110000", "111000", "011111", "001111"],
+    D: ["111100", "111110", "110011", "110011", "110011", "110011", "111110", "111100"],
+    E: ["111111", "111111", "110000", "110000", "111110", "110000", "110000", "111111"],
+    F: ["111111", "111111", "110000", "110000", "111110", "110000", "110000", "110000"]
+  };
+  // 每行里连续的格子合并成一个矩形，一条 path 画完 —— 别一格一个 rect，节点太多
+  function gradePath(letter) {
+    const rows = GRADE_FONT[letter] || GRADE_FONT.F;
+    let d = "";
+    rows.forEach((row, y) => {
+      let x = 0;
+      while (x < row.length) {
+        if (row[x] !== "1") { x++; continue; }
+        let w = 1;
+        while (x + w < row.length && row[x + w] === "1") w++;
+        d += "M" + x + " " + y + "h" + w + "v1h-" + w + "z";
+        x += w;
+      }
+    });
+    return d;
+  }
+  const GRADE_PATHS = {};
+  Object.keys(GRADE_FONT).forEach((k) => { GRADE_PATHS[k] = gradePath(k); });
+  // 每档一颗徽章要用三种颜色：本体 / 左上高光 / 右下阴影。
+  // 只存一个基色，亮暗在 JS 里算 —— 七档 × 三层写在 CSS 里太啰嗦，也容易抄错。
+  const GRADE_COLORS = {
+    S: "#ffd24a", A: "#ff8a5c", B: "#c8a2ff", C: "#7fb8e8",
+    D: "#85a87c", E: "#7c8375", F: "#666c60"
+  };
+  function shadeHex(hex, k) {
+    // k > 0 往白里提，k < 0 往黑里压
+    const n = parseInt(hex.slice(1), 16);
+    const t = k > 0 ? 255 : 0, a = Math.abs(k);
+    const mix = (c) => Math.round(c + (t - c) * a);
+    const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
+    return "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+  }
+  // 把点阵拆成"上沿 / 下沿"两张图：上沿提亮当高光，下沿压暗当阴影，
+  // 像一块被顶上那盏灯照着的凸起小牌子。只取上下沿、不取左右，
+  // 是因为笔画只有两格宽 —— 左右也取的话整个字会被劈成一亮一暗两半，认不出颜色。
+  function gradeShadePaths(letter) {
+    const rows = GRADE_FONT[letter] || GRADE_FONT.F;
+    const lit = (x, y) => y >= 0 && y < rows.length && x >= 0 && x < rows[y].length && rows[y][x] === "1";
+    const hi = { d: "", run: null }, lo = { d: "", run: null };
+    const flush = (o) => {
+      if (o.run) { o.d += "M" + o.run[0] + " " + o.run[1] + "h" + o.run[2] + "v1h-" + o.run[2] + "z"; o.run = null; }
+    };
+    rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] !== "1") { flush(hi); flush(lo); continue; }
+        const isHi = !lit(x, y - 1);
+        const isLo = !lit(x, y + 1);
+        [["hi", hi, isHi], ["lo", lo, isLo]].forEach(([, o, on]) => {
+          if (on) {
+            if (o.run && o.run[0] + o.run[2] === x && o.run[1] === y) o.run[2]++;
+            else { flush(o); o.run = [x, y, 1]; }
+          } else flush(o);
+        });
+      }
+      flush(hi); flush(lo);
+    });
+    return { hi: hi.d, lo: lo.d };
+  }
+  const GRADE_SHADES = {};
+  Object.keys(GRADE_FONT).forEach((k) => { GRADE_SHADES[k] = gradeShadePaths(k); });
+  const GRADE_CELL = 2;   // 一格 2px：整屏缩放为 1 时点阵正好落在整像素上，不糊
+  // 一颗评级字：深色描边 + 本体 + 右下阴影 + 左上高光。
+  // 描边是同一张点阵往八个方向错开半格（=1px）铺出来的 —— SVG 的 stroke 会把合并后
+  // 的矩形缝也描出来，所以不能用 stroke。
+  function gradeBadge(letter, x, y, tip) {
+    const d = GRADE_PATHS[letter] || GRADE_PATHS.F;
+    const sh = GRADE_SHADES[letter] || GRADE_SHADES.F;
+    const base = GRADE_COLORS[letter] || GRADE_COLORS.F;
+    const ring = [[-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5], [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]
+      .map((o) => `<path d="${d}" transform="translate(${o[0]} ${o[1]})"/>`).join("");
+    return `<g class="radar-grade g-${letter}" transform="translate(${Math.round(x)} ${Math.round(y)}) scale(${GRADE_CELL})">` +
+      `<title>${tip || letter}</title>` +
+      `<g class="radar-grade-ring">${ring}</g>` +
+      `<path class="gr-base" d="${d}" fill="${base}"/>` +
+      `<path class="gr-lo" d="${sh.lo}" fill="${shadeHex(base, -0.42)}"/>` +
+      `<path class="gr-hi" d="${sh.hi}" fill="${shadeHex(base, 0.4)}"/>` +
+      `</g>`;
+  }
+
+  // 五边形味道图：辣涩甜苦酸各占一个角，越靠外越重。
+  // viewBox 的宽就是显示宽（248px，1 单位 = 1px）—— 这样 12px 汉字和点阵字都落在整像素上。
   function radarChart(prof) {
     const F = G.FLAVORS_5;
-    const cx = 92, cy = 82, R = 56;
+    const cx = 124, cy = 118, R = 72;
     const pt = (i, r) => {
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
       return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
@@ -1169,20 +1261,27 @@ window.G = window.G || {};
       const pts = F.map((_, i) => fmt(pt(i, R * k))).join(" ");
       grid += `<polygon points="${pts}" class="radar-grid"/>`;
     });
+    // 一块轴标签 = 味道字（12px 像素字）+ 评级字（6×8 点阵，2px 一格），按一整块对齐
+    const FW = 12, GAP = 3, GW = 6 * GRADE_CELL, GH = 8 * GRADE_CELL;
+    const total = FW + GAP + GW;
     let spokes = "", labels = "";
     F.forEach((f, i) => {
       const p = pt(i, R);
       spokes += `<line x1="${cx}" y1="${cy}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}" class="radar-spoke"/>`;
-      // 轴名和数值合成一行，不然挤在窄栏里会叠在一起
-      const lp = pt(i, R + 15);
+      const lp = pt(i, R + 22);
       const dx = Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / 5);
       const anchor = dx > 0.25 ? "start" : dx < -0.25 ? "end" : "middle";
-      labels += `<text x="${lp[0].toFixed(1)}" y="${(lp[1] + 4).toFixed(1)}"
-        text-anchor="${anchor}" class="radar-label">${f}<tspan class="radar-num"> ${prof[f]}</tspan></text>`;
+      const grade = G.flavorGrade(prof[f]);
+      const bx = anchor === "middle" ? lp[0] - total / 2 : anchor === "start" ? lp[0] : lp[0] - total;
+      const baseline = lp[1] + 6;
+      const tx = anchor === "middle" ? bx + FW / 2 : anchor === "start" ? bx : bx + FW;
+      labels += `<text x="${Math.round(tx)}" y="${Math.round(baseline)}"
+        text-anchor="${anchor}" class="radar-label">${f}</text>`;
+      labels += gradeBadge(grade, bx + FW + GAP, baseline - GH, f + " " + prof[f] + " 分 · " + grade);
     });
     const dpts = F.map((f, i) => fmt(pt(i, R * Math.max(0.07, (prof[f] || 0) / 100)))).join(" ");
-    return `<svg class="radar" viewBox="0 0 184 168" role="img"
-      aria-label="味道画像 ${F.map((f) => f + prof[f]).join(" ")}">
+    return `<svg class="radar" viewBox="0 0 248 208" role="img"
+      aria-label="味道画像 ${F.map((f) => f + prof[f] + G.flavorGrade(prof[f])).join(" ")}">
       ${grid}${spokes}
       <polygon points="${dpts}" class="radar-fill"/>
       <polygon points="${dpts}" class="radar-line"/>
@@ -1773,6 +1872,11 @@ window.G = window.G || {};
   // 否则自检会把它们误报成死按钮。
   const ACT_ELSEWHERE = ["picksell", "settings"];
   UI.actNames = function () { return Object.keys(ACT).concat(ACT_ELSEWHERE); };
+
+  // 自绘的评级字模：给 #check=radar 用（七档全都得有字形，别只在截图里看过的那两三个）
+  UI.gradeFont = function () {
+    return { font: GRADE_FONT, paths: GRADE_PATHS, shades: GRADE_SHADES, colors: GRADE_COLORS };
+  };
 
   UI.forceRender = function () {
     sigPlots = ""; sigSeeds = ""; sigLog = "";

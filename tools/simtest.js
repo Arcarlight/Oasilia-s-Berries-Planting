@@ -1410,6 +1410,21 @@ window.SIM = {};
       return chk.roaming === true ? true : "被别的原因挡住了：" + JSON.stringify(chk.progress);
     })());
 
+    // ── 雷达图评级：S~F 七档，阈值和浓度档位名对齐 ──
+    check("雷达图评级 S~F 的阈值和档位名对齐", (function () {
+      const cases = [[100, "S"], [85, "S"], [84, "A"], [65, "A"], [64, "B"], [45, "B"],
+        [44, "C"], [30, "C"], [29, "D"], [15, "D"], [14, "E"], [1, "E"], [0, "F"]];
+      for (let i = 0; i < cases.length; i++) {
+        const got = G.flavorGrade(cases[i][0]);
+        if (got !== cases[i][1]) return cases[i][0] + " 分 → " + got + "（应为 " + cases[i][1] + "）";
+      }
+      // 和档位名的边界对上：85 厚重 = S，65 浓郁 = A，45 芬芳 = B
+      if (G.flavorTier(85, "甜").indexOf("厚重") !== 0) return "85 分不是厚重档";
+      if (G.flavorTier(65, "甜").indexOf("浓郁") !== 0) return "65 分不是浓郁档";
+      if (G.flavorTier(45, "甜").indexOf("芬芳") !== 0) return "45 分不是芬芳档";
+      return true;
+    })());
+
     // ── 好感：数字对得上、满级不囤经验、满级专属订单 ──
     check("好感每级 +12% 收购价，满级 +60%", (function () {
       const s = fresh();

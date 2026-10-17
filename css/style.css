@@ -736,14 +736,18 @@ label .micon { margin-right: 4px; }
 
 /* 五边形味道图 */
 .radar-wrap { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
-.radar { display: block; width: 100%; max-width: 236px; margin: 2px auto 0; }
+.radar { display: block; width: 100%; max-width: 248px; margin: 2px auto 0; }
 .radar-grid { fill: none; stroke: var(--line); stroke-width: 1; }
 .radar-spoke { stroke: var(--line); stroke-width: 1; }
 .radar-fill { fill: rgba(240, 200, 90, .26); }
 .radar-line { fill: none; stroke: var(--gold); stroke-width: 1.6; }
-.radar-label { fill: var(--dim); font-size: 11px; }
-.radar-num { fill: #96a37c; font-size: 9px; }
-.radar-num { fill: #8c9a72; font-size: 9px; }
+.radar-label { fill: var(--dim); font-size: 12px; }
+/* 雷达图的字母评级：自绘点阵（ui.js 里的 GRADE_FONT / GRADE_COLORS），
+   S 最浓、F 最淡，本体 + 左上高光 + 右下阴影三层都是 ui.js 里算好写进 fill 的，
+   只有描边留在这里。低档故意压暗，免得四个淡味角抢走主味那一眼。 */
+.radar-grade-ring { fill: #10150c; }
+/* 点阵字放大时不要被浏览器插值糊掉 */
+.radar-grade path { shape-rendering: crispEdges; }
 .radar-verdict { margin-top: 2px; font-size: 12px; color: var(--green); text-align: center; }
 
 /* 详情栏里的长名字要能自己折行 */

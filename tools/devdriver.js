@@ -69,6 +69,17 @@
       G.UI.forceRender();
     }
 
+    // #ssample=1：塞一件浓度 85+ 的甜品（雷达图最高那档 S），用来看评级字
+    if (p.ssample) {
+      const berry = G.BERRIES.filter((b) => b.id > 0)
+        .sort((a, b) => G.berryFlavorPower(b) - G.berryFlavorPower(a))[0];
+      const r = G.makeResearchRecipe("cake", berry.flavor, null, false, 10);
+      S.recipes[r.id] = true;
+      S.products = {};
+      S.products[G.productKey(r.id, berry.id)] = 2;
+      G.UI.forceRender();
+    }
+
     // #giveprod=1：直接塞几件甜品进仓库，方便看味道雷达图
     // （正常玩的时候成品很快就会被常客买走，验收时等不到）
     if (p.giveprod) {
@@ -827,6 +838,69 @@
       const pre = document.createElement("pre");
       pre.id = "tmcheck";
       pre.textContent = "TALENTMONEY\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
+    // #check=radar：雷达图的五个角用字母评级（S~F）代替数字
+    if (p.check === "radar") {
+      const out = [];
+      try {
+        const r = G.makeResearchRecipe("cake", "甜", null, false, 4);
+        S.recipes[r.id] = true;
+        const key = G.productKey(r.id, 1);
+        S.products = {};   // 只留这一件，保证点开的就是它
+        S.products[key] = 2;
+        G.UI.tab = "store";
+        G.UI.forceRender();
+        const cells = Array.from(document.querySelectorAll(".wh-cell"));
+        const cell = cells.filter((c) => {
+          try { return JSON.parse(c.dataset.p || "{}").kind === "product"; } catch (e) { return false; }
+        })[0];
+        if (cell) cell.click();
+        G.UI.forceRender();
+        const svg = document.querySelector(".radar");
+        const prof = G.flavorProfile(r, G.BERRY_BY_ID[1]);
+        const want = G.FLAVORS_5.map((f) => G.flavorGrade(prof[f]));
+        const badges = svg ? Array.from(svg.querySelectorAll(".radar-grade")) : [];
+        const got = badges.map((g) => {
+          const m = (g.getAttribute("class") || "").match(/g-([SABCDEF])/);
+          return m ? m[1] : "?";
+        });
+        out.push("评级字母：" + got.join(" ") + "（应为 " + want.join(" ") + "）" + (got.join("") === want.join("") ? " ✓" : " ✗"));
+        out.push("评级字个数：" + got.length + (got.length === 5 ? " ✓" : " ✗"));
+        const blank = badges.filter((g) => {
+          const p2 = g.querySelector("path");
+          return !p2 || !(p2.getAttribute("d") || "").length;
+        }).length;
+        out.push("点阵 path 为空的：" + blank + (blank ? " ✗" : " ✓"));
+        out.push("描边层个数：" + (svg ? svg.querySelectorAll(".radar-grade-ring path").length : "?") + "（应为 40）");
+        out.push("数字残留（.radar-num）：" + (svg ? svg.querySelectorAll(".radar-num").length : "没找到雷达图"));
+        // 七档字模全都要有：6 格宽 × 8 行、本体/高光/阴影三层 path 都不空
+        const gf = G.UI.gradeFont();
+        const bad = [];
+        ["S", "A", "B", "C", "D", "E", "F"].forEach((L) => {
+          const rows = gf.font[L] || [];
+          if (rows.length !== 8) bad.push(L + " 行数 " + rows.length);
+          if (rows.some((r) => r.length !== 6)) bad.push(L + " 有行不是 6 格");
+          if (!(gf.paths[L] || "").length) bad.push(L + " 本体空");
+          if (!(gf.shades[L].hi || "").length) bad.push(L + " 高光空");
+          if (!(gf.shades[L].lo || "").length) bad.push(L + " 阴影空");
+          if (!gf.colors[L]) bad.push(L + " 没颜色");
+        });
+        out.push("七档字模：" + (bad.length ? "✗ " + bad.join("；") : "✓ 全齐（6×8，本体+高光+阴影）"));
+        out.push("颜色类：" + badges.map((g) => (g.getAttribute("class") || "").replace("radar-grade ", "")).join(" "));
+        out.push("数据层：" + G.FLAVORS_5.map((f) => f + prof[f] + G.flavorGrade(prof[f])).join(" "));
+        out.push("评级分布：" + (function () {
+          const cnt = {};
+          for (let v = 0; v <= 100; v++) { const g = G.flavorGrade(v); cnt[g] = (cnt[g] || 0) + 1; }
+          return ["S", "A", "B", "C", "D", "E", "F"].map((g) => g + " " + (cnt[g] || 0) + "/101").join("　");
+        })());
+        out.push("页面运行期报错数：" + ((window.__errors || []).length) +
+          "　helpfy 出错：" + (G.UI.helpError || "无"));
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "radarcheck";
+      pre.textContent = "RADARCHECK\n  " + out.join("\n  ");
       document.body.appendChild(pre);
     }
 
