@@ -1410,6 +1410,57 @@ window.SIM = {};
       return chk.roaming === true ? true : "被别的原因挡住了：" + JSON.stringify(chk.progress);
     })());
 
+    // ── 配方档位：倍率必须跟着「解锁区域」往上走 ──
+    // 玩家报过：区域 1 的研发蛋糕 ×8.84 压过区域 7 才卖的商店蛋糕 ×6.8，
+    // 区域 2 的研发挞 ×10.14 比后面解锁的高一大截。根子是研发配方拿了品类的商店档位，
+    // 而搭配解锁区域是按素材先后排的。现在研发按「搭配解锁区域」取档。
+    check("研发搭配的倍率随解锁区域升", (function () {
+      const rows = G.RESEARCH_COMBOS.map((c) => {
+        const r = G.makeResearchRecipe(c.cat, "辣", null, false, 2);
+        return { region: c.region, mult: r.mult, name: r.catName };
+      }).sort((a, b) => a.region - b.region);
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i].mult < rows[i - 1].mult - 1e-9) {
+          return "R" + rows[i].region + " " + rows[i].name + " ×" + rows[i].mult +
+            " 比 R" + rows[i - 1].region + " " + rows[i - 1].name + " ×" + rows[i - 1].mult + " 还低";
+        }
+      }
+      return true;
+    })());
+    check("研发配方最多只比同档商店配方领先一个区域", (function () {
+      const bad = [];
+      G.RESEARCH_COMBOS.forEach((c) => {
+        const r = G.makeResearchRecipe(c.cat, "辣", null, false, 2);
+        const later = G.researchTier(c.region + 2);
+        if (c.region + 2 <= G.SHOP_TIERS.length && r.mult > later.mult + 1e-9) {
+          bad.push("R" + c.region + " " + r.catName + " ×" + r.mult + " > R" + later.region + " 商店 ×" + later.mult);
+        }
+      });
+      return bad.length ? bad.slice(0, 3).join("；") : true;
+    })());
+    check("配方表里没有「早解锁却倍率高」的倒挂（容研发/口味差的 1 个区域）", (function () {
+      const list = [];
+      G.RECIPES.forEach((r) => {
+        if (r.research || r.specialty) return;
+        list.push({ region: r.region, mult: r.mult, name: r.name });
+      });
+      G.RESEARCH_COMBOS.forEach((c) => {
+        const r = G.makeResearchRecipe(c.cat, "辣", null, false, 2);
+        list.push({ region: c.region, mult: r.mult, name: "研发·" + r.catName });
+      });
+      const bad = [];
+      for (let i = 0; i < list.length; i++) {
+        for (let j = 0; j < list.length; j++) {
+          if (list[i].region + 1 >= list[j].region) continue;
+          if (list[i].mult > list[j].mult + 1e-9) {
+            bad.push("R" + list[i].region + " " + list[i].name + " ×" + list[i].mult +
+              " > R" + list[j].region + " " + list[j].name + " ×" + list[j].mult);
+          }
+        }
+      }
+      return bad.length ? bad.length + " 对，例：" + bad.slice(0, 2).join("；") : true;
+    })());
+
     // ── 雷达图评级：S~F 七档，阈值和浓度档位名对齐 ──
     check("雷达图评级 S~F 的阈值和档位名对齐", (function () {
       const cases = [[100, "S"], [85, "S"], [84, "A"], [65, "A"], [64, "B"], [45, "B"],

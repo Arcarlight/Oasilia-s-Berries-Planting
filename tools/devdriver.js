@@ -942,7 +942,10 @@
         }
         // 摆一份商品，看仓库页的下拉默认挑了谁
         const reg = G.engine.regionRegulars(S.region)[0];
-        G.engine.regState(S, reg.dex).unlocked = true;
+        // 好感清零再测：满级常客按设计不再攒经验，用它测会误判成"卖货没涨好感"
+        const rs0 = G.engine.regState(S, reg.dex);
+        rs0.unlocked = true; rs0.aff = 0; rs0.exp = 0;
+        G.clearBonusCache();
         const rec = G.RECIPES.filter((r) => r.flavor === reg.flavor && !r.research)[0];
         const berry = G.BERRIES.filter((b) => b.flavor === reg.flavor)[0];
         S.recipes[rec.id] = true;

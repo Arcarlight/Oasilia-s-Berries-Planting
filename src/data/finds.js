@@ -183,10 +183,11 @@ window.G = window.G || {};
     if (!cat) return null;
     const spice = spiceId && SPICE_BY_ID[spiceId] && SPICE_BY_ID[spiceId].role === "spice"
       ? SPICE_BY_ID[spiceId] : null;
-    // 底料参考：能买到同品类普通配方就用它的颗数，研发专属品类则按品类自己推
-    const base = (G.RECIPES || []).filter(
-      (r) => r.cat === catId && r.flavor === flavor && !r.specialty && !r.research)[0];
-    const needCount = base ? base.needCount + 1 : 4;
+    // 这一套搭配要到哪个区域才琢磨得出来 —— 研发配方的档位由它决定，不看品类在商店卖第几档
+    const combo = (G.RESEARCH_COMBOS || []).filter((c) => c.cat === catId)[0];
+    const comboRegion = combo ? combo.region : cat.region;
+    const tier = G.researchTier(comboRegion);
+    const needCount = tier.need;
     const r = {
       id: id,
       // 前缀表示料数：朴实的 → 多味的 → 层层叠叠的 ……
@@ -200,10 +201,10 @@ window.G = window.G || {};
       needFlavor: flavor,
       needCount: needCount,
       minTier: 1,
-      mult: Math.round(cat.mult * (good ? 1.5 : spice ? 1.35 : 1.3) * G.potMultBonus(n) * 100) / 100,
+      mult: Math.round(tier.mult * (good ? 1.5 : spice ? 1.35 : 1.3) * G.potMultBonus(n) * 100) / 100,
       potCount: n,
-      time: Math.round(cat.time * 1.15),
-      region: cat.region,
+      time: Math.round(tier.time * 1.15),
+      region: comboRegion,
       cost: 0,
       specialty: false,
       research: true,

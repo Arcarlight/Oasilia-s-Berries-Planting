@@ -20,21 +20,24 @@ window.G = window.G || {};
     { id: "choco", name: "巧克力", mult: 10.5, time: 110, region: 10, unit: "板", icon: "choco", desc: "可可和果干一起凝成的板子，掰一块含在嘴里慢慢化。" },
 
     // ── 研发线专属品类：商店里买不到，只能靠在「研发」页搭配出来 ──
-    // 倍率比同期的商店品类高一档，作为"研究了半天"的回报。
-    { id: "pudding", name: "布丁", mult: 7.4, time: 70, region: 7, unit: "盅", icon: "pudding", researchOnly: true, desc: "果泥拌奶凝成的一盅，勺子挖下去会颤，凉过以后更顺口。" },
-    { id: "cookie", name: "曲奇", mult: 8.8, time: 84, region: 8, unit: "袋", icon: "cookie", researchOnly: true, desc: "黄油和面粉揉团压成小片烤脆，装一袋边走边吃。" },
-    { id: "candy", name: "糖果", mult: 9.8, time: 60, region: 8, unit: "罐", icon: "candy", researchOnly: true, desc: "熬到发硬的果糖切成小块，含一颗能含很久，甜味会慢慢散开。" },
-    { id: "bread", name: "面包", mult: 11.5, time: 124, region: 10, unit: "个", icon: "bread", researchOnly: true, desc: "面团揉足发酵烤出来，外皮脆里头软，掰开有热气。" },
+    // 这里的 mult / time 只是"它属于哪一档"的登记（图鉴提示、研发费要用），
+    // 真正做出来的倍率由 G.researchTier(搭配解锁区域) 现算 —— 见 finds.js。
+    // 研发版比同档商店配方多 30%（配料多下几样还能再涨），这就是"研究了半天"的回报。
+    { id: "pudding", name: "布丁", mult: 6.8, time: 62, region: 7, unit: "盅", icon: "pudding", researchOnly: true, desc: "果泥拌奶凝成的一盅，勺子挖下去会颤，凉过以后更顺口。" },
+    { id: "cookie", name: "曲奇", mult: 7.8, time: 76, region: 8, unit: "袋", icon: "cookie", researchOnly: true, desc: "黄油和面粉揉团压成小片烤脆，装一袋边走边吃。" },
+    { id: "candy", name: "糖果", mult: 7.8, time: 76, region: 8, unit: "罐", icon: "candy", researchOnly: true, desc: "熬到发硬的果糖切成小块，含一颗能含很久，甜味会慢慢散开。" },
+    { id: "bread", name: "面包", mult: 10.5, time: 110, region: 10, unit: "个", icon: "bread", researchOnly: true, desc: "面团揉足发酵烤出来，外皮脆里头软，掰开有热气。" },
 
     // ── 特殊糕点 ──
-    // 要往锅里下「两份 + 两份」的底料才做得出来（比普通配方费一倍料），
-    // 所以倍率也高一档。剩下的槽位丢树果定味道，和别的品类一样。
-    { id: "layer", name: "千层酥", mult: 9.2, time: 72, region: 5, unit: "块", icon: "layer", researchOnly: true, desc: "一层油皮一层馅反复叠，烤完会一层层裂开，吃的时候用盘子接着。" },
-    { id: "blackforest", name: "黑森林", mult: 10.0, time: 80, region: 6, unit: "角", icon: "blackforest", researchOnly: true, desc: "深色的蛋糕夹着果酱和奶油，表面撒一层碎屑，看着沉吃着不腻。" },
-    { id: "spiral", name: "螺旋卷", mult: 10.8, time: 88, region: 7, unit: "条", icon: "spiral", researchOnly: true, desc: "面团抹馅卷成条再盘成圈，烤出来一圈圈花纹，撕着吃。" },
-    { id: "milkbun", name: "奶香圆包", mult: 11.6, time: 96, region: 8, unit: "个", icon: "milkbun", researchOnly: true, desc: "牛奶和面粉揉成的小圆包，烤到金黄，掰开有奶香冒出来。" },
-    { id: "croissant", name: "可颂", mult: 12.4, time: 104, region: 9, unit: "只", icon: "croissant", researchOnly: true, desc: "反复折叠的油酥面团烤成月牙形，外壳一层层剥着掉，越嚼越香。" },
-    { id: "napoleon", name: "拿破仑", mult: 13.2, time: 112, region: 10, unit: "份", icon: "napoleon", researchOnly: true, desc: "酥皮和奶油一层叠一层压成平整的一大块，切的时候得用快刀，不然会塌。" }
+    // 要往锅里下「两份 + 两份」的底料才做得出来（比普通配方费一倍料）。
+    // 它们的回报不体现在倍率上（倍率照样按区域取档，不然区域 5 的千层酥能压过区域 9 的瑞士卷），
+    // 而是：一锅出 2~3 份、配料越多倍率涨得越多。剩下的槽位丢树果定味道，和别的品类一样。
+    { id: "layer", name: "千层酥", mult: 4.8, time: 36, region: 5, unit: "块", icon: "layer", researchOnly: true, desc: "一层油皮一层馅反复叠，烤完会一层层裂开，吃的时候用盘子接着。" },
+    { id: "blackforest", name: "黑森林", mult: 6.0, time: 50, region: 6, unit: "角", icon: "blackforest", researchOnly: true, desc: "深色的蛋糕夹着果酱和奶油，表面撒一层碎屑，看着沉吃着不腻。" },
+    { id: "spiral", name: "螺旋卷", mult: 6.8, time: 62, region: 7, unit: "条", icon: "spiral", researchOnly: true, desc: "面团抹馅卷成条再盘成圈，烤出来一圈圈花纹，撕着吃。" },
+    { id: "milkbun", name: "奶香圆包", mult: 7.8, time: 76, region: 8, unit: "个", icon: "milkbun", researchOnly: true, desc: "牛奶和面粉揉成的小圆包，烤到金黄，掰开有奶香冒出来。" },
+    { id: "croissant", name: "可颂", mult: 9.0, time: 92, region: 9, unit: "只", icon: "croissant", researchOnly: true, desc: "反复折叠的油酥面团烤成月牙形，外壳一层层剥着掉，越嚼越香。" },
+    { id: "napoleon", name: "拿破仑", mult: 10.5, time: 110, region: 10, unit: "份", icon: "napoleon", researchOnly: true, desc: "酥皮和奶油一层叠一层压成平整的一大块，切的时候得用快刀，不然会塌。" }
   ];
 
   const recipes = [];
@@ -107,6 +110,25 @@ window.G = window.G || {};
   G.RECIPES = recipes;
   G.RECIPE_BY_ID = {};
   recipes.forEach((r) => { G.RECIPE_BY_ID[r.id] = r; });
+
+  // 商店的档位表：区域 1..10 各自那一档的倍率 / 耗时 / 投几颗果子。
+  // 研发配方的强度按「你什么时候能把它配出来」取档，不按品类在商店卖第几档 ——
+  // 不然区域 1 的面粉 + 鲜奶就能配出商店区域 7 才卖的蛋糕（倍率 ×8.8），
+  // 前半张配方表全被它踩平（玩家原话：宝芬比蛋糕还低、挞区域 2 就解锁但倍率比后面高得多）。
+  G.SHOP_TIERS = CATS.map((cat, ci) => ({ cat: cat, ci: ci }))
+    .filter((x) => !x.cat.researchOnly)
+    .sort((a, b) => a.cat.region - b.cat.region)
+    .map((x) => ({
+      region: x.cat.region,
+      mult: x.cat.mult,
+      time: x.cat.time,
+      // 和商店配方同一个口径：2 + ⌊(品类序号 + 口味序号) / 3⌋，口味取第一味（最省）
+      need: 2 + Math.floor(x.ci / 3)
+    }));
+  G.researchTier = function (region) {
+    const r = Math.max(1, Math.min(G.SHOP_TIERS.length, Math.round(region || 1)));
+    return G.SHOP_TIERS[r - 1];
+  };
 
   // 商品在库存里的键：配方 + 投入树果 id（投入越贵，商品越值钱）
   G.productKey = function (recipeId, berryId) { return recipeId + "|" + berryId; };
