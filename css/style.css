@@ -815,7 +815,7 @@ label .micon { margin-right: 4px; }
 .kinfo { flex: 1 1 150px; min-width: 0; }
 .kname { color: var(--green); font-size: 12px; }
 .kmeta { font-size: 10px; color: var(--dim); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.kico { width: 12px; height: 12px; flex: 0 0 12px; image-rendering: pixelated; vertical-align: -2px; }
+.kico { width: 16px; height: 16px; flex: 0 0 16px; image-rendering: pixelated; vertical-align: -4px; }
 .guest { width: 18px; height: 18px; image-rendering: pixelated; vertical-align: -4px; }
 .kwhy { flex: 1 1 120px; }
 .berrybtn { display: flex; align-items: center; gap: 1px; padding: 1px 4px 1px 2px; font-size: 11px; }
