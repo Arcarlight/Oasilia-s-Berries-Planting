@@ -812,13 +812,31 @@ label .micon { margin-right: 4px; }
 }
 #tabs button.on .tabnum { color: var(--gold); border-color: var(--gold); }
 
+/* 卡片右上角的「?」：说明默认收起，悬停才展开。
+   图标复用 assets/ui/tab-help.png（说明页签那个），三档齐全。 */
+.card { position: relative; }
+.help { position: absolute; top: 4px; right: 5px; cursor: help; z-index: 5; }
+.help .hico { width: 18px; height: 18px; image-rendering: pixelated; opacity: .55; }
+.help:hover .hico { opacity: 1; }
+.help .htip {
+  display: none; position: absolute; right: 0; top: 22px; width: 280px; z-index: 40;
+  background: var(--panel); border: 1px solid var(--line); padding: 6px 8px;
+  font-size: 11px; line-height: 1.55; color: var(--ink-dim); text-align: left;
+  box-shadow: 0 4px 12px rgba(0,0,0,.55);
+}
+.help:hover .htip { display: block; }
+
 /* ---------- 加工页：工位条 / 配方行 / 点树果直接下单 ---------- */
 .slots { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin: 4px 0 6px; }
 .slot {
-  width: 34px; height: 34px; border: 1px solid var(--line); background: var(--panel);
-  display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+  width: 48px; height: 56px; border: 1px solid var(--line); background: var(--panel);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  position: relative; overflow: hidden; padding-top: 2px;
 }
-.slot .picon { width: 30px; height: 30px; }
+.slot .picon { width: 34px; height: 34px; }
+.slot .stime { font-size: 9px; line-height: 11px; color: #ffe9b0; }
+.slot .sname { font-size: 8px; line-height: 10px; color: var(--dim); max-width: 100%;
+               overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .slot.busy { border-color: var(--gold); }
 /* 进度用底部往上填的一层金色蒙版，不挡图标 */
 .slot.busy::after {

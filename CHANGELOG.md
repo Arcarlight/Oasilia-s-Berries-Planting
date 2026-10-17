@@ -8,6 +8,38 @@
 
 ---
 
+## 0.13.3 · 工位可视化 + 卡片说明收进「?」
+
+玩家提的三条：
+
+1. **点「混」以后工作台关不掉** → 右上角补「关闭」按钮（`mixOn` 本来就是切换，
+   但没有明确入口；现在给了按钮，位置在「?」左边）
+2. **加工台格子太小、看不到时间** → `.slot` 从 34×34 涨到 48×56，里面三行：
+   商品图标 / 剩余时间（≥60s 显示"X分"）/ 名字（超宽省略，完整名在 tooltip）。
+   进度仍是自下而上的金色蒙版
+3. **说明都收进右上角「?」，悬停才展开** → 新增组件：
+
+```html
+<span class="help"><img class="hico" src="assets/ui/tab-help.png" alt="?">
+  <span class="htip">说明文字…</span></span>
+```
+
+```css
+.card { position: relative; }
+.help { position:absolute; top:4px; right:5px; cursor:help; }
+.help .hico { width:18px; height:18px; opacity:.55; }
+.help:hover .hico { opacity:1; }
+.help .htip { display:none; position:absolute; right:0; top:22px; width:280px; … }
+.help:hover .htip { display:block; }
+```
+
+图标直接复用 `assets/ui/tab-help.png`（说明页签那张，1x/2x/3x 都齐），不用重画。
+
+**进度**：目前把「加工台」「混合工作台」两张卡的说明收进去了，其余页面的卡片
+还是平铺说明文字 —— 用同一个 `<span class="help">` 包起来即可，逐步替换。
+
+---
+
 ## 0.13.2 · 味道标记：味色做底 + 白字
 
 0.13.1 用描边字，玩家反馈"太淡"；换成实心色块 + 黑字，又被指出"字怎么变黑的了"。
