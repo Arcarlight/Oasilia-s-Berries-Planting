@@ -129,7 +129,7 @@ window.SIM = {};
             if (sp) pick.push(sp); else continue;
           }
           const ev = G.evaluateResearch(state, pick, flavor, pick.length + 1);
-          if (ev.kind !== "recipe" || state.money < ev.cost * 1.5) continue;
+  if (ev.kind !== "recipe" || state.money < ev.cost * 1.5) continue;
           G.engine.potClear(state);
           if (!G.engine.potAdd(state, "berry", berryId).ok) continue;
           pick.forEach((id) => G.engine.potAdd(state, "find", id));

@@ -706,7 +706,11 @@ window.G = window.G || {};
     out.n = n;
     out.berryId = berries.length ? berries[0].id : 0;   // 0 = 无味
     out.items = items.slice();
-    out.cost = ev.kind === "invalid" ? 0 : G.researchCost(ev.combo ? ev.combo.cat : (ev.cat && ev.cat.id) || "cake", flavor, n, !!ev.spice);
+    // 一定要带上 state.region —— 研发费按"在哪个区域做"算，
+    // 不传就会退回按品类的商店解锁区域算（区域1 做蛋糕会报价 16 万，做一个亏一个）。
+    out.cost = ev.kind === "invalid" ? 0
+      : G.researchCost(ev.combo ? ev.combo.cat : (ev.cat && ev.cat.id) || "cake",
+                       flavor, n, !!ev.spice, state.region);
     return out;
   };
 

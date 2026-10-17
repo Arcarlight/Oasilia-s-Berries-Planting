@@ -289,7 +289,8 @@ window.G = window.G || {};
     const n = Math.max(2, potN || list.length || 2);
     const id = "res_" + combo.cat + "_" + FLAVOR_KEY[flavor] + "_" + (spice ? spice.id : "plain") + "_" + n;
     const known = !!(state && state.recipes[id]);
-    const cost = G.researchCost(combo.cat, flavor, list.length, !!spice);
+    const cost = G.researchCost(combo.cat, flavor, list.length, !!spice,
+      state ? state.region : (combo ? combo.region : 1));
     return {
       kind: known ? "known" : "recipe",
       combo: combo, cat: cat, catName: cat ? cat.name : combo.cat, spice: spice, good: good,
@@ -301,11 +302,17 @@ window.G = window.G || {};
   };
 
   // 研发费：按该品类普通配方价推算，放的料越多越贵，加香料再加一档
-  G.researchCost = function (catId, flavor, nIngredients, withSpice) {
-    const base = (G.RECIPES || []).filter(
-      (r) => r.cat === catId && r.flavor === flavor && !r.specialty && !r.research)[0];
+  // 研发费按「**在哪个区域**做」定价，不是按品类的商店解锁区域。
+  //
+  // 以前是拿品类的商店配方价当基准，于是区域 1 的第一个搭配
+  // （面粉 + 鲜奶 → 蛋糕）照着**区域 7** 的蛋糕价报价，一锅 16 万 ——
+  // 而区域 1 一整轮的总收入才 2 万，等于第一个区域根本做不了料理。
+  G.RESEARCH_COST_BASE = 220;      // 区域 1、普通品类、2 样料的基准价
+  G.researchCost = function (catId, flavor, nIngredients, withSpice, region) {
     const cat = (G.RECIPE_CATS || []).filter((c) => c.id === catId)[0];
-    const b = base ? base.cost : (cat ? Math.round(cat.mult * 260 * Math.pow(1.85, cat.region - 1)) : 4000);
+    const r = Math.max(1, Math.min(10, region || (cat ? cat.region : 1)));
+    // 品类本身越贵（倍率越高）越费钱，但只作为系数，不主导
+    const b = Math.round(G.RESEARCH_COST_BASE * ((cat ? cat.mult : 6.8) / 6.8) * Math.pow(1.9, r - 1));
     return Math.round(b * (1.8 + 0.6 * (nIngredients || 2)) * (withSpice ? 1.3 : 1));
   };
 
