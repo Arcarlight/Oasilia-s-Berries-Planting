@@ -49,11 +49,20 @@ window.G = window.G || {};
       talents: {},
       talentPoints: 0,
       talentSpent: 0,
+      // 上一次洗点是在哪个区域 —— 每个区域只能洗一次，搬家后解锁
+      talentRespecAt: 0,
+      // 共轭图纸：own = 造出来了；conj[pairId] = { side, region }（region 是选定的那个区域）
+      conjOwned: {},
+      conj: {},
+      // 巡游：走到最后一个区域之后可以自由换区域，roam[regionId] = 重访次数
+      roam: {},
+      // 进区域时打的进度快照（巡游重访的门槛只看这次停留内的进度）
+      stayBase: null,
       dex: {},
       madeProducts: {},   // 制品图鉴：做过哪些「品类|口味」
       stats: {
         harvested: 0, crafted: 0, sold: 0, clicks: 0, trips: 0, researched: 0,
-        revenueRegion: 0, revenueTotal: 0, prestige: 0, orders: 0
+        revenueRegion: 0, revenueTotal: 0, prestige: 0, orders: 0, roams: 0
       },
       atlas: { trip: null, craft: null, seen: {}, report: null },
       log: [],

@@ -15,6 +15,39 @@ window.SIM = {};
   // 给模拟报告用：跑了多少趟、研发了多少配方、煮废多少锅
   const simStats = { trips: 0, research: 0, waste: 0, spent: 0 };
 
+  // 共轭图纸：能刻就刻（材料用钱补），刻好了按 __CONJ_MODE 选边。
+  // mode=a / b 用来跑「全选左」和「全选右」两套对照，看两组数值是不是一边倒。
+  function conjStep(state, eng) {
+    const mode = window.__CONJ_MODE || "a";
+    (G.CONJ || []).forEach((pair) => {
+      if (!G.conjOwned(state, pair.id)) {
+        if (state.atlas.craft) return;
+        if ((pair.region || 1) > state.maxRegion) return;
+        let value = 0;
+        Object.keys(pair.materials || {}).forEach((mid) => {
+          const m = (G.MATERIALS || []).filter((x) => x.id === mid)[0];
+          if (m) value += m.price * 2.6 * pair.materials[mid];
+        });
+        if (state.money < value * 6) return;
+        let ok = true;
+        Object.keys(pair.materials || {}).forEach((mid) => {
+          const has = state.materials[mid] || 0;
+          const need = pair.materials[mid];
+          if (has < need && !eng.buyMaterial(state, mid, need - has)) ok = false;
+        });
+        if (ok) eng.orderConj(state, pair.id);
+        return;
+      }
+      // 本区域已经定下了就不能改（G.conjCanPick 会挡住），换区域后按模式重选
+      if (!G.conjCanPick(state, pair.id)) return;
+      const idx = mode === "b" ? 1 : 0;
+      const side = (pair.sides || [])[idx];
+      if (!side) return;
+      if ((state.conj[pair.id] || {}).side === side.id) return;
+      eng.chooseConj(state, pair.id, side.id);
+    });
+  }
+
   function bot(state) {
     const eng = G.engine;
     const b = G.bonuses(state);
@@ -23,25 +56,27 @@ window.SIM = {};
     eng.harvestAll(state);
 
     // 2. 加工台尽量塞满（用最值钱的配方配最值钱的树果）
-    // 加工台是按「次数」算进度的，而不少常客的解锁条件正是累计加工 N 次
-    // （区域 9/10 要 2.6万 ~ 9万 次）。长配方（特殊糕点要 100~160 秒）每秒收益
-    // 不低，但会占着工位把次数进度拖垮 —— 真玩家这时候会先做快的。
+    // 常客的解锁门槛从 0.11.0 起看的是「累计加工时长」，不是次数。
+    // 长配方（特殊糕点要 100~160 秒）每秒收益不低，但占着工位会把时长进度拖住。
     //
     // 关键是"只盯当前区域那道门槛"：盯全地图的会被最远的 9 万次拖住，
     // 一直做小果酱、收入塌掉（踩过这个坑）。
+    const roaming = eng.roamCount(state, state.region) > 0;
     const gate = (function () {
       let need = 0;
       eng.regionRegulars(state.region).forEach((rg) => {
         const u = rg.unlock || {};
-        if (u.type === "crafted" && !eng.regState(state, rg.dex).unlocked) {
-          need = Math.max(need, u.value);
-        }
+        if (u.type !== "craftTime") return;
+        if (eng.regState(state, rg.dex).unlocked) return;
+        need = Math.max(need, Math.round(u.value * (roaming ? eng.roamScale(state, state.region) : 1)));
       });
       return need;
     })();
-    const chasing = gate > 0 && (state.stats.crafted || 0) < gate;
-    // 平时按「每秒收益」排；正在追当前区域的次数门槛时改挑快的
-    const rate = (r) => (chasing ? 1 / r.time : r.mult * r.needCount / r.time);
+    const craftSoFar = roaming ? eng.stayProgress(state).craftSeconds : (state.stats.craftSeconds || 0);
+    const chasing = gate > 0 && craftSoFar < gate;
+    // 平时按「每秒收益」排；正在追当前区域的时长门槛时改挑快的
+    const recipeNeed = (r) => G.craftNeedCount(state, r);
+    const rate = (r) => (chasing ? 1 / r.time : r.mult * recipeNeed(r) / r.time);
     const recipes = eng.unlockedRecipes(state).sort((x, y) => rate(y) - rate(x));
     for (let i = 0; i < recipes.length; i++) {
       if (state.craftQueue.length >= eng.craftSlots(state)) break;
@@ -218,6 +253,9 @@ window.SIM = {};
       }
     }
     eng.collectCraft(state);
+
+    // 7.1 共轭图纸：有材料就刻，刻好按模式选边（A/B 两套用来对照平衡）
+    conjStep(state, eng);
 
     // 7.2 打开自动交付 / 自动加工（有对应道具才生效）
     if (eng.autoTradeUnlocked(state)) state.autoTrade = true;
@@ -1117,6 +1155,110 @@ window.SIM = {};
       if (nat.喜 !== r.flavor || nat.厌 !== r.dislike) badFlavor.push(r.name + " " + r.nature);
     });
     check("性格→口味一致", badFlavor.length === 0, badFlavor.slice(0, 5).join(", "));
+
+    // ── 共轭图纸 ──
+    check("共轭图纸：5 组、每组两侧、侧 id 不重复", (function () {
+      if ((G.CONJ || []).length !== 5) return false;
+      return G.CONJ.every((p) => p.sides.length === 2 &&
+        p.sides[0].id !== p.sides[1].id &&
+        Object.keys(p.materials || {}).length > 0);
+    })());
+    check("共轭图纸：加成键都被 econ 认（拼错了会被静默忽略）", (function () {
+      const probe = fresh();
+      G.CONJ.forEach((p) => { probe.conjOwned[p.id] = true; });
+      let bad = [];
+      G.CONJ.forEach((p) => {
+        p.sides.forEach((side) => {
+          probe.conj[p.id] = { side: side.id, region: probe.region };
+          G.clearBonusCache();
+          const before = G.bonuses(probe);
+          const keys = Object.keys(side.mods || {});
+          // 只要有一项没进加成表，这一侧就等于白选
+          const changed = keys.some((k) => {
+            const v = G.bonuses(probe)[k];
+            return v !== undefined && v !== 0;
+          });
+          if (!changed) bad.push(p.name + "/" + side.name);
+          delete probe.conj[p.id];
+        });
+      });
+      G.clearBonusCache();
+      return bad.length === 0 ? true : (bad.join(",") || true);
+    })());
+
+    // ── 巡游 ──
+    check("巡游：走到天穹园之前不开放", (function () {
+      const s = fresh();
+      s.maxRegion = 9;
+      return G.engine.canRoam(s) === false;
+    })());
+    check("巡游：门槛按档位放大，且不吃累计数据", (function () {
+      const s = fresh();
+      s.maxRegion = 10; s.region = 10;
+      s.stats.harvested = 1e7;
+      G.engine.roam(s, 1);
+      const rg = G.engine.regionRegulars(1).filter((x) => x.unlock.type === "harvest")[0];
+      const need = Math.round(rg.unlock.value * G.engine.roamScale(s, 1));
+      // 累计已经 1000 万，但本次停留是 0 → 不该解锁
+      if (G.engine.unlockDone(s, rg)) return "吃了累计数据";
+      s.stats.harvested = s.stayBase.harvested + need;
+      return G.engine.unlockDone(s, rg) === true ? true : "停留内进度够了还是没解锁";
+    })());
+    check("巡游：常客重新上门，好感留着", (function () {
+      const s = fresh();
+      s.maxRegion = 10; s.region = 10;
+      // 先把区域 1 的常客标成已解锁、好感拉满
+      G.engine.regionRegulars(1).forEach((rg) => {
+        const st = G.engine.regState(s, rg.dex);
+        st.unlocked = true; st.aff = 5;
+      });
+      G.engine.roam(s, 1);
+      const all = G.engine.regionRegulars(1);
+      const relocked = all.every((rg) => !G.engine.regState(s, rg.dex).unlocked);
+      const keptAff = all.every((rg) => G.engine.regState(s, rg.dex).aff === 5);
+      return relocked && keptAff ? true : ("重锁=" + relocked + " 好感=" + keptAff);
+    })());
+
+    // ── 天赋洗点 ──
+    check("洗点：原价退回，且同区只能洗一次", (function () {
+      const s = fresh();
+      s.talentPoints = 100;
+      G.engine.buyTalent(s, "price");   // 2 点
+      G.engine.buyTalent(s, "price");   // 4 点（共 6）
+      const spent = G.talentSpentNow(s);
+      const r = G.engine.respecTalents(s);
+      if (!r.ok) return "洗点失败：" + r.why;
+      if (r.refund !== spent) return "退点数和花的不一致（" + r.refund + " vs " + spent + "）";
+      if (Object.keys(s.talents).length) return "等级没清空";
+      return G.engine.respecTalents(s).ok ? "同区能洗第二次" : true;
+    })());
+
+    // ── 精打细算：只减研发配方的投料 ──
+    check("精打细算只对研发配方生效，且不低于 2 颗", (function () {
+      const s = fresh();
+      s.conjOwned.thrift = true;
+      s.conj.thrift = { side: "save", region: 1 };
+      G.clearBonusCache();
+      if (!(G.bonuses(s).berrySave > 0)) return "加成没生效";
+      const plain = { research: false, needCount: 4 };
+      const res = { research: true, needCount: 4 };
+      const tiny = { research: true, needCount: 2 };
+      if (G.craftNeedCount(s, plain) !== 4) return "普通配方被改了";
+      const got = G.craftNeedCount(s, res);
+      if (!(got < 4)) return "研发配方没减料（" + got + "）";
+      if (G.craftNeedCount(s, tiny) < 2) return "减到 2 颗以下了";
+      return true;
+    })());
+
+    // ── 巡游之后不能再"移民"（否则能反复刷天赋点） ──
+    check("走遍全图后不能再用「移民」前进", (function () {
+      const s = fresh();
+      s.maxRegion = 10; s.region = 5; s.money = 1e12;
+      G.engine.regionRegulars(5).forEach((rg) => { G.engine.regState(s, rg.dex).unlocked = true; });
+      const chk = G.engine.canMigrate(s);
+      if (chk.ok) return "还能移民";
+      return chk.roaming === true ? true : "被别的原因挡住了：" + JSON.stringify(chk.progress);
+    })());
   }
 
   window.__why = {};
@@ -1125,7 +1267,10 @@ window.SIM = {};
   window.SIM.freshState = fresh;
 
   window.SIM.run = function () {
+    const hm = (location.hash || "").match(/conj=(a|b)/);
+    window.__CONJ_MODE = hm ? hm[1] : "a";
     unitTests();
+    log("共轭模式：" + window.__CONJ_MODE + "（a = 全部选左侧，b = 全部选右侧）");
     log("【单元测试】" + (fails.length ? "失败 " + fails.length + " 项：" : "全部通过"));
     fails.forEach((f) => log("  ✗ " + f));
     log("");

@@ -79,22 +79,74 @@ window.G = window.G || {};
     return state.regulars[dex];
   };
 
-  A.unlockDone = function (state, reg) {
-    const s = A.regState(state, reg.dex);
-    if (s.unlocked) return true;
+  // ---------- 巡游（走到天穹园之后可以自由换区域） ----------
+  //
+  // 为什么要这么绕：常客的解锁记录是**跨区域永久**的，而门槛查的是**累计数据**。
+  // 走到区域 10 时，累计收获 / 累计加工时长早就远超区域 1 的门槛了 ——
+  // 直接给门槛乘个系数，在重访时一点约束力都没有。
+  // 所以巡游重访时改成「只算这次停留内的进度」，门槛再按巡游档位放大。
+  A.roamCount = function (state, regionId) {
+    return (state.roam && state.roam[regionId]) || 0;
+  };
+
+  // 巡游强度：第一次重访 ×2.2，第二次 ×3.4……
+  A.roamScale = function (state, regionId) {
+    const n = A.roamCount(state, regionId);
+    return n > 0 ? 1 + 1.2 * n : 1;
+  };
+
+  // 这次停留内新长的进度（进区域时打的快照）
+  A.stayProgress = function (state) {
+    const st = state.stats || {};
+    const base = state.stayBase || {};
+    return {
+      harvested: (st.harvested || 0) - (base.harvested || 0),
+      craftSeconds: (st.craftSeconds || 0) - (base.craftSeconds || 0),
+      revenue: st.revenueRegion || 0
+    };
+  };
+
+  // 进区域时打一个快照；巡游和移民都要调
+  A.markStayBase = function (state) {
+    const st = state.stats || {};
+    state.stayBase = { harvested: st.harvested || 0, craftSeconds: st.craftSeconds || 0 };
+  };
+
+  // 这位常客现在离门槛还有多远。巡游重访时门槛按档位放大，而且只看本次停留内的进度
+  // （累计数据在后期早就爆表，拿它当门槛等于没有门槛）。
+  A.unlockProgress = function (state, reg) {
+    const st = state.stats || {};
     const u = reg.unlock || { type: "harvest", value: 100 };
-    const st = state.stats;
+    const roaming = reg.region === state.region && A.roamCount(state, reg.region) > 0;
+    const k = roaming ? A.roamScale(state, reg.region) : 1;
+    const stay = roaming ? A.stayProgress(state) : null;
+    const need = (v) => Math.round(v * k);
     switch (u.type) {
-      case "harvest": return st.harvested >= u.value;
-      case "species": return Object.keys(state.dex).length >= u.value;
-      case "crafted": return st.crafted >= u.value;
-      case "craftTime": return (st.craftSeconds || 0) >= u.value;
-      case "revenue": return st.revenueRegion >= u.value;
+      case "harvest":
+        return { cur: stay ? stay.harvested : (st.harvested || 0), need: need(u.value),
+          label: roaming ? "本次停留收获树果" : "累计收获树果" };
+      case "craftTime":
+        return { cur: stay ? stay.craftSeconds : (st.craftSeconds || 0), need: need(u.value),
+          label: roaming ? "本次停留加工时长" : "累计加工时长" };
+      case "revenue":
+        return { cur: st.revenueRegion || 0, need: need(u.value), label: "本区域累计收入" };
+      case "species":
+        return { cur: Object.keys(state.dex).length, need: u.value, label: "见过的树果种类" };
+      case "crafted":
+        return { cur: st.crafted || 0, need: u.value, label: "累计加工商品" };
       case "affinity": {
-        return Object.keys(state.regulars).some((d) => (state.regulars[d].aff || 0) >= u.value);
+        const best = Object.keys(state.regulars)
+          .reduce((a, d) => Math.max(a, state.regulars[d].aff || 0), 0);
+        return { cur: best, need: u.value, label: "最高好感等级" };
       }
-      default: return false;
+      default: return { cur: 0, need: u.value || 1, label: "未知条件" };
     }
+  };
+
+  A.unlockDone = function (state, reg) {
+    if (A.regState(state, reg.dex).unlocked) return true;
+    const p = A.unlockProgress(state, reg);
+    return p.cur >= p.need;
   };
 
   A.regionProgress = function (state, regionId) {
@@ -286,12 +338,80 @@ window.G = window.G || {};
   A.collectCraft = function (state) {
     const c = state.atlas.craft;
     if (!c || G.now(state) < c.until) return null;
-    state.items[c.itemId] = (state.items[c.itemId] || 0) + 1;
     state.atlas.craft = null;
     G.clearBonusCache();
+    // 共轭图纸和普通道具共用同一个制作间，只是做出来的东西不一样
+    if (c.kind === "conj") {
+      state.conjOwned[c.pairId] = true;
+      const pair = G.CONJ_BY_ID[c.pairId];
+      G.addLog(state, "阿特拉斯把「" + (pair ? pair.name : c.pairId) +
+        "」的两张图纸摆在你面前：「只能挑一张。另一张我封起来了。」", "atlas");
+      return c;
+    }
+    state.items[c.itemId] = (state.items[c.itemId] || 0) + 1;
     const item = (G.ITEMS || []).filter((x) => x.id === c.itemId)[0];
     G.addLog(state, "阿特拉斯把「" + (item ? item.name : c.itemId) + "」拍在你面前：做好了。", "atlas");
     return c;
+  };
+
+  // ---------- 共轭图纸 ----------
+
+  // 这副图纸现在能不能下单
+  A.canOrderConj = function (state, pairId) {
+    const pair = G.CONJ_BY_ID[pairId];
+    if (!pair) return { ok: false, why: "没有这副图纸" };
+    if ((state.maxRegion || 1) < (pair.region || 1)) {
+      return { ok: false, why: "还没走到这块地方，琢磨不出来" };
+    }
+    if (G.conjOwned(state, pairId)) return { ok: false, why: "这副图纸已经刻好了" };
+    if (state.atlas.craft) return { ok: false, why: "阿特拉斯手里还有一件没做完" };
+    const lack = Object.keys(pair.materials || {}).filter(
+      (mid) => (state.materials[mid] || 0) < pair.materials[mid]);
+    if (lack.length) {
+      const m = (G.MATERIALS || []).filter((x) => x.id === lack[0])[0];
+      return { ok: false, why: "材料不够，缺" + (m ? m.name : lack[0]) };
+    }
+    return { ok: true };
+  };
+
+  A.conjSecs = function (state, pair) {
+    return Math.max(4, pair.craftTime / (1 + G.bonuses(state).craftSpeed));
+  };
+
+  A.orderConj = function (state, pairId) {
+    const chk = A.canOrderConj(state, pairId);
+    if (!chk.ok) return chk;
+    const pair = G.CONJ_BY_ID[pairId];
+    Object.keys(pair.materials).forEach((mid) => {
+      state.materials[mid] -= pair.materials[mid];
+      if (state.materials[mid] <= 0) delete state.materials[mid];
+    });
+    const secs = A.conjSecs(state, pair);
+    state.atlas.craft = {
+      kind: "conj", pairId: pairId, until: G.now(state) + secs * 1000,
+      secs: secs, startedAt: G.now(state)
+    };
+    G.addLog(state, "阿特拉斯开始刻「" + pair.name + "」的图纸了（" + G.time(secs) + "）。", "atlas");
+    return { ok: true, secs: secs };
+  };
+
+  // 选边。同一个区域内定下来就不能改，搬家后可以重新选。
+  A.chooseConj = function (state, pairId, sideId) {
+    const pair = G.CONJ_BY_ID[pairId];
+    if (!pair) return { ok: false, why: "没有这副图纸" };
+    if (!G.conjOwned(state, pairId)) return { ok: false, why: "图纸还没刻好" };
+    const side = G.conjSide(pair, sideId);
+    if (!side) return { ok: false, why: "没有这一侧" };
+    if (!G.conjCanPick(state, pairId)) {
+      return { ok: false, why: "这一侧定下了，搬到新区域才能改" };
+    }
+    const before = state.conj[pairId];
+    state.conj[pairId] = { side: sideId, region: state.region };
+    G.clearBonusCache();
+    if (!before || before.side !== sideId) {
+      G.addLog(state, "「" + pair.name + "」定了：" + side.name + "。", "atlas");
+    }
+    return { ok: true, side: side };
   };
 
   // 阿特拉斯出门采购
@@ -436,9 +556,10 @@ window.G = window.G || {};
   // ---------- 加工 ----------
 
   A.eligibleBerries = function (state, recipe) {
-    if (recipe.needBerry) return (state.berries[recipe.needBerry] || 0) >= recipe.needCount
+    const need = G.craftNeedCount(state, recipe);
+    if (recipe.needBerry) return (state.berries[recipe.needBerry] || 0) >= need
       ? [G.BERRY_BY_ID[recipe.needBerry]] : [];
-    return G.BERRIES.filter((b) => (state.berries[b.id] || 0) >= recipe.needCount &&
+    return G.BERRIES.filter((b) => (state.berries[b.id] || 0) >= need &&
       b.flavor === recipe.needFlavor && b.tier >= (recipe.minTier || 1) &&
       b.region <= state.maxRegion);
   };
@@ -472,7 +593,9 @@ window.G = window.G || {};
     if (!state.recipes[recipeId]) return { ok: false, why: "还没学会这个配方" };
     if (recipe.needBerry && recipe.needBerry !== berryId) return { ok: false, why: "这个配方要的是别的树果" };
     if (recipe.needFlavor && berry.flavor !== recipe.needFlavor) return { ok: false, why: "口味不对" };
-    if ((state.berries[berryId] || 0) < recipe.needCount) return { ok: false, why: "树果不够" };
+    // 「精打细算」会让研发配方的投料变少，所有用到颗数的地方都走这个函数
+    const need = G.craftNeedCount(state, recipe);
+    if ((state.berries[berryId] || 0) < need) return { ok: false, why: "树果不够" };
     if (recipe.fromFind && (state.finds[recipe.fromFind] || 0) < (recipe.findCount || 1)) {
       const f = G.FIND_BY_ID[recipe.fromFind];
       return { ok: false, why: "缺素材：" + (f ? f.name : recipe.fromFind) };
@@ -482,7 +605,7 @@ window.G = window.G || {};
       state.finds[recipe.fromFind] -= (recipe.findCount || 1);
       if (state.finds[recipe.fromFind] <= 0) delete state.finds[recipe.fromFind];
     }
-    state.berries[berryId] -= recipe.needCount;
+    state.berries[berryId] -= need;
     if (state.berries[berryId] <= 0) delete state.berries[berryId];
     const b = G.bonuses(state);
     const secs = Math.max(1, recipe.time / (1 + b.craftSpeed));
@@ -499,18 +622,29 @@ window.G = window.G || {};
     return { ok: true, secs: secs };
   };
 
+  // 额外产出的概率：常规的 craftOutput 管所有配方；
+  // 「慢火细作」只给慢配方加码 —— 这正是它和「快手淬火」分开的意义：
+  // 一个抬所有配方的吞吐，一个只抬慢而精的那一类。
+  const SLOW_RECIPE_SECS = 60;
+  A.extraOutputChance = function (state, recipe) {
+    const b = G.bonuses(state);
+    let c = b.craftOutput || 0;
+    if (recipe && (recipe.time || 0) >= SLOW_RECIPE_SECS) c += b.slowOutput || 0;
+    return Math.min(0.85, c);
+  };
+
   function stepCraftQueue(state) {
     if (!state.craftQueue.length) return;
     const now = G.now(state);
-    const b = G.bonuses(state);
-    const extraChance = b.craftOutput || 0;
     for (let i = state.craftQueue.length - 1; i >= 0; i--) {
       const j = state.craftQueue[i];
       if (now < j.until) continue;
+      const recipe = G.RECIPE_BY_ID[j.recipeId];
+      const extraChance = A.extraOutputChance(state, recipe);
       let n = 1;
-      if (extraChance > 0 && Math.random() < Math.min(0.75, extraChance)) n++;
+      if (extraChance > 0 && Math.random() < extraChance) n++;
       state.products[j.key] = (state.products[j.key] || 0) + n;
-      A.noteMade(state, G.RECIPE_BY_ID[j.recipeId]);
+      A.noteMade(state, recipe);
       state.craftQueue.splice(i, 1);
       state.stats.lastCraft = { key: j.key, n: n, at: now };
     }
@@ -1026,6 +1160,10 @@ window.G = window.G || {};
   // 生成订单
   A.trySpawnOrders = function (state) {
     const now = G.now(state);
+    const b = G.bonuses(state);
+    // 「提供打包」让客人来得更勤（缩短冷却），赏金也更高
+    const cooldown = 70000 / (1 + (b.orderRate || 0));
+    const payMult = 1 + (b.orderPay || 0);
     A.regionRegulars(state.region).forEach((reg) => {
       const s = A.regState(state, reg.dex);
       if (!s.unlocked) return;
@@ -1034,7 +1172,7 @@ window.G = window.G || {};
       if (cur) delete state.orders[reg.dex];
       // 每位常客独立冷却
       const last = s.lastOrderAt || 0;
-      if (now - last < 70000) return;
+      if (now - last < cooldown) return;
       if (Math.random() > 0.02) return; // 每 tick 很小概率
       s.lastOrderAt = now;
       const count = 2 + Math.floor(Math.random() * 4) + Math.floor(s.aff / 2);
@@ -1046,7 +1184,7 @@ window.G = window.G || {};
         const r = recipes[recipes.length - 1];
         unit = G.productValue(r, berry);
       }
-      const reward = Math.floor(unit * count * 2.4 * (1 + s.aff * 0.15));
+      const reward = Math.floor(unit * count * 2.4 * (1 + s.aff * 0.15) * payMult);
       state.orders[reg.dex] = {
         flavor: flavor, count: count, reward: reward, expires: now + 10 * 60 * 1000
       };
@@ -1132,6 +1270,24 @@ window.G = window.G || {};
     return true;
   };
 
+  // ---------- 洗点 ----------
+  // 每个区域只能洗一次（搬到新区域后解锁）。退点按当初点的原价退，不扣手续费。
+  // 这一条和共轭图纸是同一个节奏：换一块新地方，重新想一遍这一轮该怎么走。
+  A.respecTalents = function (state) {
+    const chk = G.canRespecTalents(state);
+    if (!chk.ok) return chk;
+    const refund = G.talentSpentNow(state);
+    state.talentPoints += refund;
+    state.talents = {};
+    state.talentSpent = 0;
+    state.talentRespecAt = state.region;
+    G.clearBonusCache();
+    // 阡陌（多一块田）退掉之后田会变少 —— 先把空出来的裁掉，还长着东西的等收完再说
+    G.syncPlots(state);
+    G.addLog(state, "把天赋点全收回来了（" + refund + " 点），可以重新点一遍。", "good");
+    return { ok: true, refund: refund };
+  };
+
   // ---------- 移民（转世） ----------
 
   A.canMigrate = function (state) {
@@ -1143,10 +1299,14 @@ window.G = window.G || {};
     const base = nextRegion ? nextRegion.moveCost : region.moveCost;
     const cost = Math.round(base * (1 - Math.min(0.7, b.moveDiscount)));
     const allDone = prog.total > 0 && prog.done >= prog.total;
+    // 走到最后一个区域之后，所有移动都算巡游（不给天赋点）。
+    // 不堵这条的话：巡游回区域 5 → 重新解锁那 6 位 → 再"移民"到区域 6，
+    // 就能把天赋点反复刷出来。
+    const roaming = A.canRoam(state);
     return {
-      ok: allDone && state.money >= cost && !!nextRegion,
+      ok: allDone && state.money >= cost && !!nextRegion && !roaming,
       allDone: allDone, progress: prog, cost: cost,
-      moneyOk: state.money >= cost, hasNext: !!nextRegion,
+      moneyOk: state.money >= cost, hasNext: !!nextRegion, roaming: roaming,
       next: nextRegion || null
     };
   };
@@ -1174,20 +1334,34 @@ window.G = window.G || {};
     return true;
   };
 
-  A.migrate = function (state) {
-    const chk = A.canMigrate(state);
-    if (!chk.ok) return null;
+  // 阿特拉斯手里那件还没做完的活 —— 搬走之前把材料退回来。
+  // 不退的话，搬家刚好卡在一次制作中间，材料就白花了（他不会跟着搬走半成品）。
+  function refundAtlasCraft(state) {
+    const c = state.atlas.craft;
+    if (!c) return;
+    if (c.kind === "conj") {
+      const pair = G.CONJ_BY_ID[c.pairId];
+      if (pair) {
+        Object.keys(pair.materials || {}).forEach((mid) => {
+          state.materials[mid] = (state.materials[mid] || 0) + pair.materials[mid];
+        });
+      }
+    }
+    state.atlas.craft = null;
+  }
+
+  // 收拾行李进新区域：折现、清板、重置进度、给起步种子。
+  // 移民（往下一个区域）和巡游（回到走过的区域）共用这一段 —— 差别只在
+  // 天赋点、移民费、以及巡游要重置当地常客。
+  //
+  // 只折算树果和商品。料理素材 / 材料 这两样**不折、直接清掉**，因为它们
+  // 随时能用钱在杂货铺买到：
+  //   素材买价是卖价的 6 倍、材料是 2.6 倍，而迁移时钱基本全丢（keepMoney 初始 0）。
+  //   只要折算价 > 0，"临走前把钱全换成素材/材料"就是稳赚 —— 亏 5/6 也好过亏光。
+  //   所以这两样一律清零，买它们来"存钱"就是纯亏。
+  //   （树果也能买种子种，但那要等生长，属于正常经营，不算套利。）
+  function enterRegion(state, regionId) {
     const b = G.bonuses(state);
-    const tp = G.talentPointsFor(state.stats.revenueRegion);
-    // 走之前把没卖完的**收成**折成现钱一起带走。
-    // 否则搬到后面的区域时身上是 0 元、只有几颗最便宜的种子，根本爬不起来。
-    //
-    // 只折算树果和商品。料理素材 / 材料 这两样**不折、直接清掉**，因为它们
-    // 随时能用钱在杂货铺买到：
-    //   素材买价是卖价的 6 倍、材料是 2.6 倍，而迁移时钱基本全丢（keepMoney 初始 0）。
-    //   只要折算价 > 0，"临走前把钱全换成素材/材料"就是稳赚 —— 亏 5/6 也好过亏光。
-    //   所以这两样一律清零，买它们来"存钱"就是纯亏。
-    //   （树果也能买种子种，但那要等生长，属于正常经营，不算套利。）
     let liquidated = 0;
     Object.keys(state.berries).forEach((id) => {
       const berry = G.BERRY_BY_ID[id];
@@ -1200,14 +1374,9 @@ window.G = window.G || {};
       if (recipe && berry) liquidated += G.marketPrice(state, recipe, berry) * state.products[k];
     });
     liquidated = Math.floor(liquidated);
-    const keep = Math.floor(state.money * b.keepMoney) + liquidated;
-    state.talentPoints += tp;
-    state.stats.prestige++;
-    const from = G.regionOf(state).name;
-
-    state.money = keep;
-    state.region++;
-    state.maxRegion = Math.max(state.maxRegion, state.region);
+    state.money = Math.floor(state.money * b.keepMoney) + liquidated;
+    state.region = regionId;
+    state.maxRegion = Math.max(state.maxRegion, regionId);
     state.extraPlots = 0;
     state.seeds = {};
     state.berries = {};
@@ -1217,19 +1386,61 @@ window.G = window.G || {};
     state.waste = 0;
     state.craftQueue = [];
     state.orders = {};
-    state.atlas.craft = null;
+    refundAtlasCraft(state);
     state.stats.revenueRegion = 0;
     state.regionEnteredAt = G.now(state);
+    // 巡游重访的门槛只看"这次停留"的进度，所以要在这里打快照
+    A.markStayBase(state);
     // 顺序要紧：先把田清空，syncPlots 才能把多出来的地裁掉
     state.plots.forEach((p) => { p.berry = null; p.grown = 0; p.watered = 0; p.ripe = false; });
     G.syncPlots(state);
     // 新区域的起步种子：给 5 颗本区域中等偏上的树果，别给最便宜那种
-    const pool = G.BERRIES.filter((x) => x.region === state.region).sort((x, y) => x.basePrice - y.basePrice);
+    const pool = G.BERRIES.filter((x) => x.region === regionId).sort((x, y) => x.basePrice - y.basePrice);
     const starter = pool[Math.min(1, pool.length - 1)];
     if (starter) state.seeds[starter.id] = 5;
     G.clearBonusCache();
+    return liquidated;
+  }
+
+  A.migrate = function (state) {
+    const chk = A.canMigrate(state);
+    if (!chk.ok) return null;
+    const tp = G.talentPointsFor(state.stats.revenueRegion);
+    const from = G.regionOf(state).name;
+    state.talentPoints += tp;
+    state.stats.prestige++;
+    enterRegion(state, state.region + 1);
     G.addLog(state, "收拾好行李，从" + from + "搬到" + G.regionOf(state).name + "。天赋点 +" + tp + "。", "prestige");
     return { talentPoints: tp, region: state.region };
+  };
+
+  // ---------- 巡游（走到最后一个区域之后才开放） ----------
+
+  A.canRoam = function (state) {
+    return (state.maxRegion || 1) >= 10;
+  };
+
+  // 巡游到过的地方。不收钱、不要求常客全解锁 —— 这是"回去补图鉴"，不该被困住。
+  A.roam = function (state, regionId) {
+    if (!A.canRoam(state)) return null;
+    regionId = +regionId;
+    if (!G.REGION_BY_ID[regionId]) return null;
+    if (regionId > (state.maxRegion || 1)) return null;
+    if (regionId === state.region) return null;
+    const from = G.regionOf(state).name;
+    state.roam[regionId] = (state.roam[regionId] || 0) + 1;
+    state.stats.roams = (state.stats.roams || 0) + 1;
+    enterRegion(state, regionId);
+    // 当地常客重新上门：好感与图鉴记录留着，但"上门"这件事要重新办一次，
+    // 门槛按巡游档位放大，而且只算这次停留内的进度。
+    A.regionRegulars(regionId).forEach((reg) => {
+      A.regState(state, reg.dex).unlocked = false;
+    });
+    G.clearBonusCache();
+    G.addLog(state, "从" + from + "巡游回" + G.regionOf(state).name + "（第 " +
+      state.roam[regionId] + " 次）。当地常客门槛 ×" + A.roamScale(state, regionId).toFixed(1) +
+      "，得重新上门。", "prestige");
+    return { region: regionId, count: state.roam[regionId], scale: A.roamScale(state, regionId) };
   };
 
   // ---------- 时间推进 ----------
@@ -1402,6 +1613,8 @@ window.G = window.G || {};
     if (A.stepPot) A.stepPot(state);
     A.trySpawnOrders(state);
     A.checkUnlocks(state);
+    // 洗点退掉「阡陌」之后田会多出来。收完的自动裁掉；还长着东西的留着等这一茬。
+    if (state.plots.length > G.plotCount(state)) G.syncPlots(state);
 
     const earned = state.money - before;
     state.playTime += dt;

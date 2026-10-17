@@ -317,7 +317,7 @@ window.G = window.G || {};
     const elig = G.engine.eligibleBerries(S, recipe);
     const isAuto = S.autoRecipe === recipe.id;
     h += `<div class="card"><h4>${esc(recipe.name)}</h4>
-      <div class="sub">需要：${recipe.needBerry ? esc(G.BERRY_BY_ID[recipe.needBerry].zh) : "「" + recipe.needFlavor + "」味树果"} ×${recipe.needCount}
+      <div class="sub">需要：${recipe.needBerry ? esc(G.BERRY_BY_ID[recipe.needBerry].zh) : "「" + recipe.needFlavor + "」味树果"} ×${G.craftNeedCount(S, recipe)}
       ｜耗时 ${(recipe.time / (1 + G.bonuses(S).craftSpeed)).toFixed(1)}s
       ｜基础倍率 ×${recipe.mult}${recipe.specialty ? "（招牌商品）" : ""}</div>
       ${G.engine.autoUnlocked(S) ? `<div class="row2" style="margin-top:4px">
@@ -328,11 +328,11 @@ window.G = window.G || {};
     if (!elig.length) {
       const hint = G.engine.berryHint(S, recipe);
       if (hint.length) {
-        h += `<div class="sub" style="margin-top:6px">库存不够（要 ${recipe.needCount} 个）。能做这个配方的是这些，去${go("shop", "商店")}买种子种起来：</div>`;
+        h += `<div class="sub" style="margin-top:6px">库存不够（要 ${G.craftNeedCount(S, recipe)} 个）。能做这个配方的是这些，去${go("shop", "商店")}买种子种起来：</div>`;
         hint.slice(0, 6).forEach((b) => {
           h += `<div class="list-item"><img src="${b.icon}" alt="">
             <span class="grow flavor-${b.flavor}">${esc(b.zh)}</span>
-            <span class="sub">库存 ${int(S.berries[b.id])} / 需要 ${recipe.needCount}</span>
+            <span class="sub">库存 ${int(S.berries[b.id])} / 需要 ${G.craftNeedCount(S, recipe)}</span>
             <span class="sub">种子 ₽${G.fmt(G.seedPrice(S, b))}</span>
           </div>`;
         });
@@ -348,9 +348,9 @@ window.G = window.G || {};
     } else {
       elig.forEach((b) => {
         const val = G.productValue(recipe, b);
-        const cost = b.basePrice * recipe.needCount;
+        const cost = b.basePrice * G.craftNeedCount(S, recipe);
         h += `<div class="list-item"><img src="${b.icon}" alt="">
-          <span class="grow">用 ${esc(b.zh)} ×${recipe.needCount} <span class="sub">（库存 ${int(S.berries[b.id])}）</span></span>
+          <span class="grow">用 ${esc(b.zh)} ×${G.craftNeedCount(S, recipe)} <span class="sub">（库存 ${int(S.berries[b.id])}）</span></span>
           <span class="sub">原料值 ₽${G.fmt(cost)}</span>
           <span class="gold">→ ₽${G.fmt(val)}</span>
           <button class="small gold" data-act="craft" data-p='${attr({ r: recipe.id, b: b.id })}'>制作</button>
@@ -364,7 +364,7 @@ window.G = window.G || {};
       h += `<div class="card"><h4>可以学的配方</h4>`;
       locked.slice(0, 12).forEach((r) => {
         h += `<div class="list-item">
-          <span class="grow">${esc(r.name)} <span class="sub">倍率 ×${r.mult}　需要 ${r.needCount} 个${r.needFlavor ? r.needFlavor + "味树果" : "指定树果"}</span></span>
+          <span class="grow">${esc(r.name)} <span class="sub">倍率 ×${r.mult}　需要 ${G.craftNeedCount(S, r)} 个${r.needFlavor ? r.needFlavor + "味树果" : "指定树果"}</span></span>
           <span>${money(r.cost)}</span>
           <button class="small" data-act="buyRecipe" data-p='${attr({ r: r.id })}' ${S.money < r.cost ? "disabled" : ""}>学会</button>
         </div>`;
@@ -378,8 +378,12 @@ window.G = window.G || {};
 
   function renderRegulars() {
     const list = G.engine.regionRegulars(S.region);
+    const roamN = G.engine.roamCount(S, S.region);
     let h = `<div class="card"><h4>${esc(G.regionOf(S).name)} 的常客</h4>
-      <div class="sub">解锁全部 ${list.length} 位之后，就能付移民费搬到下一个区域。口味偏好来自性格。</div></div>`;
+      <div class="sub">解锁全部 ${list.length} 位之后，就能付移民费搬到下一个区域。口味偏好来自性格。</div>
+      ${roamN ? `<div class="sub" style="margin-top:4px;color:var(--gold)">这一带是巡游回来的第 ${roamN} 次：
+        常客要重新上门，门槛 ×${G.engine.roamScale(S, S.region).toFixed(1)}，
+        而且只算这次停留里新攒的进度（好感与图鉴都还留着）。</div>` : ""}</div>`;
 
     if (!list.length) return h + `<div class="sub">这一带还没有常客。</div>`;
 
@@ -403,20 +407,8 @@ window.G = window.G || {};
       const st = G.engine.regState(S, reg.dex);
       const unlock = st.unlocked;
       const order = S.orders[reg.dex];
-      const prog = (() => {
-        const u = reg.unlock || {};
-        const stt = S.stats;
-        const map = {
-          harvest: [stt.harvested, u.value, "累计收获树果"],
-          species: [Object.keys(S.dex).length, u.value, "见过的树果种类"],
-          crafted: [stt.crafted, u.value, "累计加工商品"],
-          craftTime: [stt.craftSeconds || 0, u.value, "累计加工时长"],
-          revenue: [stt.revenueRegion, u.value, "本区域累计收入"],
-          affinity: [Math.max(0, ...Object.keys(S.regulars).map((d) => S.regulars[d].aff || 0)), u.value, "最高好感等级"]
-        };
-        return map[u.type] || [0, u.value || 1, "未知条件"];
-      })();
-      const pctv = Math.min(1, prog[0] / prog[1]);
+      const prog = G.engine.unlockProgress(S, reg);
+      const pctv = Math.min(1, prog.cur / prog.need);
 
       h += `<div class="card"><div class="mon">
         <img class="portrait" src="assets/pmd/${String(reg.dex).padStart(4, "0")}_portrait.png" alt="" onerror="this.style.visibility='hidden'">
@@ -427,7 +419,7 @@ window.G = window.G || {};
             ｜好感 ${st.aff}/5</div>
           <div class="sub">${esc(reg.desc)}</div>
           ${unlock ? `<div class="sub" style="margin-top:4px">${esc(reg.lines.greet[st.aff % reg.lines.greet.length])}</div>`
-            : `<div class="sub" style="margin-top:4px">解锁条件：${esc(prog[2])} ${G.fmt(prog[0])} / ${G.fmt(prog[1])}</div>
+            : `<div class="sub" style="margin-top:4px">解锁条件：${esc(prog.label)} ${G.fmt(prog.cur)} / ${G.fmt(prog.need)}</div>
                <div class="bar-outer" style="margin-top:4px"><i style="width:${(pctv * 100).toFixed(0)}%"></i></div>`}
           ${order ? `<div class="sub" style="margin-top:4px;color:#9fd8ff">【订单】要 ${order.count} 份<b class="flavor-${order.flavor}">${order.flavor}</b>味的商品，
              赏金 ${money(order.reward)}，剩 ${G.clock((order.expires - G.now(S)) / 1000)}</div>
@@ -538,7 +530,7 @@ window.G = window.G || {};
     if (!locked.length) h += `<div class="sub">能买的都买了。</div>`;
     locked.forEach((r) => {
       h += `<div class="list-item">${G.productIcon(r)}
-        <span class="grow">${esc(r.name)} <span class="sub">需要 ${r.needCount} 个${r.needFlavor || "指定"}味 · ×${r.mult} · ${r.time}s</span></span>
+        <span class="grow">${esc(r.name)} <span class="sub">需要 ${G.craftNeedCount(S, r)} 个${r.needFlavor || "指定"}味 · ×${r.mult} · ${r.time}s</span></span>
         <span>${money(r.cost)}</span>
         <button class="small gold" data-act="buyRecipe" data-p='${attr({ r: r.id })}' ${S.money < r.cost ? "disabled" : ""}>学会</button>
       </div>`;
@@ -548,6 +540,66 @@ window.G = window.G || {};
   }
 
   // ---------------- 阿特拉斯 / 工坊 ----------------
+
+  // 一副共轭图纸：没刻出来就显示"让他刻"，刻出来了就并排放两张让你挑。
+  function conjCards(pair) {
+    const owned = G.conjOwned(S, pair.id);
+    const pick = (S.conj || {})[pair.id];
+    const canPick = G.conjCanPick(S, pair.id);
+    const making = S.atlas.craft && S.atlas.craft.kind === "conj" &&
+      S.atlas.craft.pairId === pair.id ? S.atlas.craft : null;
+    const pickedName = pick ? ((G.conjSide(pair, pick.side) || {}).name || "") : "";
+    let h = `<div class="card" style="background:var(--panel)" id="conj-${esc(pair.id)}">
+      <div class="row2"><span class="grow"><b>${esc(pair.name)}</b>
+        <span class="tag">区域 ${pair.region}</span>
+        ${pick ? `<span class="tag" style="color:var(--gold)">已定：${esc(pickedName)}</span>` : ""}
+        </span></div>
+      <div class="sub" style="margin-top:2px">${esc(pair.theme || "")}</div>`;
+
+    if (!owned) {
+      const chk = G.engine.canOrderConj(S, pair.id);
+      const cost = Object.keys(pair.materials || {}).map((mid) => {
+        const m = (G.MATERIALS || []).filter((x) => x.id === mid)[0];
+        const has = S.materials[mid] || 0;
+        const need = pair.materials[mid];
+        return `<span style="color:${has >= need ? "var(--green)" : "var(--red)"}">${esc(m ? m.name : mid)} ${has}/${need}</span>`;
+      }).join("　");
+      if (making) {
+        const left = Math.max(0, (making.until - G.now(S)) / 1000);
+        const total = making.secs || pair.craftTime;
+        const done = Math.max(0, Math.min(100, ((total - left) / total) * 100));
+        h += `<div class="bar-outer" style="margin-top:6px"><i style="width:${done.toFixed(1)}%"></i></div>
+          <div class="sub" style="margin-top:2px">正在刻：${done.toFixed(0)}%　还有 ${G.clock(left)}</div>`;
+      } else {
+        h += `<div class="sub" style="margin-top:4px">材料：${cost}　耗时 ${G.time(G.engine.conjSecs(S, pair))}</div>
+          <div class="row2" style="margin-top:4px">
+            <button class="small gold" data-act="conjOrder" data-p='${attr({ p: pair.id })}'
+              ${chk.ok ? "" : "disabled"}>让他刻一副</button>
+            ${chk.ok ? "" : `<span class="sub">${esc(chk.why)}</span>`}
+          </div>`;
+      }
+      return h + `</div>`;
+    }
+
+    // 刻好了：两张并排
+    h += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:8px;margin-top:6px">`;
+    (pair.sides || []).forEach((side) => {
+      const on = !!(pick && pick.side === side.id);
+      const sealed = !!pick && !on;
+      h += `<div class="card" style="background:var(--bg);${on ? "outline:2px solid var(--gold);outline-offset:-2px" : ""}${sealed ? ";opacity:.62" : ""}">
+        <div class="row2"><span class="grow"><b>${esc(side.name)}</b> <span class="tag">${esc(side.tag || "")}</span></span>
+          ${on ? `<span class="tag" style="color:var(--gold)">在手</span>` : (sealed ? `<span class="tag">封存</span>` : "")}</div>
+        <div class="sub" style="margin-top:4px">${esc(side.desc || "")}</div>
+        <div class="sub" style="color:#ffc98a;margin-top:4px">阿特拉斯说：${esc(side.atlas || "")}</div>
+        <div class="row2" style="margin-top:6px">
+          <button class="small ${on ? "picked" : "gold"}" data-act="conjPick" data-p='${attr({ p: pair.id, s: side.id })}'
+            ${(on || !canPick) ? "disabled" : ""}>${on ? "就是这一张" : "选这一张"}</button>
+        </div></div>`;
+    });
+    h += `</div>`;
+    if (!canPick) h += `<div class="sub" style="margin-top:4px">这一轮定下了，搬到新地方之后可以重新挑。</div>`;
+    return h + `</div>`;
+  }
 
   function renderAtlas() {
     const cap = G.ATLAS_LINES || {};
@@ -613,7 +665,15 @@ window.G = window.G || {};
     // 正在制作
     const craft = S.atlas.craft;
     h += `<div class="card"><h4>制作间</h4>`;
-    if (craft) {
+    if (craft && craft.kind === "conj") {
+      const pair = G.CONJ_BY_ID[craft.pairId];
+      const left = Math.max(0, (craft.until - G.now(S)) / 1000);
+      const total = craft.secs || (pair ? pair.craftTime : 60);
+      const done = Math.max(0, Math.min(100, ((total - left) / total) * 100));
+      h += `<div class="sub">正在刻「${esc(pair ? pair.name : craft.pairId)}」的图纸：两张一起刻，刻好了你挑一张。</div>
+        <div class="bar-outer" style="margin-top:4px"><i style="width:${done.toFixed(1)}%"></i></div>
+        <div class="sub" style="margin-top:2px">${done.toFixed(0)}%　还有 ${G.clock(left)}</div>`;
+    } else if (craft) {
       const it = (G.ITEMS || []).filter((x) => x.id === craft.itemId)[0];
       const left = Math.max(0, (craft.until - G.now(S)) / 1000);
       const total = craft.secs || (it ? it.craftTime : 60);
@@ -626,6 +686,17 @@ window.G = window.G || {};
       h += `<div class="sub">他闲着。选一件道具让他做。</div>`;
     }
     h += `</div>`;
+
+    // 共轭图纸：一副图纸两张，只能挑一张
+    const conjVisible = (G.CONJ || []).filter((p) => (p.region || 1) <= (S.maxRegion || 1));
+    if (conjVisible.length) {
+      const own = conjVisible.filter((p) => G.conjOwned(S, p.id)).length;
+      h += `<div class="card"><h4>共轭图纸（${own}/${G.CONJ.length}）</h4>
+        <div class="sub">同一块板子上刻着两张图纸，他只肯照一张做出来。定下的那一侧在同一个区域内不能改，
+        搬到新地方之后可以重新挑 —— 换一块地，重新想一遍这一轮要往哪儿走。</div>`;
+      conjVisible.forEach((pair) => { h += conjCards(pair); });
+      h += `</div>`;
+    }
 
     // 道具列表
     h += `<div class="card"><h4>道具（${G.engine.ownedItems(S).length}/${(G.ITEMS || []).length}）</h4>`;
@@ -688,6 +759,7 @@ window.G = window.G || {};
     const region = G.regionOf(S);
     const chk = G.engine.canMigrate(S);
     const tp = G.talentPointsFor(S.stats.revenueRegion);
+    const rc = G.canRespecTalents(S);
     let h = `<div class="card"><h4>移民（转世）</h4>
       <div class="sub">在 ${esc(region.name)} 的常客全部解锁后，付一笔移民费就能搬到下一个区域。
       离开会清空宝可元和库存，但天赋、配方、道具、图鉴、常客好感都会留下。</div>
@@ -697,11 +769,41 @@ window.G = window.G || {};
         <button class="gold" data-act="migrate" ${chk.ok ? "" : "disabled"}>
           ${chk.hasNext ? "搬到「" + esc(chk.next.name) + "」" : "已经是最后一片田了"}
         </button>
-        ${chk.ok ? "" : `<span class="sub">${!chk.allDone ? "常客还没全解锁。" : !chk.moneyOk ? "钱还不够。" : ""}</span>`}
+        ${chk.ok ? "" : `<span class="sub">${chk.roaming ? "十片地方都走过了，往后走的是巡游（在下面那张卡里挑地方）。"
+          : !chk.allDone ? "常客还没全解锁。" : !chk.moneyOk ? "钱还不够。" : ""}</span>`}
       </div></div>`;
 
     h += `<div class="card"><h4>天赋点：${S.talentPoints}</h4>
-      <div class="sub">已经花掉 ${S.talentSpent} 点。天赋永久生效，移民不会清空。</div></div>`;
+      <div class="sub">已经投下去 ${G.talentSpentNow(S)} 点。天赋永久生效，移民不会清空。</div>
+      <div class="sub" style="margin-top:2px">每换一个新区域可以洗一次点：把点原价全收回来，重新分配。</div>
+      <div class="row2" style="margin-top:6px">
+        <button data-act="respecTalents" ${rc.ok ? "" : "disabled"}>
+          洗点重来（退回 ${G.talentSpentNow(S)} 点）</button>
+        ${rc.ok ? "" : `<span class="sub">${esc(rc.why)}</span>`}
+      </div></div>`;
+
+    // 巡游：把整片大陆走完之后才出现
+    if (G.engine.canRoam(S)) {
+      h += `<div class="card"><h4>巡游</h4>
+        <div class="sub">十片地方都走遍了，往后想去哪儿就去哪儿 —— 补树果图鉴、补制品图鉴都方便。
+        回去之后当地常客会重新上门，门槛按你现在的分量放大，而且只算这次停留里的进度；
+        好感与图鉴记录都留着。<b>巡游不给天赋点</b>，也不收路费，随时可以再走。</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(206px,1fr));gap:6px;margin-top:6px">`;
+      G.REGIONS.forEach((r) => {
+        const n = G.engine.roamCount(S, r.id);
+        const cur = r.id === S.region;
+        const avail = !cur && r.id <= (S.maxRegion || 1);
+        h += `<div class="card" style="background:var(--panel)">
+          <div class="row2"><span class="grow"><b>${esc(r.name)}</b>
+            ${cur ? `<span class="tag">现在在这儿</span>` : ""}</span></div>
+          <div class="sub">${n ? "巡游回来过 " + n + " 次，当地门槛 ×" + G.engine.roamScale(S, r.id).toFixed(1)
+            : "还没巡游回来过"}</div>
+          <button class="small" data-act="roam" data-p='${attr({ r: r.id })}'
+            ${avail ? "" : "disabled"}>${cur ? "就在这儿" : "巡游过去"}</button>
+        </div>`;
+      });
+      h += `</div></div>`;
+    }
 
     h += `<div class="talent-grid">`;
     G.TALENTS.forEach((t) => {
@@ -813,6 +915,14 @@ window.G = window.G || {};
         <li><b>配方</b>：出锅之后可以选「记下做法」，记下来就能在${go("kitchen", "加工")}台批量做；
           不想要了也能在研发页的配方本里划掉。锅本身也能花钱换，格子更多、搅拌更快。</li>
         <li><b>移民</b>：把一片区域的常客全部解锁，付移民费搬走，拿天赋点。天赋永久生效。</li>
+        <li><b>洗点</b>：${go("talents", "天赋")}页每换一个新区域可以洗一次点，把点原价全收回来重新分配。</li>
+        <li><b>共轭图纸</b>：${go("atlas", "阿特拉斯")}页上他一次只肯刻一副图纸——两块板子摆在一起，
+          两张图纸里挑一张，另一张他封存起来。选的那一侧在同一个区域内不能改，
+          <b>搬到新地方之后可以重新挑</b>。一侧偏「宽」（果子多、做得多、卖得快），
+          一侧偏「精」（单件更值钱、更省果子、慢配方更强）。</li>
+        <li><b>巡游</b>：走遍十片地方之后，可以随便回到哪个区域去补图鉴。回去之后当地常客会重新上门，
+          门槛按你现在的分量放大，而且只算这次停留里新攒的进度；好感与图鉴记录都留着。
+          巡游不给天赋点，也不收路费。</li>
       </ol>
       <div class="sub">快捷键：W 全部浇水、H 全部收获、空格 叫卖。进度自动保存在浏览器里，关掉页面也在跑（默认最多结算 4 小时）。</div>
       </div>
@@ -1661,6 +1771,35 @@ window.G = window.G || {};
     buyTalent: (p) => {
       if (G.engine.buyTalent(S, p.id)) UI.toast("天赋提升了");
       else UI.toast("天赋点不够");
+    },
+    respecTalents: () => {
+      const r = G.engine.respecTalents(S);
+      if (!r.ok) { UI.toast(r.why); return; }
+      UI.toast("收回 " + r.refund + " 点，重新点一遍吧");
+      UI.forceRender();
+    },
+    conjOrder: (p) => {
+      const r = G.engine.orderConj(S, p.p);
+      if (!r.ok) { UI.toast(r.why); return; }
+      UI.toast("他开始刻图纸了（" + G.time(r.secs) + "）");
+      UI.forceRender();
+    },
+    conjPick: (p) => {
+      const r = G.engine.chooseConj(S, p.p, p.s);
+      if (!r.ok) { UI.toast(r.why); return; }
+      const l = (G.ATLAS_LINES && G.ATLAS_LINES.craft_done) || [];
+      if (l.length) UI.bubble(l[Math.floor(Math.random() * l.length)]);
+      UI.toast("「" + r.side.name + "」定了");
+      UI.forceRender();
+    },
+    roam: (p) => {
+      const r = G.engine.roam(S, p.r);
+      if (!r) { UI.toast("现在还不能去那儿"); return; }
+      UI.flash();
+      const l = (G.ATLAS_LINES && G.ATLAS_LINES.prestige) || [];
+      if (l.length) UI.bubble(l[Math.floor(Math.random() * l.length)]);
+      UI.toast("巡游到「" + G.regionOf(S).name + "」。当地门槛 ×" + r.scale.toFixed(1));
+      UI.forceRender();
     },
     migrate: () => {
       const r = G.engine.migrate(S);

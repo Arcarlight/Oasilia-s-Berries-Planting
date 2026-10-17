@@ -3,7 +3,9 @@ window.G = window.G || {};
 (function () {
   const MOD_KEYS = ["clickWater", "clickSell", "growSpeed", "yieldAdd", "sellBonus",
     "affinity", "offlineBonus", "offlineCap", "craftSpeed", "craftOutput",
-    "idleRate", "helperSlot", "seedDiscount", "allBonus"];
+    "idleRate", "helperSlot", "seedDiscount", "allBonus",
+    // 共轭图纸用的（道具图纸暂时没用到，但走同一套汇总，将来能直接用）
+    "regularPay", "orderRate", "orderPay", "slowOutput", "berrySave"];
 
   const ALIAS = {
     sell: "sellBonus", offline: "offline", all: "allBonus", click: "clickSell"
@@ -17,7 +19,18 @@ window.G = window.G || {};
   function keyOf(state) {
     // 只把影响加成的部分编进 key
     return state.region + "|" + JSON.stringify(state.items) + "|" +
-      JSON.stringify(state.talents) + "|" + Object.keys(state.regulars).length;
+      JSON.stringify(state.talents) + "|" + Object.keys(state.regulars).length + "|" +
+      JSON.stringify(state.conj || {});
+  }
+
+  // 一份 mod 表累加进 b。道具（阿特拉斯的图纸）和共轭图纸走的是同一条路。
+  function applyMods(b, mod) {
+    if (!mod) return;
+    Object.keys(mod).forEach((mk) => {
+      const target = MOD_KEYS.indexOf(mk) >= 0 ? mk : (ALIAS[mk] || null);
+      if (!target) return;
+      b[target] += mod[mk];
+    });
   }
 
   G.bonuses = function (state) {
@@ -29,6 +42,7 @@ window.G = window.G || {};
       click: 0, clickWater: 0, clickSell: 0, growSpeed: 0, yieldAdd: 0, sellBonus: 0,
       affinity: 0, offline: 0, offlineCap: 0, craftSpeed: 0, craftOutput: 0,
       idleRate: 0, helperSlot: 0, seedDiscount: 0, allBonus: 0,
+      regularPay: 0, orderRate: 0, orderPay: 0, slowOutput: 0, berrySave: 0,
       moveDiscount: 0, keepMoney: 0, plots: 0, rareSeed: 0, flavorSell: null, flavorBonus: 0
     };
 
@@ -51,13 +65,11 @@ window.G = window.G || {};
       const lv = state.items[it.id] || 0;
       if (!lv) continue;
       const eff = it.effects[Math.min(lv, it.effects.length) - 1];
-      if (!eff || !eff.mod) continue;
-      Object.keys(eff.mod).forEach((mk) => {
-        const target = MOD_KEYS.indexOf(mk) >= 0 ? mk : (ALIAS[mk] || null);
-        if (!target) return;
-        b[target] += eff.mod[mk];
-      });
+      if (eff) applyMods(b, eff.mod);
     }
+
+    // 共轭图纸：每个区域定下的一侧生效
+    if (G.conjActive) G.conjActive(state).forEach((a) => applyMods(b, a.side.mods));
 
     // 天赋
     (G.TALENTS || []).forEach((t) => {
@@ -144,8 +156,22 @@ window.G = window.G || {};
     if (regular) {
       v *= G.flavorMult(recipe.flavor, regular, G.flavorIntensity(recipe, berry));
       v *= G.affinityMult(regular.aff);
+      // 店内装潢：坐下来的人肯多付（只对常客，市场出货不算）
+      v *= 1 + (b.regularPay || 0);
     }
     return Math.max(1, Math.floor(v));
+  };
+
+  // 一份配方实际要几颗树果。
+  // 「精打细算」只对**研发出来的**配方生效 —— 那是他自己一页页核过的配方本；
+  // 商店买来的老配方他没动，所以不吃这个减免。
+  G.craftNeedCount = function (state, recipe) {
+    if (!recipe) return 0;
+    const base = recipe.needCount || 0;
+    if (!recipe.research) return base;
+    const save = G.bonuses(state).berrySave || 0;
+    if (!save) return base;
+    return Math.max(2, Math.round(base * (1 - Math.min(0.6, save))));
   };
 
   // 市场直接出货：略低于交给常客，但没有门槛

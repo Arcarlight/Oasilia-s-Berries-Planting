@@ -716,6 +716,102 @@
     }
 
 
+    // #check=conj：共轭图纸下单 → 刻好 → 选边 → 加成生效 → 同区不能改 → 换区能改
+    if (p.check === "conj") {
+      const out = [];
+      try {
+        const pair = G.CONJ[0];
+        const eng = G.engine;
+        // 补够材料
+        Object.keys(pair.materials).forEach((mid) => { S.materials[mid] = pair.materials[mid] + 1; });
+        G.clearBonusCache();
+        const base = G.bonuses(S);
+        out.push("起始加成：产量+" + base.yieldAdd + "　售价+" + base.sellBonus);
+        const o = eng.orderConj(S, pair.id);
+        out.push("下单：" + (o.ok ? "成功（" + o.secs.toFixed(0) + "s）" : "失败 " + o.why));
+        out.push("制作间是共轭：" + (S.atlas.craft && S.atlas.craft.kind === "conj" ? "是" : "否"));
+        // 快进到刻完
+        G.advance(S, (S.atlas.craft ? (S.atlas.craft.until - G.now(S)) / 1000 : 0) + 2);
+        out.push("刻好了：" + (G.conjOwned(S, pair.id) ? "是" : "否"));
+        const a = pair.sides[0], b2 = pair.sides[1];
+        out.push("选 A「" + a.name + "」：" + (eng.chooseConj(S, pair.id, a.id).ok ? "成功" : "失败"));
+        const bb = G.bonuses(S);
+        out.push("  加成 产量+" + bb.yieldAdd + "　售价+" + bb.sellBonus);
+        const again = eng.chooseConj(S, pair.id, b2.id);
+        out.push("同一区域改选：" + (again.ok ? "竟然成功了 ✗" : "被拦住 ✓（" + again.why + "）"));
+        // 搬一个区域（直接改 region 模拟换地方）
+        S.region = Math.min(10, S.region + 1);
+        G.clearBonusCache();
+        const mv = eng.chooseConj(S, pair.id, b2.id);
+        out.push("换区域后改选：" + (mv.ok ? "成功 ✓" : "失败 ✗ " + mv.why));
+        const cc = G.bonuses(S);
+        out.push("  加成 产量+" + cc.yieldAdd + "　售价+" + cc.sellBonus);
+        // 界面真的渲染出两张图纸 / 选择按钮
+        G.UI.tab = "atlas";
+        G.UI.forceRender();
+        out.push("阿特拉斯页里「共轭图纸」区块：" +
+          (document.querySelector("#conj-" + pair.id) ? "有 ✓" : "没有 ✗"));
+        out.push("  选边按钮：" + document.querySelectorAll("[data-act='conjPick']").length + " 个");
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "conjcheck";
+      pre.textContent = "CONJCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
+    // #check=roam：走遍全图后自由巡游 —— 常客重新上门、门槛按强度放大、只算本次停留
+    if (p.check === "roam") {
+      const out = [];
+      try {
+        const eng = G.engine;
+        S.maxRegion = 10;
+        S.region = 10;
+        G.syncPlots(S);
+        out.push("能巡游：" + (eng.canRoam(S) ? "是 ✓" : "否 ✗"));
+        // 把累计数据堆到很大 —— 巡游时这些不该管用
+        S.stats.harvested = 5e6;
+        const r = eng.roam(S, 1);
+        out.push("巡游到区域 1：" + (r ? "成功 ✓（第 " + r.count + " 次，门槛 ×" + r.scale.toFixed(1) + "）" : "失败 ✗"));
+        out.push("  当前区域：" + S.region + "　巡游表：" + JSON.stringify(S.roam));
+        const regs = eng.regionRegulars(1);
+        const locked = regs.filter((rg) => !eng.regState(S, rg.dex).unlocked).length;
+        out.push("  区域 1 常客重新上门（未解锁数）：" + locked + "/" + regs.length +
+          (locked === regs.length ? " ✓" : " ✗"));
+        // 找一位按 harvest 解锁的：区域 1 第一位要 100 次收获
+        const rg2 = regs.filter((x) => x.unlock && x.unlock.type === "harvest")[0];
+        if (rg2) {
+          const need = Math.round(rg2.unlock.value * r.scale);
+          S.stats.harvested = 5e6;                       // 累计很大
+          out.push("  累计收获 500 万、本次停留 0：" +
+            (eng.unlockDone(S, rg2) ? "解锁了 ✗（吃了累计数据）" : "还没解锁 ✓"));
+          S.stats.harvested = (S.stayBase ? S.stayBase.harvested : 0) + need - 1;
+          out.push("  本次停留差 1 次（要 " + need + "）：" +
+            (eng.unlockDone(S, rg2) ? "解锁了 ✗" : "还没解锁 ✓"));
+          S.stats.harvested = (S.stayBase ? S.stayBase.harvested : 0) + need;
+          out.push("  本次停留刚好够：" + (eng.unlockDone(S, rg2) ? "解锁了 ✓" : "还没解锁 ✗"));
+        } else out.push("  （区域 1 没有 harvest 门槛的常客，跳过）");
+        // 天赋洗点：同一个区域只能洗一次
+        S.talentPoints = 50;
+        eng.buyTalent(S, "price");
+        const sp1 = eng.respecTalents(S);
+        out.push("洗点：" + (sp1.ok ? "成功 ✓ 退回 " + sp1.refund + " 点" : "失败 ✗ " + sp1.why));
+        out.push("  洗完之后等级：" + JSON.stringify(S.talents) + "　点数：" + S.talentPoints);
+        // 再点一次，这样才验的是"同区不能洗第二次"，而不是"没点可洗"
+        eng.buyTalent(S, "price");
+        const sp2 = eng.respecTalents(S);
+        out.push("同一区域再洗一次：" + (sp2.ok ? "竟然成功了 ✗" : "被拦住 ✓（" + sp2.why + "）"));
+        G.UI.tab = "talents";
+        G.UI.forceRender();
+        out.push("天赋页有巡游区块：" + (document.querySelector("[data-act='roam']") ? "有 ✓" : "没有 ✗"));
+        out.push("  巡游按钮：" + document.querySelectorAll("[data-act='roam']").length + " 个");
+        out.push("  洗点按钮：" + document.querySelectorAll("[data-act='respecTalents']").length + " 个");
+      } catch (err) { out.push("抛异常了：" + (err && err.message)); }
+      const pre = document.createElement("pre");
+      pre.id = "roamcheck";
+      pre.textContent = "ROAMCHECK\n  " + out.join("\n  ");
+      document.body.appendChild(pre);
+    }
+
     document.title = "READY 区域" + S.region + " 钱" + G.fmt(S.money) +
       " 常客" + Object.keys(S.regulars).filter((d) => S.regulars[d].unlocked).length;
     const flag = document.createElement("div");

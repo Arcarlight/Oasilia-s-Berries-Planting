@@ -104,9 +104,16 @@ window.G = window.G || {};
     merged.atlas.report = (s.atlas && s.atlas.report) || null;
     merged.settings = Object.assign({}, base.settings, s.settings || {});
     ["seeds", "berries", "products", "materials", "finds", "items", "recipes",
-      "regulars", "talents", "dex", "madeProducts", "orders"].forEach((k) => {
+      "regulars", "talents", "dex", "madeProducts", "orders",
+      // 共轭图纸 / 巡游：老档没有这些，补成空表就行（等于一副图纸都还没刻）
+      "conj", "conjOwned", "roam"].forEach((k) => {
       merged[k] = Object.assign({}, s[k] || {});
     });
+    merged.talentRespecAt = s.talentRespecAt || 0;
+    merged.stayBase = (s.stayBase && typeof s.stayBase.harvested === "number")
+      ? { harvested: s.stayBase.harvested, craftSeconds: s.stayBase.craftSeconds || 0 }
+      : { harvested: (merged.stats && merged.stats.harvested) || 0,
+          craftSeconds: (merged.stats && merged.stats.craftSeconds) || 0 };
     merged.extraPlots = s.extraPlots || 0;
     merged.helpers = Array.isArray(s.helpers) ? s.helpers : [];
     merged.craftQueue = Array.isArray(s.craftQueue) ? s.craftQueue : [];

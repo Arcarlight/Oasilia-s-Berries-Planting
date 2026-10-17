@@ -174,6 +174,12 @@ python3 tools/make_dev.py
 
 # 设置面板：存档槽位存/读/删、导出、二次确认、版本号、更新日志
 --dump-dom "file://$PWD/dev.html#hours=2&check=settings"
+
+# 共轭图纸：下单 → 刻好 → 选边 → 加成生效 → 同区不能改 → 换区能改
+--dump-dom "file://$PWD/dev.html#hours=0&check=conj"
+
+# 巡游：常客重新上门、门槛只算本次停留、同区不能洗两次点
+--dump-dom "file://$PWD/dev.html#hours=0.5&check=roam"
 ```
 
 ### 界面动作静态检查
@@ -209,8 +215,18 @@ GitHub Pages 对静态文件发的是 `cache-control: max-age=600`。不换版�
   --dump-dom "file://$PWD/tools/simtest.html"
 ```
 
-`tools/simtest.html` 会跑单元测试（种收卖、加工、存档往返、离线结算、数据一致性）
-再用一个机器人把整局玩一遍，打印每个区域的停留时间。改动数值后请务必重跑。
+`tools/simtest.html` 会跑单元测试（种收卖、加工、存档往返、离线结算、数据一致性、
+共轭、巡游、洗点）再用一个机器人把整局玩一遍，打印每个区域的停留时间。改动数值后请务必重跑。
+
+机器人支持 `#conj=a|b` 跑两套极端（全部选左 / 全部选右），用来做共轭两侧的平衡对照：
+
+```bash
+--dump-dom "file://$PWD/tools/simtest.html#conj=a"
+--dump-dom "file://$PWD/tools/simtest.html#conj=b"
+```
+
+**这类数值别只跑一遍。** 单次结果里"到区域 10 的时间"能差出 4 小时，是随机路径造成的；
+只看一遍会得出错误结论（0.12.0 就是这么差点漏掉「右侧有 4 小时长尾」这个真问题的）。
 
 ## 部署
 

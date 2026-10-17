@@ -29,4 +29,24 @@ window.G = window.G || {};
     if (regionRevenue < 2000) return 0;
     return Math.max(1, Math.floor(2 + 1.6 * Math.log10(1 + regionRevenue / 1000)));
   };
+
+  // 已经点下去的等级一共花了多少点（洗点时原样退回）
+  G.talentSpentNow = function (state) {
+    let sum = 0;
+    (G.TALENTS || []).forEach((t) => {
+      const lv = (state && state.talents && state.talents[t.id]) || 0;
+      for (let i = 0; i < lv; i++) sum += G.talentCost(t, i);
+    });
+    return sum;
+  };
+
+  // 洗点：每个区域只能洗一次（搬到新区域后解锁）。
+  // 返回 { ok, why } —— 真正动 state 的在 engine.A.respecTalents 里。
+  G.canRespecTalents = function (state) {
+    if (!G.talentSpentNow(state)) return { ok: false, why: "现在还没有点下去的天赋点" };
+    if ((state.talentRespecAt || 0) === state.region) {
+      return { ok: false, why: "这个区域已经洗过一次了，搬到新区域才能再洗" };
+    }
+    return { ok: true };
+  };
 })();
